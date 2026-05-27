@@ -55,6 +55,7 @@ LOCAL_APPS = [
     "apps.audit",
     "apps.cases",
     "apps.cea",
+    "apps.bia",
     # Sprint 3+: apps.intake
     # Sprint 4+: apps.cea
     # Sprint 5+: apps.bia
