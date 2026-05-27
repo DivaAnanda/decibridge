@@ -1,0 +1,105 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decibridge-backend"
+version = "0.1.0"
+description = "DeciBridge — KFT hospital formulary decision support (backend)"
+requires-python = ">=3.11"
+
+dependencies = [
+    "Django>=5.2,<6.0",
+    "djangorestframework>=3.15",
+    "djangorestframework-simplejwt>=5.3",
+    "django-cors-headers>=4.4",
+    "django-environ>=0.11",
+    "django-filter>=24.3",
+    "drf-spectacular>=0.27",
+    "psycopg[binary]>=3.2",
+    "celery[redis]>=5.4",
+    "django-celery-beat>=2.7",
+    "django-celery-results>=2.5",
+    "django-simple-history>=3.7",
+    "django-crum>=0.7",
+    "gunicorn>=23.0",
+    "whitenoise>=6.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "pytest-cov>=5.0",
+    "factory-boy>=3.3",
+    "ruff>=0.7",
+    "black>=24.10",
+    "mypy>=1.13",
+    "django-stubs[compatible-mypy]>=5.1",
+    "djangorestframework-stubs[compatible-mypy]>=3.15",
+    "ipython>=8.29",
+]
+
+# Sprint-3+ adds: openpyxl, pandas, python-docx, django-guardian,
+# django-simple-history, weasyprint. Held back to keep Sprint 0 install lean.
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["decibridge*", "apps*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ", "S", "N", "C4", "SIM", "RUF"]
+ignore = [
+    "S101",
+    "DJ001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106"]
+"**/test_*.py" = ["S105", "S106"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = "migrations"
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = false
+exclude = ["migrations/", "build/", "dist/"]
+
+[tool.django-stubs]
+django_settings_module = "decibridge.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "decibridge.settings"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+addopts = "-ra --strict-markers --cov=apps --cov=decibridge --cov-report=term-missing"
+testpaths = ["tests", "apps"]
+
+[tool.coverage.run]
+source = ["apps", "decibridge"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "decibridge/asgi.py",
+    "decibridge/wsgi.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

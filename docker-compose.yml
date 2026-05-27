@@ -1,0 +1,128 @@
+# Docker Compose for DeciBridge dev environment.
+#
+# Use this when you want full reproducibility or when Laragon services aren't running.
+# Native-Laragon developers can skip this entirely — see README "Local dev (Laragon)".
+#
+# Quickstart:
+#   cp .env.example .env
+#   docker compose up -d db redis
+#   docker compose up backend frontend
+#
+# Services:
+#   db        PostgreSQL 16  → localhost:5432
+#   redis     Redis 7        → localhost:6379
+#   backend   Django + DRF   → http://localhost:8000
+#   worker    Celery worker
+#   beat      Celery beat scheduler
+#   frontend  Vite/React     → http://localhost:5173
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: decibridge-db
+    environment:
+      POSTGRES_DB: decibridge
+      POSTGRES_USER: decibridge
+      POSTGRES_PASSWORD: decibridge
+    ports:
+      - "5433:5432"  # Host 5433 → container 5432, avoids conflict with any native Postgres on 5432
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U decibridge -d decibridge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: decibridge-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: decibridge-backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DATABASE_URL: postgres://decibridge:decibridge@db:5432/decibridge
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      DJANGO_SECRET_KEY: dev-only-secret-replace-in-prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend-media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: decibridge-worker
+    command: celery -A decibridge worker --loglevel=info
+    environment:
+      DATABASE_URL: postgres://decibridge:decibridge@db:5432/decibridge
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      DJANGO_SECRET_KEY: dev-only-secret-replace-in-prod
+    volumes:
+      - ./backend:/app
+      - backend-media:/app/media
+    depends_on:
+      - backend
+      - redis
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: decibridge-beat
+    command: celery -A decibridge beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DATABASE_URL: postgres://decibridge:decibridge@db:5432/decibridge
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      DJANGO_SECRET_KEY: dev-only-secret-replace-in-prod
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    image: node:20-alpine
+    container_name: decibridge-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+  backend-media:
+  frontend-node-modules:

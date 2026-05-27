@@ -1,0 +1,13 @@
+.env
+.env.local
+.env.*.local
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Compose-managed volumes (if mounted to host)
+postgres-data/
+redis-data/
