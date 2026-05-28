@@ -15,6 +15,7 @@ api_v1_patterns = [
     path("", include("apps.cases.urls")),
     path("", include("apps.cea.urls")),
     path("", include("apps.bia.urls")),
+    path("", include("apps.etd.urls")),
 ]
 
 urlpatterns = [

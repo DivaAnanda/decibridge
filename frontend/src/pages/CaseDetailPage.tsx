@@ -28,6 +28,7 @@ import {
   IconCoin,
   IconFileText,
   IconHistory,
+  IconScale,
 } from '@tabler/icons-react'
 
 import { getCase, transitionCase } from '../api/cases'
@@ -40,6 +41,7 @@ import {
 } from '../cases/types'
 import { CEATab } from '../cea/CEATab'
 import { BIATab } from '../bia/BIATab'
+import { EtDTab } from '../etd/EtDTab'
 
 interface SummaryFieldProps {
   label: string
@@ -297,6 +299,9 @@ export function CaseDetailPage(): JSX.Element {
           <Tabs.Tab value="bia" leftSection={<IconCoin size={14} />}>
             BIA
           </Tabs.Tab>
+          <Tabs.Tab value="etd" leftSection={<IconScale size={14} />}>
+            EtD (9 domain)
+          </Tabs.Tab>
           <Tabs.Tab value="versions" leftSection={<IconHistory size={14} />}>
             Versi
           </Tabs.Tab>
@@ -310,6 +315,9 @@ export function CaseDetailPage(): JSX.Element {
         </Tabs.Panel>
         <Tabs.Panel value="bia" pt="md">
           <BIATab caseId={data.case_id} caseIsLocked={data.is_locked} />
+        </Tabs.Panel>
+        <Tabs.Panel value="etd" pt="md">
+          <EtDTab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
           <VersionsPanel data={data} />
