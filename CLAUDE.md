@@ -1,10 +1,10 @@
 # DeciBridge — Project Context for Claude Code
 
-This file is auto-loaded into every Claude Code session in this repo. Keep it short and current.
+Auto-loaded into every Claude Code session in this repo. Keep short, keep current.
 
 ## What this is
 
-**DeciBridge** is a hospital formulary committee (KFT — *Komite Farmasi dan Terapi*) decision-support web app. It guides Indonesian hospital teams through an evidence-based, auditable workflow for deciding whether to admit a drug to the formulary. Pilot case throughout: **ARNI vs ACEI** for HFrEF patients.
+**DeciBridge** is a hospital formulary committee (KFT — *Komite Farmasi dan Terapi*) decision-support web app for Indonesian hospitals. It guides KFT teams through an evidence-based, auditable workflow for deciding whether to admit a drug to the formulary. Pilot case throughout: **ARNI vs ACEI** for HFrEF patients.
 
 The system is **case-based** — one "case" = one formulary decision — and enforces a strict **separation between evidence layer (immutable once locked) and local input layer (editable per-institution)**.
 
@@ -12,86 +12,136 @@ The system is **case-based** — one "case" = one formulary decision — and enf
 
 | Document | Purpose |
 |---|---|
-| `../Brief/11052026_Workflow and Steps kerja untuk IT.docx` | Lecturer's full spec (Indonesian, ~110K tokens). **Source of truth.** |
+| `../Brief/11052026_Workflow and Steps kerja untuk IT.docx` | Lecturer's full spec (Indonesian, ~110K tokens). **Source of truth — do not paraphrase from memory; re-read it for questions about schema, validation, or business rules.** |
+| `docs/brief_extraction_id.md` | UTF-8 markdown extraction of the brief (~14k lines, durable, lives in the repo). Regenerate via the docx-skill `unpack.py` + a small XML-to-MD script if the source docx changes. |
 | `C:\Users\gedes\.claude\plans\hello-okay-so-i-playful-puddle.md` | Sprint plan + roadmap (Sprint 0 → Sprint 12) |
 | `README.md` | Setup & layout |
-| *(pending from lecturer)* `DeciBridge_casepack_MVP_ARNI_vs_ACEI_IT_READY.xlsx` | Example case data |
-| *(pending from lecturer)* `DeciBridge_Database_Dictionary_MVP_ARNI_vs_ACEI_IT_READY.xlsx` | Authoritative schema blueprint |
-
-If a question about schema, validation, or business rules comes up, **read the brief first** — guessing leads to rework.
+| *(still pending from lecturer)* `DeciBridge_casepack_MVP_ARNI_vs_ACEI_IT_READY.xlsx` | Sample case data |
+| *(still pending from lecturer)* `DeciBridge_Database_Dictionary_MVP_ARNI_vs_ACEI_IT_READY.xlsx` | Authoritative schema blueprint |
 
 ## Stack
 
-Django 5 + DRF + SimpleJWT + Celery · PostgreSQL 16 · Redis 7 · React 18 + Vite + TypeScript + Mantine + TanStack Query · pytest + Vitest + Playwright (Sprint 12).
+Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5433**, NOT 5432) · Redis 7 · React 18 + Vite + TypeScript + Mantine 7 + TanStack Query · @mantine/charts + Recharts (BIA trajectory) · django-simple-history + django-crum (audit) · pytest + Vitest + Playwright (Sprint 12 only).
 
-## Current sprint
+## Sprint status (as of last session)
 
-**Sprint 0 — Infrastructure scaffold (complete).** Active development starts at Sprint 1 (auth, roles, audit foundation).
+| # | Sprint | Status |
+|---|---|---|
+| 0 | Repo scaffold (Django + React + Docker + CI) | ✅ shipped + verified + committed |
+| 1 | Auth, 5 roles, append-only audit | ✅ shipped + verified + committed |
+| 2 | Case lifecycle (state machine: draft→in_review→approved→locked→archived) | ✅ shipped + verified + committed |
+| **3** | **Excel intake** | ⏸ **deferred — lecturer hasn't supplied case-pack / dictionary XLSX yet** |
+| 4 | CEA Quick (ICER engine, 6 dominance bands, ±20% sensitivity) | ✅ shipped + verified + committed |
+| 5 | BIA (1-year + 3-year impact, severity classes, trajectory chart) | ✅ shipped + verified + committed |
+| 6 | EtD (9 GRADE domains, references, 5-point judgement, certainty, aggregation) | ✅ shipped + verified + committed |
+| 7 | Recommendation synthesis (weights, CBA, traffic-light: GREEN/YELLOW/RED) | ✅ shipped + verified + committed |
+| 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped — **1 test failing, see below** |
+| **9** | **Policy brief DOCX/PDF export** | **NEXT — highest demo impact** |
+| 10 | Versioning + audit reconstruction UI | pending |
+| 11 | Long-term archive (read-only retention) | pending |
+| 12 | Hardening + E2E Playwright + docs | pending |
+
+**Test suite: 177 tests, 176 passing, 1 failing.** Coverage **90.52%** (target 80%).
+
+## Known issue to fix next session
+
+`apps/approval/tests/test_api.py::TestSignaturePreconditions::test_draft_case_cannot_be_signed` returns 201 instead of expected 400. The test creates `green_recommendation` on a DRAFT case but the fixture `green_recommendation` depends on `case_in_review` which calls `case_transition(pilot_case, "submit", hta_user)` — so by the time the test body runs, the case is already `in_review`, not draft. Either the fixture needs decoupling or the test needs a different setup. Fix idea: make a separate `draft_recommendation` fixture that does NOT call `case_in_review`. Trivial fix.
+
+## Project state cheatsheet
+
+### Backend apps shipped
+`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off)
+
+### Frontend modules shipped
+`src/auth/` · `src/cases/` · `src/cea/` · `src/bia/` · `src/etd/` · `src/recommendation/` · `src/approval/` · `src/pages/` (Login, Dashboard, Cases, CaseDetail with 7 tabs: Ringkasan / CEA / BIA / EtD / Rekomendasi / Sign-Off / Versi) · `src/api/` (client + per-app modules)
+
+### Test users that exist (set up via Django admin)
+- `hta@test.local` — `TestPass123!` — **HTA Analyst / Pharmacoeconomist** group
+- `sekre@test.local` — `TestPass123!` — **Hospital Pharmacy / KFT Secretariat** group
+- `ketua@test.local` — `TestPass123!` — **KFT Chair / Approver** group
+- `kft1@test.local` — `TestPass123!` — **KFT Member** group
+- `kft2@test.local` — `TestPass123!` — **KFT Member** group
+- *(optional, not yet created)* `adminit@test.local` — IT Administrator group, needed only for Sprint 11
+
+### Case IDs created during verification (all `HF_ARNI_ACEI_NNN`)
+- `_001` — pilot from Sprint 2 verification (locked)
+- `_002` — Sprint 4/5 CEA+BIA verification (locked)
+- `_003` — Sprint 6 EtD verification (likely locked)
+- `_004` — Sprint 7 Recommendation verification (likely approved/locked)
+- `_005` — Sprint 8 Sign-Off verification (use a fresh ID like `_006` for Sprint 9 testing)
+
+### Git commits so far (branch `main`)
+```
+feat(sprint-7): weights + CBA + traffic-light synthesis  ← Sprint 8 NOT committed yet
+feat(sprint-6): 9-domain EtD appraisal + reference manager
+feat(sprint-5): BIA projection engine + trajectory chart
+feat(sprint-4): CEA Quick computation engine
+feat(sprint-2): case lifecycle with state machine
+feat(sprint-1): auth, 5-role RBAC, append-only audit log
+feat(sprint-0): repo scaffold for DeciBridge
+```
+**Sprint 8 needs committing once the failing test is fixed.**
 
 ## Conventions
 
 ### Backend
-
-- `apps/` holds Django apps; one app per workflow concern (`accounts`, `cases`, `intake`, `cea`, `bia`, `etd`, `recommendation`, `approval`, `policy_brief`, `versioning`, `archive`, `audit`).
-- Settings live in `decibridge/settings.py` (single file for now; split if we add prod target).
-- Every model that holds clinical/financial data must be paired with **append-only audit logging** — implemented in Sprint 1 via `django-simple-history` + custom `audit_log` signals.
-- Excel inputs land in `patient_data_staging` first, then promote to main tables only after validation passes.
-- **Never mutate evidence-layer rows post-lock.** Schema-level constraints will enforce this in Sprint 8.
+- Append-only models: every `*Result` and `Approval` model overrides `save()` to raise `PermissionError` on update; `delete()` always raises. Re-compute = new row.
+- Every model that holds clinical/financial data is paired with `register_auditable()` + `HistoricalRecords()`.
+- Pure-function engines (`engine.py`) live alongside their app models. No Django imports in engines → trivially testable.
+- DRF permission classes per app (`apps/X/permissions.py`) following the brief's 5-role matrix.
+- Role-aware fixtures live in `backend/conftest.py` (project-root). App-local conftests only add app-specific fixtures.
+- **Pytest fixture gotcha:** each authed-client fixture (`hta_client`, `ketua_client`, etc.) builds its OWN `APIClient` instance — they don't share, so tests can use multiple authed clients in the same body without auth bleed.
 
 ### Frontend
+- TanStack Query for server state; no global server-state stores.
+- One API client module per backend app under `src/api/`.
+- One Mantine tab per major workflow stage on `CaseDetailPage`. Read-only-vs-editable rendered via `caseIsLocked` prop + role check.
+- All UI strings in **Indonesian**. Code, identifiers, commit messages in **English**.
 
-- TanStack Query for all server state. No global stores for server data.
-- Zustand for ephemeral UI state (modals, wizard steps).
-- Mantine UI primitives — don't introduce another component library.
-- API client at `src/api/client.ts`. Add one function per endpoint; reuse `apiClient` axios instance.
-
-### Code style
-
-- Python: ruff + black, 100-char lines, type hints required on exported APIs.
-- TS: Prettier (config in `package.json`), strict TS, `noUncheckedIndexedAccess`.
-- **No comments explaining *what* code does** — comments are for *why* (hidden constraints, workarounds, invariants). See user's global rules.
-- **Immutability everywhere** — never mutate function arguments; spread to create new objects.
-- Small files (<400 lines), small functions (<50 lines).
-
-### Indonesian-vs-English
-
-- **UI strings and policy-brief output: Indonesian** (the brief is Indonesian; users are Indonesian hospital staff).
-- **Code, identifiers, comments, commit messages: English.**
-- Keep role names in their Indonesian form (`Ketua KFT`, `Sekretaris KFT`, `Farmasi RS`) — they're proper job titles.
-
-## Common commands
-
-```sh
-# Backend (run from backend/)
-.venv\Scripts\activate
-python manage.py runserver
-python manage.py makemigrations && python manage.py migrate
-pytest
-ruff check . && black --check .
-
-# Celery (separate terminal, Windows requires --pool=solo)
-celery -A decibridge worker --loglevel=info --pool=solo
-
-# Frontend (run from frontend/)
-npm run dev
-npm run test
-npm run typecheck
-npm run format
-
-# Whole repo
-pre-commit run --all-files
+### Migration ordering gotcha
+Apps with data migrations (`accounts.0002_seed_roles`, `etd.0002_seed_domains`) ship the seed file before `0001_initial` exists. `makemigrations` errors. Workaround:
+```powershell
+Move-Item apps\<app>\migrations\0002_seed_*.py .\_seed.bak
+python manage.py makemigrations <app>
+Move-Item .\_seed.bak apps\<app>\migrations\
+python manage.py migrate
 ```
+
+## Sprint 9 design notes (next sprint)
+
+**Goal:** generate a Word DOCX policy brief from a locked case, plus a PDF export.
+
+**Library choices:**
+- `python-docx` for DOCX (already in Sprint 0 pyproject implicitly — confirm if installed)
+- LibreOffice headless or `weasyprint` for PDF export
+- Celery task for generation so it doesn't block the HTTP request
+
+**Sections of the brief:**
+1. Cover (case_id, title, drugs, decision date, signing Ketua KFT name)
+2. Executive summary (traffic-light box, composite score, 1-paragraph justification)
+3. CEA results (ICER, dominance, sensitivity table)
+4. BIA results (per-year + cumulative, trajectory chart embedded as image)
+5. EtD appraisal (per-domain table with mean judgement + dominant certainty)
+6. CBA criteria (table, satisfaction status)
+7. References (numbered bibliography from ReferenceCitation)
+8. Audit summary (signature timestamp + IP + approver name)
+
+**Permission gate:** generation allowed for HTA Analyst / Sekretaris KFT once case is `approved` or `locked`. Document download allowed for all viewers.
+
+**Storage:** generated files land in `media/policy_briefs/{case_id}/v{version}.docx` + `.pdf`. SHA-256 hash recorded on a new `PolicyBriefDocument` model.
 
 ## Working with this codebase
 
-- **Sprint plan is non-negotiable scope.** Don't add features outside the current sprint without checking the plan file.
-- **Audit log is sacred.** Never `DELETE` from `audit_log`. Never write a migration that drops audit history.
-- **Versioning rules.** `v0.x` = draft (everything editable). `v1.x` = approved/locked (evidence frozen). `v2.x+` = major revision with documented reason.
-- **No skipping validation.** Excel inputs must run the full validation matrix before any data lands in main tables.
-- **Test before commit.** 80% coverage is the floor, not the goal.
-- **For UI changes:** check the `e2e-runner` agent and the `gan-design` skill if visual polish matters.
+- **Sprint plan is non-negotiable scope** — don't add features outside the current sprint without checking the plan file at `C:\Users\gedes\.claude\plans\hello-okay-so-i-playful-puddle.md`.
+- **Audit log is sacred** — never DELETE from `audit_log`. Migration that drops it = bug.
+- **Append-only invariant** — CEA/BIA/Recommendation/Approval results never update; re-compute always creates a new row.
+- **Lock enforcement** — once a case is `locked`, all writes 403 at the API layer. Schema-level enforcement still pending (Sprint 11 candidate).
+- **Test before commit** — 80% coverage floor, currently at 90%+.
+- **No emojis in code or commits** — user's global rule.
+- **Two PowerShell terminals** — backend (`runserver`) + frontend (`npm run dev`). Postgres on Docker port **5433**.
 
 ## Open dependencies
 
-- Lecturer must provide `DeciBridge_casepack_*.xlsx` and `DeciBridge_Database_Dictionary_*.xlsx` before Sprint 3.
-- Lecturer must confirm deployment target before Sprint 12.
+- Lecturer must provide `DeciBridge_casepack_*.xlsx` and `DeciBridge_Database_Dictionary_*.xlsx` before Sprint 3 can ship. User has asked twice; no response yet.
+- Lecturer must confirm deployment target before Sprint 12 (local-only demo or institutional hosting).
+- Demo is upcoming — Sprint 9 (DOCX export) is the highest visual-impact item still to build.
