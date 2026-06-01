@@ -58,6 +58,7 @@ LOCAL_APPS = [
     "apps.bia",
     "apps.etd",
     "apps.recommendation",
+    "apps.approval",
     # Sprint 3+: apps.intake
     # Sprint 4+: apps.cea
     # Sprint 5+: apps.bia

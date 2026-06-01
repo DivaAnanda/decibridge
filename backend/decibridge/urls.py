@@ -17,6 +17,7 @@ api_v1_patterns = [
     path("", include("apps.bia.urls")),
     path("", include("apps.etd.urls")),
     path("", include("apps.recommendation.urls")),
+    path("", include("apps.approval.urls")),
 ]
 
 urlpatterns = [

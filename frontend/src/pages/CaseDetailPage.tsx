@@ -30,6 +30,7 @@ import {
   IconFileText,
   IconHistory,
   IconScale,
+  IconShieldCheck,
 } from '@tabler/icons-react'
 
 import { getCase, transitionCase } from '../api/cases'
@@ -44,6 +45,7 @@ import { CEATab } from '../cea/CEATab'
 import { BIATab } from '../bia/BIATab'
 import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
+import { ApprovalTab } from '../approval/ApprovalTab'
 
 interface SummaryFieldProps {
   label: string
@@ -307,6 +309,9 @@ export function CaseDetailPage(): JSX.Element {
           <Tabs.Tab value="recommendation" leftSection={<IconBulb size={14} />}>
             Rekomendasi
           </Tabs.Tab>
+          <Tabs.Tab value="approval" leftSection={<IconShieldCheck size={14} />}>
+            Sign-Off
+          </Tabs.Tab>
           <Tabs.Tab value="versions" leftSection={<IconHistory size={14} />}>
             Versi
           </Tabs.Tab>
@@ -326,6 +331,9 @@ export function CaseDetailPage(): JSX.Element {
         </Tabs.Panel>
         <Tabs.Panel value="recommendation" pt="md">
           <RecommendationTab caseId={data.case_id} caseIsLocked={data.is_locked} />
+        </Tabs.Panel>
+        <Tabs.Panel value="approval" pt="md">
+          <ApprovalTab caseId={data.case_id} caseStatus={data.status} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
           <VersionsPanel data={data} />
