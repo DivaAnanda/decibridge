@@ -23,6 +23,7 @@ import {
 import { notifications } from '@mantine/notifications'
 import {
   IconArrowLeft,
+  IconBulb,
   IconCalculator,
   IconChevronDown,
   IconCoin,
@@ -42,6 +43,7 @@ import {
 import { CEATab } from '../cea/CEATab'
 import { BIATab } from '../bia/BIATab'
 import { EtDTab } from '../etd/EtDTab'
+import { RecommendationTab } from '../recommendation/RecommendationTab'
 
 interface SummaryFieldProps {
   label: string
@@ -302,6 +304,9 @@ export function CaseDetailPage(): JSX.Element {
           <Tabs.Tab value="etd" leftSection={<IconScale size={14} />}>
             EtD (9 domain)
           </Tabs.Tab>
+          <Tabs.Tab value="recommendation" leftSection={<IconBulb size={14} />}>
+            Rekomendasi
+          </Tabs.Tab>
           <Tabs.Tab value="versions" leftSection={<IconHistory size={14} />}>
             Versi
           </Tabs.Tab>
@@ -318,6 +323,9 @@ export function CaseDetailPage(): JSX.Element {
         </Tabs.Panel>
         <Tabs.Panel value="etd" pt="md">
           <EtDTab caseId={data.case_id} caseIsLocked={data.is_locked} />
+        </Tabs.Panel>
+        <Tabs.Panel value="recommendation" pt="md">
+          <RecommendationTab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
           <VersionsPanel data={data} />
