@@ -5,9 +5,9 @@ so views, signals, and management commands all enforce the same rules.
 
 Transitions:
     draft → in_review        (hta_analyst, farmasi_sekretaris)
-    in_review → draft        (any reviewer can send back: kft_member, ketua_kft, farmasi_sekretaris)
+    in_review → draft        (ketua_kft only — rejection invoked by the Sign-Off flow)
     in_review → approved     (ketua_kft only)
-    approved → in_review     (revision requested: ketua_kft, kft_member)
+    approved → in_review     (revision requested: ketua_kft only — undo own approval before lock)
     approved → locked        (ketua_kft only — locks evidence for v1.x)
     locked → archived        (admin_it, ketua_kft)
 """
@@ -49,9 +49,7 @@ TRANSITIONS: dict[str, Transition] = {
         name="send_back",
         source=frozenset({CaseStatus.IN_REVIEW}),
         target=CaseStatus.DRAFT,
-        allowed_roles=frozenset(
-            {RoleSlug.KFT_MEMBER, RoleSlug.KETUA_KFT, RoleSlug.FARMASI_SEKRETARIS}
-        ),
+        allowed_roles=frozenset({RoleSlug.KETUA_KFT}),
         requires_reason=True,
     ),
     "approve": Transition(
@@ -64,7 +62,7 @@ TRANSITIONS: dict[str, Transition] = {
         name="request_revision",
         source=frozenset({CaseStatus.APPROVED}),
         target=CaseStatus.IN_REVIEW,
-        allowed_roles=frozenset({RoleSlug.KETUA_KFT, RoleSlug.KFT_MEMBER}),
+        allowed_roles=frozenset({RoleSlug.KETUA_KFT}),
         requires_reason=True,
     ),
     "lock": Transition(

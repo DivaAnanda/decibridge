@@ -95,3 +95,82 @@ class TestTransitionCatalogue:
     def test_every_transition_has_unique_name(self):
         names = [t.name for t in TRANSITIONS.values()]
         assert len(names) == len(set(names))
+
+
+@pytest.mark.django_db
+class TestRoleGates:
+    """Per-transition role enforcement. Prevents privilege-escalation regressions.
+
+    The brief (and CLAUDE.md) is explicit: only Ketua KFT can move a case out of
+    in_review or out of approved. KFT Members vote on EtD/weights only; they
+    must never drive case state.
+    """
+
+    def test_kft_member_cannot_send_back_in_review(self, pilot_case, hta_user, kft_member_user):
+        transition(pilot_case, "submit", hta_user)
+        with pytest.raises(PermissionDenied):
+            transition(pilot_case, "send_back", kft_member_user, reason="trying to revert")
+
+    def test_sekretaris_cannot_send_back_in_review(
+        self, pilot_case, hta_user, sekretaris_user
+    ):
+        transition(pilot_case, "submit", hta_user)
+        with pytest.raises(PermissionDenied):
+            transition(pilot_case, "send_back", sekretaris_user, reason="trying to revert")
+
+    def test_hta_cannot_send_back_in_review(self, pilot_case, hta_user):
+        transition(pilot_case, "submit", hta_user)
+        with pytest.raises(PermissionDenied):
+            transition(pilot_case, "send_back", hta_user, reason="trying to revert")
+
+    def test_kft_member_cannot_request_revision_on_approved(
+        self, pilot_case, hta_user, ketua_user, kft_member_user
+    ):
+        transition(pilot_case, "submit", hta_user)
+        transition(pilot_case, "approve", ketua_user)
+        with pytest.raises(PermissionDenied):
+            transition(
+                pilot_case, "request_revision", kft_member_user, reason="undoing approval"
+            )
+
+    def test_hta_cannot_request_revision_on_approved(
+        self, pilot_case, hta_user, ketua_user
+    ):
+        transition(pilot_case, "submit", hta_user)
+        transition(pilot_case, "approve", ketua_user)
+        with pytest.raises(PermissionDenied):
+            transition(pilot_case, "request_revision", hta_user, reason="undoing approval")
+
+    def test_sekretaris_cannot_request_revision_on_approved(
+        self, pilot_case, hta_user, ketua_user, sekretaris_user
+    ):
+        transition(pilot_case, "submit", hta_user)
+        transition(pilot_case, "approve", ketua_user)
+        with pytest.raises(PermissionDenied):
+            transition(
+                pilot_case, "request_revision", sekretaris_user, reason="undoing approval"
+            )
+
+    def test_ketua_can_still_request_revision_on_approved(
+        self, pilot_case, hta_user, ketua_user
+    ):
+        """Sanity: tightening must not lock Ketua out of legitimate flows."""
+        transition(pilot_case, "submit", hta_user)
+        transition(pilot_case, "approve", ketua_user)
+        transition(pilot_case, "request_revision", ketua_user, reason="found typo")
+        assert pilot_case.status == CaseStatus.IN_REVIEW
+
+    def test_kft_member_sees_no_transitions_in_any_state(
+        self, pilot_case, hta_user, ketua_user, kft_member_user
+    ):
+        # draft
+        assert allowed_transitions_for(pilot_case, kft_member_user) == []
+        # in_review
+        transition(pilot_case, "submit", hta_user)
+        assert allowed_transitions_for(pilot_case, kft_member_user) == []
+        # approved
+        transition(pilot_case, "approve", ketua_user)
+        assert allowed_transitions_for(pilot_case, kft_member_user) == []
+        # locked
+        transition(pilot_case, "lock", ketua_user)
+        assert allowed_transitions_for(pilot_case, kft_member_user) == []
