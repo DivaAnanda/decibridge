@@ -24,6 +24,7 @@ import {
   getVersionTimeline,
   listVersions,
 } from '../api/versioning'
+import { ArchivePanel } from '../archive/ArchivePanel'
 import {
   STATUS_COLOR,
   TRIGGER_COLOR,
@@ -32,6 +33,7 @@ import {
 
 interface Props {
   caseId: string
+  caseStatus: string
 }
 
 function fmtDateTime(value: string | null): string {
@@ -46,7 +48,7 @@ function fmtVal(value: unknown): string {
   return JSON.stringify(value)
 }
 
-export function VersioningTab({ caseId }: Props): JSX.Element {
+export function VersioningTab({ caseId, caseStatus }: Props): JSX.Element {
   const [selectedVersion, setSelectedVersion] = useState<CaseVersionRow | null>(null)
   const [diffFromId, setDiffFromId] = useState<string | null>(null)
   const [diffToId, setDiffToId] = useState<string | null>(null)
@@ -72,6 +74,8 @@ export function VersioningTab({ caseId }: Props): JSX.Element {
 
   return (
     <Stack gap="lg">
+      <ArchivePanel caseId={caseId} caseStatus={caseStatus} />
+
       <Card withBorder padding="lg" radius="md">
         <Stack gap={4} mb="md">
           <Title order={4}>Riwayat Versi</Title>

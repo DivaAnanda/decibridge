@@ -61,8 +61,8 @@ LOCAL_APPS = [
     "apps.approval",
     "apps.policy_brief",
     "apps.versioning",
+    "apps.archive",
     # Sprint 3+: apps.intake
-    # Sprint 11+: apps.archive
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

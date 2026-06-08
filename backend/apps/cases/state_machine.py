@@ -139,6 +139,14 @@ def transition(
     if action == "lock":
         _snapshot_locked_case(case, user)
 
+    # Sprint 11: build the long-term archive when archiving.
+    if action == "archive":
+        # Lazy import — apps.archive depends on cases, would create a circular
+        # import at module load.
+        from apps.archive.service import archive_case
+
+        archive_case(case, user)
+
     return case
 
 

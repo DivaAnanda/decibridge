@@ -301,7 +301,7 @@ export function CaseDetailPage(): JSX.Element {
           <PolicyBriefTab caseId={data.case_id} caseStatus={data.status} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
-          <VersioningTab caseId={data.case_id} />
+          <VersioningTab caseId={data.case_id} caseStatus={data.status} />
         </Tabs.Panel>
       </Tabs>
 
