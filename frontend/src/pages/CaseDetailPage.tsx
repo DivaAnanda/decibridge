@@ -14,7 +14,6 @@ import {
   Menu,
   Modal,
   Stack,
-  Table,
   Tabs,
   Text,
   Textarea,
@@ -48,6 +47,7 @@ import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
 import { ApprovalTab } from '../approval/ApprovalTab'
 import { PolicyBriefTab } from '../policy_brief/PolicyBriefTab'
+import { VersioningTab } from '../versioning/VersioningTab'
 
 interface SummaryFieldProps {
   label: string
@@ -155,49 +155,6 @@ function OverviewPanel({ data }: PanelProps): JSX.Element {
         )}
       </Card>
     </Stack>
-  )
-}
-
-function VersionsPanel({ data }: PanelProps): JSX.Element {
-  if (data.versions.length === 0) {
-    return (
-      <Card withBorder padding="lg" radius="md">
-        <Text c="dimmed" size="sm">
-          Belum ada versi.
-        </Text>
-      </Card>
-    )
-  }
-  return (
-    <Card withBorder padding="lg" radius="md">
-      <Title order={4} mb="sm">
-        Riwayat Versi
-      </Title>
-      <Table verticalSpacing="xs">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Versi</Table.Th>
-            <Table.Th>Status</Table.Th>
-            <Table.Th>Dibuat</Table.Th>
-            <Table.Th>Dikunci oleh</Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {data.versions.map((v) => (
-            <Table.Tr key={v.id}>
-              <Table.Td ff="monospace">v{v.version_number}</Table.Td>
-              <Table.Td>
-                <Badge variant="light" size="sm">
-                  {v.status}
-                </Badge>
-              </Table.Td>
-              <Table.Td>{new Date(v.created_at).toLocaleString('id-ID')}</Table.Td>
-              <Table.Td>{v.locked_by ? v.locked_by.full_name : '—'}</Table.Td>
-            </Table.Tr>
-          ))}
-        </Table.Tbody>
-      </Table>
-    </Card>
   )
 }
 
@@ -344,7 +301,7 @@ export function CaseDetailPage(): JSX.Element {
           <PolicyBriefTab caseId={data.case_id} caseStatus={data.status} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
-          <VersionsPanel data={data} />
+          <VersioningTab caseId={data.case_id} />
         </Tabs.Panel>
       </Tabs>
 

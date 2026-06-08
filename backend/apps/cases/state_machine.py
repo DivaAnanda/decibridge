@@ -18,10 +18,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.utils import timezone
 
 from apps.accounts.models import RoleSlug
 
-from .models import CaseStatus
+from .models import CaseStatus, CaseVersion, CaseVersionStatus, CaseVersionTrigger
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractBaseUser
@@ -133,4 +134,79 @@ def transition(
 
     case.status = t.target
     case.save(update_fields=["status", "updated_at"])
+
+    # Sprint 10: snapshot the case as a CaseVersion row when locking.
+    if action == "lock":
+        _snapshot_locked_case(case, user)
+
     return case
+
+
+# ---------------------------------------------------------------------------
+# Versioning helpers (Sprint 10)
+# ---------------------------------------------------------------------------
+
+
+def _next_lock_version_number(case: Case) -> str:
+    """Bump minor on every relock. v1.0 → v1.1 → v1.2 → ..."""
+    prior = (
+        CaseVersion.objects.filter(case=case, status=CaseVersionStatus.LOCKED)
+        .order_by("-id")
+        .first()
+    )
+    if prior is None:
+        return "1.0"
+    try:
+        parts = prior.version_number.split(".")
+        major = int(parts[0])
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        return f"{major}.{minor + 1}"
+    except (ValueError, IndexError):
+        # Malformed prior version — defensive fallback. Bumps to v1.0 again
+        # would clash with unique_together; bump to v99.X to avoid collision.
+        return "99.0"
+
+
+def _latest_pk(manager, order_field: str = "-pk") -> int | None:
+    return manager.all().order_by(order_field).values_list("pk", flat=True).first()
+
+
+def _snapshot_locked_case(case: Case, user: AbstractBaseUser) -> CaseVersion:
+    """Create a CaseVersion row capturing the immutable artifact pointers at lock."""
+    version_number = _next_lock_version_number(case)
+
+    # Reverse-manager attribute names (defined in each app's FK related_name).
+    # No app imports required; Django's ORM resolves them lazily.
+    cea_id = _latest_pk(case.cea_results, "-computed_at")
+    bia_id = _latest_pk(case.bia_results, "-computed_at")
+    rec_id = _latest_pk(case.recommendations, "-computed_at")
+    # Approval: only "approved" decisions are eligible to anchor the snapshot.
+    approval_id = (
+        case.approvals.filter(decision="approved")
+        .order_by("-signed_at")
+        .values_list("pk", flat=True)
+        .first()
+    )
+    # Policy brief: latest completed.
+    brief_id = (
+        case.policy_briefs.filter(status="completed")
+        .order_by("-version")
+        .values_list("pk", flat=True)
+        .first()
+    )
+
+    return CaseVersion.objects.create(
+        case=case,
+        version_number=version_number,
+        status=CaseVersionStatus.LOCKED,
+        trigger=CaseVersionTrigger.LOCKED,
+        locked_at=timezone.now(),
+        locked_by=user,
+        lock_reason="",
+        cea_result_id=cea_id,
+        bia_result_id=bia_id,
+        recommendation_id=rec_id,
+        approval_id=approval_id,
+        policy_brief_document_id=brief_id,
+        created_by=user,
+    )

@@ -151,9 +151,12 @@ class CaseCreateSerializer(serializers.ModelSerializer):
             created_by=self.context["request"].user,
             **validated_data,
         )
+        from .models import CaseVersionTrigger
+
         CaseVersion.objects.create(
             case=case,
             version_number="0.1.0",
+            trigger=CaseVersionTrigger.CREATED,
             created_by=self.context["request"].user,
         )
         if question_data:

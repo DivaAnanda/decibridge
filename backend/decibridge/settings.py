@@ -60,8 +60,8 @@ LOCAL_APPS = [
     "apps.recommendation",
     "apps.approval",
     "apps.policy_brief",
+    "apps.versioning",
     # Sprint 3+: apps.intake
-    # Sprint 10+: apps.versioning
     # Sprint 11+: apps.archive
 ]
 

@@ -19,6 +19,7 @@ api_v1_patterns = [
     path("", include("apps.recommendation.urls")),
     path("", include("apps.approval.urls")),
     path("", include("apps.policy_brief.urls")),
+    path("", include("apps.versioning.urls")),
 ]
 
 urlpatterns = [

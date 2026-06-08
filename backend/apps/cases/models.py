@@ -134,20 +134,42 @@ class CaseVersionStatus(models.TextChoices):
     ARCHIVED = "archived", _("Archived")
 
 
-class CaseVersion(models.Model):
-    """Semantic version snapshot of a Case.
+class CaseVersionTrigger(models.TextChoices):
+    """What event caused this version row to exist."""
 
-    Sprint 2 creates v0.1.0 implicitly when a case is born. Later sprints
-    (8 + 10) handle lock-on-approval and major-revision bumps to v1.x / v2.x.
+    CREATED = "created", _("Kasus dibuat")
+    LOCKED = "locked", _("Keputusan dikunci")
+    REVISION_REQUESTED = "revision_requested", _("Revisi diminta")
+
+
+class CaseVersion(models.Model):
+    """Semantic-version snapshot of a Case.
+
+    Created automatically by signal handlers at three moments:
+      * CREATED            — when a case is born (v0.1)
+      * LOCKED             — when Ketua KFT locks the decision (v1.0, v1.1, …)
+      * REVISION_REQUESTED — when a locked case is reopened (records the
+                             revision reason; the next lock bumps version)
+
+    Frozen pointers to *Result rows / Approval / PolicyBrief preserve the
+    exact data the KFT saw at the moment of locking. Because every target
+    model is append-only, these IDs are stable forever — no schema FK needed.
+
+    Append-only: once created, the row cannot be mutated or deleted.
     """
 
     case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="versions")
     version_number = models.CharField(
         max_length=32,
-        help_text=_("Semantic version, e.g. 0.1.0 or 1.0.0"),
+        help_text=_("Semantic version, e.g. 0.1 or 1.0"),
     )
     status = models.CharField(
         max_length=16, choices=CaseVersionStatus.choices, default=CaseVersionStatus.DRAFT
+    )
+    trigger = models.CharField(
+        max_length=24,
+        choices=CaseVersionTrigger.choices,
+        default=CaseVersionTrigger.CREATED,
     )
     locked_at = models.DateTimeField(null=True, blank=True)
     locked_by = models.ForeignKey(
@@ -159,6 +181,16 @@ class CaseVersion(models.Model):
     )
     lock_reason = models.TextField(blank=True, default="")
     diff = models.JSONField(blank=True, null=True, help_text=_("Field-level diff from prior version"))
+
+    # Soft pointers to the immutable data this version snapshots.
+    # PositiveIntegerField because the target rows are append-only and
+    # never deleted, so a hard FK would add migration coupling for no benefit.
+    cea_result_id = models.PositiveIntegerField(null=True, blank=True)
+    bia_result_id = models.PositiveIntegerField(null=True, blank=True)
+    recommendation_id = models.PositiveIntegerField(null=True, blank=True)
+    approval_id = models.PositiveIntegerField(null=True, blank=True)
+    policy_brief_document_id = models.PositiveIntegerField(null=True, blank=True)
+
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -173,4 +205,15 @@ class CaseVersion(models.Model):
         verbose_name_plural = _("Case Versions")
 
     def __str__(self) -> str:
-        return f"{self.case.case_id} v{self.version_number}"
+        return f"{self.case.case_id} v{self.version_number} [{self.trigger}]"
+
+    # Append-only invariants ------------------------------------------------
+    def save(self, *args, **kwargs) -> None:
+        if self.pk is not None:
+            raise PermissionError(
+                "CaseVersion rows are append-only — create a new version instead."
+            )
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs) -> None:
+        raise PermissionError("CaseVersion rows cannot be deleted.")
