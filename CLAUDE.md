@@ -36,12 +36,13 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 | 6 | EtD (9 GRADE domains, references, 5-point judgement, certainty, aggregation) | ✅ shipped + verified + committed |
 | 7 | Recommendation synthesis (weights, CBA, traffic-light: GREEN/YELLOW/RED) | ✅ shipped + verified + committed |
 | 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped + verified + committed + role-gate hotfix landed (commit 455c4f7) |
-| 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + tests green — **awaiting your manual verification** |
-| **10** | **Versioning + audit reconstruction UI** | **NEXT** |
+| 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + verified + committed |
+| 10 | Versioning + audit reconstruction UI (auto-snapshot on lock + timeline + diff) | ✅ shipped + tests green — **awaiting your manual verification** |
+| **11** | **Long-term archive (read-only retention)** | **NEXT** |
 | 11 | Long-term archive (read-only retention) | pending |
 | 12 | Hardening + E2E Playwright + docs | pending |
 
-**Test suite: 215 tests, all passing.** Coverage target 80% (well above).
+**Test suite: 229 tests, all passing.** Coverage target 80% (well above).
 
 ## Sprint 9 verification crib
 
@@ -64,7 +65,7 @@ Known platform caveats:
 ## Project state cheatsheet
 
 ### Backend apps shipped
-`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off) · `apps/policy_brief` (DOCX/PDF generation, append-only PolicyBriefDocument with SHA-256)
+`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine + CaseVersion auto-snapshot on lock) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off) · `apps/policy_brief` (DOCX/PDF generation, append-only PolicyBriefDocument with SHA-256) · `apps/versioning` (read-only version list + timeline + state reconstruction + diff)
 
 ### Frontend modules shipped
 `src/auth/` · `src/cases/` · `src/cea/` · `src/bia/` · `src/etd/` · `src/recommendation/` · `src/approval/` · `src/policy_brief/` · `src/pages/` (Login, Dashboard, Cases, CaseDetail with **8 tabs**: Ringkasan / CEA / BIA / EtD / Rekomendasi / Sign-Off / Brief / Versi) · `src/api/` (client + per-app modules)
