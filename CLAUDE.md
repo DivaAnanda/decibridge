@@ -37,12 +37,21 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 | 7 | Recommendation synthesis (weights, CBA, traffic-light: GREEN/YELLOW/RED) | ✅ shipped + verified + committed |
 | 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped + verified + committed + role-gate hotfix landed (commit 455c4f7) |
 | 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + verified + committed |
-| 10 | Versioning + audit reconstruction UI (auto-snapshot on lock + timeline + diff) | ✅ shipped + tests green — **awaiting your manual verification** |
-| **11** | **Long-term archive (read-only retention)** | **NEXT** |
+| 10 | Versioning + audit reconstruction UI (auto-snapshot on lock + timeline + diff) | ✅ shipped + verified + committed |
+| 11 | Long-term archive (SHA-256 manifest + 7-year retention + Admin IT user) | ✅ shipped + tests green — **awaiting your manual verification** |
+| **12** | **Hardening + E2E Playwright + docs** | **NEXT — final sprint** |
 | 11 | Long-term archive (read-only retention) | pending |
 | 12 | Hardening + E2E Playwright + docs | pending |
 
-**Test suite: 229 tests, all passing.** Coverage target 80% (well above).
+**Test suite: 255 tests, all passing.** Coverage target 80% (well above).
+
+## Test-user provisioning
+
+Idempotent management command — re-runnable any time, safe across sessions:
+```powershell
+python manage.py create_test_users [--reset-password]
+```
+Creates all 6 demo accounts with password `TestPass123!` (see Test users below).
 
 ## Sprint 9 verification crib
 
@@ -65,7 +74,7 @@ Known platform caveats:
 ## Project state cheatsheet
 
 ### Backend apps shipped
-`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine + CaseVersion auto-snapshot on lock) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off) · `apps/policy_brief` (DOCX/PDF generation, append-only PolicyBriefDocument with SHA-256) · `apps/versioning` (read-only version list + timeline + state reconstruction + diff)
+`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine + CaseVersion auto-snapshot on lock + ArchiveRecord hook on archive) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off) · `apps/policy_brief` (DOCX/PDF generation, append-only PolicyBriefDocument with SHA-256) · `apps/versioning` (read-only version list + timeline + state reconstruction + diff) · `apps/archive` (SHA-256 manifest, 7-year retention, append-only)
 
 ### Frontend modules shipped
 `src/auth/` · `src/cases/` · `src/cea/` · `src/bia/` · `src/etd/` · `src/recommendation/` · `src/approval/` · `src/policy_brief/` · `src/pages/` (Login, Dashboard, Cases, CaseDetail with **8 tabs**: Ringkasan / CEA / BIA / EtD / Rekomendasi / Sign-Off / Brief / Versi) · `src/api/` (client + per-app modules)
@@ -76,7 +85,7 @@ Known platform caveats:
 - `ketua@test.local` — `TestPass123!` — **KFT Chair / Approver** group
 - `kft1@test.local` — `TestPass123!` — **KFT Member** group
 - `kft2@test.local` — `TestPass123!` — **KFT Member** group
-- *(optional, not yet created)* `adminit@test.local` — IT Administrator group, needed only for Sprint 11
+- `adminit@test.local` — `TestPass123!` — **IT Administrator** group (Sprint 11+)
 
 ### Case IDs created during verification (all `HF_ARNI_ACEI_NNN`)
 - `_001` — pilot from Sprint 2 verification (locked)
