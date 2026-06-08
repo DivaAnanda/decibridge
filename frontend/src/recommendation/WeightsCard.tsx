@@ -9,7 +9,6 @@ import {
   Loader,
   SegmentedControl,
   Slider,
-  Stack,
   Table,
   Text,
   Title,

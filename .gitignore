@@ -11,3 +11,14 @@ Thumbs.db
 # Compose-managed volumes (if mounted to host)
 postgres-data/
 redis-data/
+
+# TypeScript / Vite build artifacts
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
+
+# Generated policy-brief artifacts (live in media/, never committed)
+backend/media/
+
+# pytest
+backend/.pytest_cache/

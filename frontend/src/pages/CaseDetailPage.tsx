@@ -29,6 +29,7 @@ import {
   IconCoin,
   IconFileText,
   IconHistory,
+  IconReportAnalytics,
   IconScale,
   IconShieldCheck,
 } from '@tabler/icons-react'
@@ -46,6 +47,7 @@ import { BIATab } from '../bia/BIATab'
 import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
 import { ApprovalTab } from '../approval/ApprovalTab'
+import { PolicyBriefTab } from '../policy_brief/PolicyBriefTab'
 
 interface SummaryFieldProps {
   label: string
@@ -312,6 +314,9 @@ export function CaseDetailPage(): JSX.Element {
           <Tabs.Tab value="approval" leftSection={<IconShieldCheck size={14} />}>
             Sign-Off
           </Tabs.Tab>
+          <Tabs.Tab value="policy_brief" leftSection={<IconReportAnalytics size={14} />}>
+            Brief
+          </Tabs.Tab>
           <Tabs.Tab value="versions" leftSection={<IconHistory size={14} />}>
             Versi
           </Tabs.Tab>
@@ -334,6 +339,9 @@ export function CaseDetailPage(): JSX.Element {
         </Tabs.Panel>
         <Tabs.Panel value="approval" pt="md">
           <ApprovalTab caseId={data.case_id} caseStatus={data.status} />
+        </Tabs.Panel>
+        <Tabs.Panel value="policy_brief" pt="md">
+          <PolicyBriefTab caseId={data.case_id} caseStatus={data.status} />
         </Tabs.Panel>
         <Tabs.Panel value="versions" pt="md">
           <VersionsPanel data={data} />
