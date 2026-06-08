@@ -94,7 +94,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <Title order={4}>DeciBridge</Title>
           </Group>
           <Group>
-            <Badge variant="light">v0.2.0</Badge>
+            <Badge variant="light">v1.0.0</Badge>
             <UserMenu />
           </Group>
         </Group>

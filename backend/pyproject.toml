@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "decibridge-backend"
-version = "0.1.0"
+version = "1.0.0"
 description = "DeciBridge — KFT hospital formulary decision support (backend)"
 requires-python = ">=3.11"
 

@@ -38,8 +38,10 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 | 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped + verified + committed + role-gate hotfix landed (commit 455c4f7) |
 | 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + verified + committed |
 | 10 | Versioning + audit reconstruction UI (auto-snapshot on lock + timeline + diff) | ✅ shipped + verified + committed |
-| 11 | Long-term archive (SHA-256 manifest + 7-year retention + Admin IT user) | ✅ shipped + tests green — **awaiting your manual verification** |
-| **12** | **Hardening + E2E Playwright + docs** | **NEXT — final sprint** |
+| 11 | Long-term archive (SHA-256 manifest + 7-year retention + Admin IT user) | ✅ shipped + verified + committed |
+| 12 | Hardening + Playwright smoke + user manuals + demo script + deployment notes + landing-page redesign + version bump to v1.0.0 | ✅ shipped + tests green — **awaiting your manual verification** |
+
+**🎉 12-sprint roadmap complete.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 | 11 | Long-term archive (read-only retention) | pending |
 | 12 | Hardening + E2E Playwright + docs | pending |
 
