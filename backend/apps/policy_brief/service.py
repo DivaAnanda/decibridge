@@ -393,14 +393,24 @@ def _next_version_for(case: Case) -> int:
 def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
     """Convert DOCX → PDF using MS Word via docx2pdf.
 
-    docx2pdf opens Word in the background. On Windows this is the most
-    reliable converter for our demo. Cloud Linux deployment (Sprint 12) will
-    swap this for `soffice --convert-to pdf` (LibreOffice headless).
+    docx2pdf opens Word in the background via Windows COM. Because Django's
+    runserver dispatches each request on a fresh thread, we must call
+    pythoncom.CoInitialize() per request — otherwise the second-and-onward
+    generations fail with `CoInitialize has not been called` (CO_E_NOTINITIALIZED).
+
+    Cloud Linux deployment (Sprint 12) will swap this for
+    `soffice --convert-to pdf` (LibreOffice headless), eliminating COM entirely.
     """
-    # Lazy import — docx2pdf imports pywin32 at module load on Windows.
+    # Lazy imports — pywin32 only exists on Windows.
+    import pythoncom
     from docx2pdf import convert
 
-    convert(str(docx_path), str(pdf_path))
+    pythoncom.CoInitialize()
+    try:
+        convert(str(docx_path), str(pdf_path))
+    finally:
+        pythoncom.CoUninitialize()
+
     if not pdf_path.exists():
         raise RuntimeError(
             f"docx2pdf returned without writing {pdf_path}. "
