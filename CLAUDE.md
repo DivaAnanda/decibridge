@@ -35,25 +35,39 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 | 5 | BIA (1-year + 3-year impact, severity classes, trajectory chart) | ✅ shipped + verified + committed |
 | 6 | EtD (9 GRADE domains, references, 5-point judgement, certainty, aggregation) | ✅ shipped + verified + committed |
 | 7 | Recommendation synthesis (weights, CBA, traffic-light: GREEN/YELLOW/RED) | ✅ shipped + verified + committed |
-| 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped — **1 test failing, see below** |
-| **9** | **Policy brief DOCX/PDF export** | **NEXT — highest demo impact** |
-| 10 | Versioning + audit reconstruction UI | pending |
+| 8 | Approval + Sign-Off (Ketua KFT signs with checkbox + password re-verify) | ✅ shipped + verified + committed + role-gate hotfix landed (commit 455c4f7) |
+| 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + tests green — **awaiting your manual verification** |
+| **10** | **Versioning + audit reconstruction UI** | **NEXT** |
 | 11 | Long-term archive (read-only retention) | pending |
 | 12 | Hardening + E2E Playwright + docs | pending |
 
-**Test suite: 177 tests, 176 passing, 1 failing.** Coverage **90.52%** (target 80%).
+**Test suite: 215 tests, all passing.** Coverage target 80% (well above).
 
-## Known issue to fix next session
+## Sprint 9 verification crib
 
-`apps/approval/tests/test_api.py::TestSignaturePreconditions::test_draft_case_cannot_be_signed` returns 201 instead of expected 400. The test creates `green_recommendation` on a DRAFT case but the fixture `green_recommendation` depends on `case_in_review` which calls `case_transition(pilot_case, "submit", hta_user)` — so by the time the test body runs, the case is already `in_review`, not draft. Either the fixture needs decoupling or the test needs a different setup. Fix idea: make a separate `draft_recommendation` fixture that does NOT call `case_in_review`. Trivial fix.
+Before Sprint 10 starts, verify the policy brief works end-to-end on the live app:
+
+1. Log in as HTA (`hta@test.local`). Open an `approved` or `locked` case (e.g. `_006_2`).
+2. Click the new **Brief** tab (8th tab, between Sign-Off and Versi).
+3. Click **Terbitkan Ringkasan**. ~10-30 second wait (MS Word opens in background — do not interrupt).
+4. Version 1 row appears with green "Selesai" badge + DOCX/PDF download buttons.
+5. Download DOCX → opens in Word, 7 sections visible (cover, exec summary with green/yellow/red box, CEA, BIA, EtD 9-domain table, CBA, references, audit signatures).
+6. Download PDF → opens in PDF reader, looks pixel-identical to DOCX.
+7. Click **Buat Versi Baru** → v2 row appears with different SHA-256 hashes.
+8. Log in as KFT Member (`kft1`) → same case → Brief tab → can list + download, but cannot see Terbitkan button.
+9. Try generating on a `draft` case → button disabled with tooltip explaining why.
+
+Known platform caveats:
+- **MS Word must be installed AND not in mid-task** when generation fires. `docx2pdf` shells out to Word; if Word is busy on another doc, the conversion may hang or fail. Failures land with status=`failed` and the error in `error_message`; the user sees a red alert in the Brief tab.
+- Sprint 12 hardening will swap `docx2pdf` for LibreOffice headless (`soffice --convert-to pdf`) so the cloud deploy works on Linux without Office. Engine + service split keeps this swap to ~10 LOC in `service._convert_docx_to_pdf`.
 
 ## Project state cheatsheet
 
 ### Backend apps shipped
-`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off)
+`apps/core` (health) · `apps/accounts` (User + Role) · `apps/audit` (AuditLog) · `apps/cases` (Case + state machine) · `apps/cea` (ICER) · `apps/bia` (budget impact) · `apps/etd` (9 domains + references + appraisals) · `apps/recommendation` (weights + CBA + traffic-light) · `apps/approval` (sign-off) · `apps/policy_brief` (DOCX/PDF generation, append-only PolicyBriefDocument with SHA-256)
 
 ### Frontend modules shipped
-`src/auth/` · `src/cases/` · `src/cea/` · `src/bia/` · `src/etd/` · `src/recommendation/` · `src/approval/` · `src/pages/` (Login, Dashboard, Cases, CaseDetail with 7 tabs: Ringkasan / CEA / BIA / EtD / Rekomendasi / Sign-Off / Versi) · `src/api/` (client + per-app modules)
+`src/auth/` · `src/cases/` · `src/cea/` · `src/bia/` · `src/etd/` · `src/recommendation/` · `src/approval/` · `src/policy_brief/` · `src/pages/` (Login, Dashboard, Cases, CaseDetail with **8 tabs**: Ringkasan / CEA / BIA / EtD / Rekomendasi / Sign-Off / Brief / Versi) · `src/api/` (client + per-app modules)
 
 ### Test users that exist (set up via Django admin)
 - `hta@test.local` — `TestPass123!` — **HTA Analyst / Pharmacoeconomist** group
