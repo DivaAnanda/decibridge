@@ -238,9 +238,18 @@ LOGGING = {
     },
 }
 
-# ── Security (production hardening — review in Sprint 12) ─────────────────
+# ── Security (production hardening) ──────────────────────────────────────
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # NOTE: SECURE_SSL_REDIRECT intentionally NOT set.
+    #
+    # Railway (and most modern PaaS) terminates TLS at an edge proxy and
+    # enforces HTTPS for external traffic — no user can reach the container
+    # over plain HTTP. Meanwhile, internal healthcheck probes from the
+    # platform hit the container directly over HTTP without setting
+    # X-Forwarded-Proto. If SECURE_SSL_REDIRECT were True, Django would
+    # return 301 on those probes and the platform would mark the service
+    # unhealthy. Keep the other hardening below — none of them interfere
+    # with healthchecks.
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
