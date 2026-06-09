@@ -140,7 +140,12 @@ USE_TZ = True
 # ── Static & media ────────────────────────────────────────────────────────
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Compress (gzip + brotli) but DON'T re-hash filenames.
+# Vite already content-hashes its asset filenames (e.g. index-I4l4ir4D.js),
+# so the pre-built index.html references those exact names. The Manifest
+# storage variant would rename them again on collectstatic, breaking the
+# references → 404 on every JS/CSS asset → blank page in production.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # The React build output is copied here by the Dockerfile multi-stage build.
 # Local dev keeps using the Vite dev server on :5173, so this directory is

@@ -5,6 +5,11 @@ import path from 'node:path'
 
 export default defineConfig({
   plugins: [react()],
+  // In production the React build is served by Django + WhiteNoise from
+  // STATIC_URL ("/static/"), so all asset references in the built
+  // index.html must point there. Local dev (`npm run dev`) doesn't read
+  // this — Vite's dev server serves from "/" regardless.
+  base: '/static/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
