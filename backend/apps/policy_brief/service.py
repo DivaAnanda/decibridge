@@ -391,17 +391,34 @@ def _next_version_for(case: Case) -> int:
 
 
 def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
-    """Convert DOCX → PDF using MS Word via docx2pdf.
+    """Convert DOCX → PDF, picking the converter based on platform.
 
-    docx2pdf opens Word in the background via Windows COM. Because Django's
-    runserver dispatches each request on a fresh thread, we must call
-    pythoncom.CoInitialize() per request — otherwise the second-and-onward
-    generations fail with `CoInitialize has not been called` (CO_E_NOTINITIALIZED).
+    Windows (local dev):  MS Word via docx2pdf + COM. Pixel-perfect output.
+    Linux  (Railway/etc): LibreOffice headless via `soffice --convert-to pdf`.
 
-    Cloud Linux deployment (Sprint 12) will swap this for
-    `soffice --convert-to pdf` (LibreOffice headless), eliminating COM entirely.
+    Both paths must yield a file at `pdf_path` or raise.
     """
-    # Lazy imports — pywin32 only exists on Windows.
+    import sys
+
+    if sys.platform == "win32":
+        _convert_docx_to_pdf_windows(docx_path, pdf_path)
+    else:
+        _convert_docx_to_pdf_linux(docx_path, pdf_path)
+
+    if not pdf_path.exists():
+        raise RuntimeError(
+            f"PDF conversion completed without writing {pdf_path}. "
+            "Check converter logs for details."
+        )
+
+
+def _convert_docx_to_pdf_windows(docx_path: Path, pdf_path: Path) -> None:
+    """MS Word via docx2pdf + Windows COM.
+
+    Django's runserver dispatches each request on a fresh thread, so we must
+    call pythoncom.CoInitialize() per request — otherwise the second-and-onward
+    generations fail with `CoInitialize has not been called` (CO_E_NOTINITIALIZED).
+    """
     import pythoncom
     from docx2pdf import convert
 
@@ -411,11 +428,46 @@ def _convert_docx_to_pdf(docx_path: Path, pdf_path: Path) -> None:
     finally:
         pythoncom.CoUninitialize()
 
-    if not pdf_path.exists():
+
+def _convert_docx_to_pdf_linux(docx_path: Path, pdf_path: Path) -> None:
+    """LibreOffice headless. `soffice` must be on PATH (apt install libreoffice).
+
+    Note: soffice writes the output as `<basename>.pdf` into --outdir, so we
+    rename it to the exact pdf_path the caller expects.
+    """
+    import shutil
+    import subprocess
+
+    if shutil.which("soffice") is None:
         raise RuntimeError(
-            f"docx2pdf returned without writing {pdf_path}. "
-            "Is MS Word installed and not in the middle of another job?"
+            "soffice (LibreOffice) not found on PATH. "
+            "Install with `apt install libreoffice` or equivalent."
         )
+
+    result = subprocess.run(
+        [
+            "soffice",
+            "--headless",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(pdf_path.parent),
+            str(docx_path),
+        ],
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"soffice convert failed (exit {result.returncode}): "
+            f"{result.stderr.decode(errors='replace')[:500]}"
+        )
+
+    # soffice names the output after the input basename. Rename if necessary.
+    produced = pdf_path.parent / (docx_path.stem + ".pdf")
+    if produced != pdf_path and produced.exists():
+        produced.replace(pdf_path)
 
 
 def generate_brief(

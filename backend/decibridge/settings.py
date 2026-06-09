@@ -132,9 +132,24 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+# The React build output is copied here by the Dockerfile multi-stage build.
+# Local dev keeps using the Vite dev server on :5173, so this directory is
+# typically empty in dev — and collectstatic gracefully skips missing dirs.
+FRONTEND_DIST = Path(env("FRONTEND_DIST", default=str(BASE_DIR / "frontend_dist")))
+STATICFILES_DIRS = [FRONTEND_DIST] if FRONTEND_DIST.exists() else []
+
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 ARCHIVE_ROOT = Path(env("ARCHIVE_ROOT", default=str(MEDIA_ROOT / "archive")))
+
+# ── Security (behind Railway's reverse proxy) ────────────────────────────
+# Railway terminates TLS at the edge and forwards X-Forwarded-Proto.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+# Comma-separated origins for CSRF — e.g. "https://decibridge.up.railway.app".
+# Required by Django 4.0+ when the form/JSON POST origin differs from server name.
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

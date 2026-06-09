@@ -3,12 +3,15 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
+from apps.core.views import SPAFallbackView
+
 api_v1_patterns = [
     path("", include("apps.core.urls")),
     path("auth/", include("apps.accounts.urls")),
@@ -33,3 +36,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# SPA catch-all — must be LAST so /admin/, /api/, /static/, /media/ resolve first.
+# This serves the React build's index.html for any non-API path so client-side
+# routing works on direct URL hits in production.
+urlpatterns += [
+    re_path(r"^.*$", SPAFallbackView.as_view(), name="spa-fallback"),
+]

@@ -1,0 +1,45 @@
+# Keep the Docker build context lean — don't ship dev junk to Railway.
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+**/build
+**/.venv
+**/venv
+**/.git
+**/.github
+**/.idea
+**/.vscode
+**/*.log
+
+# Per-developer overrides
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Test artifacts
+**/coverage
+**/htmlcov
+**/.coverage
+**/playwright-report
+**/test-results
+
+# Generated media (regenerated on demand, never committed)
+backend/media
+backend/staticfiles
+backend/db.sqlite3
+
+# Frontend TypeScript build state — these regenerate
+frontend/*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
+
+# Docs aren't needed in the runtime image (still served via repo)
+docs
+
+# Project brief docs (large, not needed at runtime)
+Brief

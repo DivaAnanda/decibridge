@@ -22,3 +22,8 @@ backend/media/
 
 # pytest
 backend/.pytest_cache/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
