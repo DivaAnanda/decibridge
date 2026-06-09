@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Alert,
+  Anchor,
   Box,
   Button,
   Card,
   Center,
+  Code,
+  Divider,
+  Group,
   PasswordInput,
   Stack,
   TextInput,
@@ -13,7 +17,7 @@ import {
   Text,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { IconAlertCircle } from '@tabler/icons-react'
+import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react'
 
 import { useAuth } from '../auth/useAuth'
 
@@ -25,7 +29,9 @@ export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as LocationState | null)?.from?.pathname ?? '/'
+  // After login, send the user to wherever they were trying to reach, defaulting
+  // to /dashboard (the new authed home — `/` is the public landing page).
+  const from = (location.state as LocationState | null)?.from?.pathname ?? '/dashboard'
 
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -53,7 +59,20 @@ export function LoginPage() {
 
   return (
     <Center mih="100vh" bg="gray.0">
-      <Box w={420}>
+      <Stack w={420} gap="sm">
+        <Anchor
+          component={RouterLink}
+          to="/"
+          size="sm"
+          c="dimmed"
+          underline="never"
+        >
+          <Group gap={4}>
+            <IconArrowLeft size={14} />
+            Kembali ke beranda
+          </Group>
+        </Anchor>
+
         <Card withBorder radius="md" padding="xl" shadow="sm">
           <Stack gap="md">
             <Box>
@@ -89,9 +108,26 @@ export function LoginPage() {
                 </Button>
               </Stack>
             </form>
+
+            <Divider label="Akun demo" labelPosition="center" />
+
+            <Stack gap={4}>
+              <Text size="xs" c="dimmed">
+                Password untuk semua akun:{' '}
+                <Code fz="xs">TestPass123!</Code>
+              </Text>
+              <Text size="xs" c="dimmed">
+                Email:{' '}
+                <Code fz="xs">hta@test.local</Code>,{' '}
+                <Code fz="xs">sekre@test.local</Code>,{' '}
+                <Code fz="xs">kft1@test.local</Code>,{' '}
+                <Code fz="xs">ketua@test.local</Code>,{' '}
+                <Code fz="xs">adminit@test.local</Code>
+              </Text>
+            </Stack>
           </Stack>
         </Card>
-      </Box>
+      </Stack>
     </Center>
   )
 }

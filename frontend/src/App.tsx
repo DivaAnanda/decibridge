@@ -14,9 +14,10 @@ import {
   NavLink,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLogout, IconUser, IconHome, IconFolders } from '@tabler/icons-react'
+import { IconLogout, IconUser, IconHome, IconFolders, IconActivity } from '@tabler/icons-react'
 
 import { LoginPage } from './pages/LoginPage'
+import { LandingPage } from './pages/LandingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CasesPage } from './pages/CasesPage'
 import { CaseDetailPage } from './pages/CaseDetailPage'
@@ -28,7 +29,7 @@ function NotFoundPage() {
   return (
     <Stack gap="md">
       <Title order={3}>404 — Halaman tidak ditemukan</Title>
-      <Anchor component={Link} to="/">
+      <Anchor component={Link} to="/dashboard">
         Kembali ke beranda
       </Anchor>
     </Stack>
@@ -104,7 +105,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <Stack gap={4}>
           <NavLink
             component={Link}
-            to="/"
+            to="/dashboard"
             label="Beranda"
             leftSection={<IconHome size={16} />}
             onClick={close}
@@ -116,9 +117,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             leftSection={<IconFolders size={16} />}
             onClick={close}
           />
-          <Text size="xs" c="dimmed" mt="md">
-            Modul berikutnya: Upload Excel · CEA · BIA · EtD · Approval
-          </Text>
+          <NavLink
+            component={Link}
+            to="/"
+            label="Lihat Landing Page"
+            leftSection={<IconActivity size={16} />}
+            onClick={close}
+          />
         </Stack>
       </AppShell.Navbar>
 
@@ -130,14 +135,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      {/* Public routes — no AppLayout, no auth */}
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected app — wrapped in AppLayout + auth gate */}
       <Route
         path="/*"
         element={
           <ProtectedRoute>
             <AppLayout>
               <Routes>
-                <Route path="/" element={<DashboardPage />} />
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/cases" element={<CasesPage />} />
                 <Route path="/cases/new" element={<CaseCreatePage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />
