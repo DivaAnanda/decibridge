@@ -24,7 +24,17 @@ environ.Env.read_env(BASE_DIR / ".env")
 # ── Core ──────────────────────────────────────────────────────────────────
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-insecure-replace-me")
 DEBUG = env("DJANGO_DEBUG")
-ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+ALLOWED_HOSTS = list(env("DJANGO_ALLOWED_HOSTS"))
+
+# Railway-specific auto-config — no need to manually update env vars when
+# the platform assigns a new domain or runs internal healthcheck probes.
+#   * RAILWAY_PUBLIC_DOMAIN is injected by Railway on every deploy.
+#   * healthcheck.railway.app is the Host header Railway uses for its
+#     /api/v1/health/ probe (configured in railway.json).
+RAILWAY_PUBLIC_DOMAIN = env("RAILWAY_PUBLIC_DOMAIN", default="")
+for host in (RAILWAY_PUBLIC_DOMAIN, "healthcheck.railway.app"):
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # ── Applications ──────────────────────────────────────────────────────────
 DJANGO_APPS = [
@@ -150,6 +160,12 @@ USE_X_FORWARDED_HOST = True
 # Comma-separated origins for CSRF — e.g. "https://decibridge.up.railway.app".
 # Required by Django 4.0+ when the form/JSON POST origin differs from server name.
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Auto-include the Railway domain so deploys self-configure for CSRF too.
+if RAILWAY_PUBLIC_DOMAIN:
+    railway_origin = f"https://{RAILWAY_PUBLIC_DOMAIN}"
+    if railway_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS = list(CSRF_TRUSTED_ORIGINS) + [railway_origin]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
