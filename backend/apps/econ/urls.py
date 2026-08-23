@@ -7,6 +7,8 @@ from .views import (
     EconComputeView,
     EconModelView,
     EconParametersView,
+    EconPSAComputeView,
+    EconPSAResultLatestView,
     EconResultLatestView,
     EconResultListView,
 )
@@ -22,4 +24,6 @@ urlpatterns = [
     path("cases/<str:case_id>/econ/bia/compute/", EconBIAComputeView.as_view(), name="bia_compute"),
     path("cases/<str:case_id>/econ/bia/results/", EconBIAResultListView.as_view(), name="bia_results"),
     path("cases/<str:case_id>/econ/bia/results/latest/", EconBIAResultLatestView.as_view(), name="bia_result_latest"),
+    path("cases/<str:case_id>/econ/psa/compute/", EconPSAComputeView.as_view(), name="psa_compute"),
+    path("cases/<str:case_id>/econ/psa/results/latest/", EconPSAResultLatestView.as_view(), name="psa_result_latest"),
 ]

@@ -5,7 +5,9 @@ import type {
   EconModelPayload,
   EconParameter,
   EconParameterPayload,
+  EconPSAResult,
   EconResult,
+  PSAConfig,
 } from '../econ/types'
 
 export async function getEconModel(caseId: string): Promise<EconModel | null> {
@@ -58,6 +60,19 @@ export async function computeEconBIA(caseId: string): Promise<EconBIAResult> {
 export async function getLatestEconBIA(caseId: string): Promise<EconBIAResult | null> {
   const response = await apiClient.get<EconBIAResult | null>(
     `/cases/${caseId}/econ/bia/results/latest/`,
+    { validateStatus: (s) => s === 200 || s === 204 },
+  )
+  return response.status === 204 ? null : response.data
+}
+
+export async function computeEconPSA(caseId: string, config: PSAConfig): Promise<EconPSAResult> {
+  const { data } = await apiClient.post<EconPSAResult>(`/cases/${caseId}/econ/psa/compute/`, config)
+  return data
+}
+
+export async function getLatestEconPSA(caseId: string): Promise<EconPSAResult | null> {
+  const response = await apiClient.get<EconPSAResult | null>(
+    `/cases/${caseId}/econ/psa/results/latest/`,
     { validateStatus: (s) => s === 200 || s === 204 },
   )
   return response.status === 204 ? null : response.data

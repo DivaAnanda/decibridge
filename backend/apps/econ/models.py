@@ -78,6 +78,24 @@ class DataStatus(models.TextChoices):
     ASSUMPTION = "assumption", _("Assumption (asumsi ilustratif)")
 
 
+class Distribution(models.TextChoices):
+    """PSA uncertainty distribution for a parameter.
+
+    Two generic params (dist_param1, dist_param2) are interpreted per distribution:
+      * FIXED     — held at `value`, not sampled.
+      * BETA      — param1 = alpha, param2 = beta   (probabilities / utilities, [0,1]).
+      * GAMMA     — param1 = shape, param2 = scale  (costs, >= 0).
+      * LOGNORMAL — param1 = mean,  param2 = SE     (costs, >= 0; converted to log-space).
+      * NORMAL    — param1 = mean,  param2 = SD.
+    """
+
+    FIXED = "fixed", _("Tetap (tidak disampel)")
+    BETA = "beta", _("Beta (probabilitas/utility)")
+    GAMMA = "gamma", _("Gamma (biaya)")
+    LOGNORMAL = "lognormal", _("Log-normal (biaya)")
+    NORMAL = "normal", _("Normal")
+
+
 class ParamKey(models.TextChoices):
     """Canonical parameter vocabulary the engines read by key.
 
@@ -264,6 +282,30 @@ class EconomicParameter(models.Model):
     )
     notes = models.TextField(_("Catatan / asumsi"), blank=True, default="")
 
+    # ── PSA uncertainty (Phase R5) ──────────────────────────────────────
+    distribution = models.CharField(
+        _("Distribusi PSA"),
+        max_length=16,
+        choices=Distribution.choices,
+        default=Distribution.FIXED,
+    )
+    dist_param1 = models.DecimalField(
+        _("Parameter distribusi 1"),
+        max_digits=VALUE_MAX_DIGITS,
+        decimal_places=VALUE_DECIMAL_PLACES,
+        null=True,
+        blank=True,
+        help_text=_("alpha (beta) / shape (gamma) / mean (lognormal, normal)"),
+    )
+    dist_param2 = models.DecimalField(
+        _("Parameter distribusi 2"),
+        max_digits=VALUE_MAX_DIGITS,
+        decimal_places=VALUE_DECIMAL_PLACES,
+        null=True,
+        blank=True,
+        help_text=_("beta (beta) / scale (gamma) / SE (lognormal, normal)"),
+    )
+
     version = models.PositiveIntegerField(
         _("Versi"), default=1, help_text=_("Naik otomatis setiap kali nilai diedit")
     )
@@ -444,3 +486,62 @@ class EconBIAResult(models.Model):
 
     def delete(self, *args, **kwargs):
         raise PermissionError("EconBIAResult rows are append-only and cannot be deleted.")
+
+
+class EconPSAResult(models.Model):
+    """One immutable Probabilistic Sensitivity Analysis run. Append-only.
+
+    Stores the run config (n simulations, seed), the CEAC curve, the CE-plane
+    scatter cloud, and summary statistics. Reproducible: same seed + same
+    parameters → identical output.
+    """
+
+    case = models.ForeignKey(
+        Case, on_delete=models.CASCADE, related_name="econ_psa_results"
+    )
+    input_snapshot = models.JSONField(help_text=_("Run config + resolved base params"))
+
+    n_simulations = models.PositiveIntegerField()
+    random_seed = models.BigIntegerField()
+    wtp_base = models.DecimalField(max_digits=COST_MAX_DIGITS, decimal_places=COST_DECIMAL_PLACES)
+
+    prob_cost_effective_base = models.DecimalField(max_digits=6, decimal_places=4)
+    mean_incremental_cost = models.DecimalField(max_digits=30, decimal_places=10)
+    mean_incremental_qaly = models.DecimalField(max_digits=RATE_MAX_DIGITS, decimal_places=RATE_DECIMAL_PLACES)
+
+    # CEAC curve: [{"wtp": "...", "prob": "..."}, ...]
+    ceac = models.JSONField(default=list)
+    # CE-plane scatter: [[inc_qaly, inc_cost], ...] (one per iteration)
+    scatter = models.JSONField(default=list)
+    # Deterministic base-case point plotted over the cloud.
+    base_case_incremental_cost = models.DecimalField(max_digits=30, decimal_places=10)
+    base_case_incremental_qaly = models.DecimalField(max_digits=RATE_MAX_DIGITS, decimal_places=RATE_DECIMAL_PLACES)
+
+    interpretation_text = models.TextField(blank=True, default="")
+    algorithm_version = models.CharField(max_length=16, default="1.0.0")
+
+    computed_at = models.DateTimeField(default=timezone.now, editable=False)
+    computed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="econ_psa_results_computed",
+    )
+
+    class Meta:
+        ordering = ["-computed_at"]
+        verbose_name = _("PSA Result")
+        verbose_name_plural = _("PSA Results")
+        indexes = [models.Index(fields=["case", "-computed_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.case.case_id} PSA #{self.pk} — P(CE)={self.prob_cost_effective_base}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise PermissionError("EconPSAResult rows are immutable; re-compute to create a new row.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("EconPSAResult rows are append-only and cannot be deleted.")

@@ -11,6 +11,7 @@ from .models import (
     EconDeterministicResult,
     EconomicModel,
     EconomicParameter,
+    EconPSAResult,
     ParamType,
 )
 
@@ -76,6 +77,9 @@ class EconomicParameterSerializer(serializers.ModelSerializer):
             "source_reference",
             "source_year",
             "notes",
+            "distribution",
+            "dist_param1",
+            "dist_param2",
             "version",
             "created_at",
             "updated_at",
@@ -119,6 +123,32 @@ class EconBIAResultSerializer(serializers.ModelSerializer):
             "severity",
             "budget_score",
             "per_year",
+            "interpretation_text",
+            "algorithm_version",
+            "computed_at",
+            "computed_by",
+        ]
+        read_only_fields = fields
+
+
+class EconPSAResultSerializer(serializers.ModelSerializer):
+    computed_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = EconPSAResult
+        fields = [
+            "id",
+            "input_snapshot",
+            "n_simulations",
+            "random_seed",
+            "wtp_base",
+            "prob_cost_effective_base",
+            "mean_incremental_cost",
+            "mean_incremental_qaly",
+            "ceac",
+            "scatter",
+            "base_case_incremental_cost",
+            "base_case_incremental_qaly",
             "interpretation_text",
             "algorithm_version",
             "computed_at",

@@ -14,9 +14,11 @@ class EconConfig(AppConfig):
             EconDeterministicResult,
             EconomicModel,
             EconomicParameter,
+            EconPSAResult,
         )
 
         register_auditable(EconomicModel)
         register_auditable(EconomicParameter)
         register_auditable(EconDeterministicResult)
         register_auditable(EconBIAResult)
+        register_auditable(EconPSAResult)

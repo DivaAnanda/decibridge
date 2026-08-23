@@ -185,7 +185,17 @@ net_budget_impact       = incremental_drug_budget − event_cost_offset + increm
 
 ---
 
-### R5 — PSA + CEAC + CE plane  *(Req #6, #7, #8)*
+### R5 — PSA + CEAC + CE plane  *(Req #6, #7, #8)*  — ✅ DONE
+*Pure `apps/econ/engine_psa.py` (numpy): Monte-Carlo, seedable/reproducible, Beta
+(prob/utility) / Gamma / Log-normal / Normal distributions, [0,1] clipping. Per-iteration
+incremental cost/QALY → CE-plane scatter cloud, CEAC across a WTP range, P(cost-effective)
+at base WTP. `EconomicParameter` gained `distribution/dist_param1/dist_param2`;
+append-only `EconPSAResult`; `service.run_psa`; DRF `/econ/psa/compute|results`.
+Frontend: new 9th tab `EconPSATab` with recharts CE-plane scatter (+ base-case dot) and
+CEAC curve. numpy added to pyproject (Docker picks it up via `pip install -e`). Seed extended
+with distributions. Verified on real data: P(cost-effective) 4.8% at WTP 85M (consistent with
+the not-cost-effective deterministic result). 11 new tests.*
+
 New `apps/econ/engine_psa.py` (numpy/scipy) — add deps.
 - Monte Carlo: **≥1000 sims**, **settable seed** (reproducible), distributions: **Beta** for
   probabilities/utilities, **Gamma or Log-normal** for costs; inputs as mean+SE / alpha-beta /

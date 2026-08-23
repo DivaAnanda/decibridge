@@ -26,11 +26,18 @@ from .engine_deterministic import (
     DeterministicInput,
     compute_deterministic,
 )
+from .engine_psa import (
+    AlternativeSpecs,
+    ParamSpec,
+    PSAInput,
+    compute_psa,
+)
 from .models import (
     Alternative,
     EconBIAResult,
     EconDeterministicResult,
     EconomicModel,
+    EconPSAResult,
     ParamKey,
 )
 
@@ -267,6 +274,106 @@ def run_bia(model: EconomicModel, computed_by: User | None = None) -> EconBIARes
         severity=result.severity,
         budget_score=result.budget_score,
         per_year=_bia_year_rows_json(result.year_rows),
+        interpretation_text=result.interpretation_text,
+        algorithm_version=result.algorithm_version,
+        computed_by=computed_by,
+    )
+
+
+# ── Probabilistic Sensitivity Analysis (R5) ─────────────────────────────────
+
+def _find_param(model: EconomicModel, key: str, alt: str):
+    rows = list(
+        model.parameters.filter(
+            key=key, alternative__in=[alt, Alternative.SHARED], year_index__isnull=True
+        )
+    )
+    exact = next((r for r in rows if r.alternative == alt), None)
+    return exact or next((r for r in rows if r.alternative == Alternative.SHARED), None)
+
+
+def _param_spec(model: EconomicModel, key: str, alt: str) -> ParamSpec:
+    row = _find_param(model, key, alt)
+    if row is None:
+        return ParamSpec(value=0.0)
+    return ParamSpec(
+        value=float(row.value),
+        distribution=row.distribution,
+        p1=float(row.dist_param1) if row.dist_param1 is not None else None,
+        p2=float(row.dist_param2) if row.dist_param2 is not None else None,
+    )
+
+
+def _alternative_specs(model: EconomicModel, alt: str) -> AlternativeSpecs:
+    return AlternativeSpecs(
+        drug_cost=_param_spec(model, ParamKey.DRUG_COST, alt),
+        event_probability=_param_spec(model, ParamKey.EVENT_PROBABILITY, alt),
+        event_cost=_param_spec(model, ParamKey.EVENT_COST, alt),
+        other_cost=_param_spec(model, ParamKey.OTHER_COST, alt),
+        baseline_utility=_param_spec(model, ParamKey.BASELINE_UTILITY, alt),
+        event_disutility=_param_spec(model, ParamKey.EVENT_DISUTILITY, alt),
+    )
+
+
+def run_psa(
+    model: EconomicModel,
+    computed_by: User | None = None,
+    *,
+    n_simulations: int = 1000,
+    seed: int = 42,
+    wtp_min: float | None = None,
+    wtp_max: float | None = None,
+    wtp_step: float | None = None,
+) -> EconPSAResult:
+    """Resolve -> Monte-Carlo -> persist an append-only PSA result.
+
+    build_input() reuse validates the mandatory-parameter set (raises
+    IncompleteModelError) AND gives the deterministic base-case point.
+    """
+    base = compute_deterministic(build_input(model))
+
+    wtp_base = float(model.wtp_threshold)
+    lo = wtp_min if wtp_min is not None else 0.0
+    hi = wtp_max if wtp_max is not None else wtp_base * 2.0
+    step = wtp_step if wtp_step is not None else (hi - lo) / 20.0 or wtp_base / 10.0
+
+    psa_input = PSAInput(
+        horizon_years=model.horizon_years,
+        cost_discount_rate=float(model.cost_discount_rate),
+        outcome_discount_rate=float(model.outcome_discount_rate),
+        wtp_base=wtp_base,
+        wtp_min=lo,
+        wtp_max=hi,
+        wtp_step=step,
+        n_simulations=n_simulations,
+        seed=seed,
+        intervention=_alternative_specs(model, Alternative.INTERVENTION),
+        comparator=_alternative_specs(model, Alternative.COMPARATOR),
+        base_incremental_cost=float(base.incremental_cost),
+        base_incremental_qaly=float(base.incremental_qaly),
+    )
+    result = compute_psa(psa_input)
+
+    return EconPSAResult.objects.create(
+        case=model.case,
+        input_snapshot={
+            "n_simulations": n_simulations,
+            "seed": seed,
+            "wtp_base": str(wtp_base),
+            "wtp_min": lo,
+            "wtp_max": hi,
+            "wtp_step": step,
+        },
+        n_simulations=result.n_simulations,
+        random_seed=result.seed,
+        wtp_base=model.wtp_threshold,
+        prob_cost_effective_base=Decimal(str(round(result.prob_cost_effective_base, 4))),
+        mean_incremental_cost=Decimal(str(result.mean_incremental_cost)),
+        mean_incremental_qaly=Decimal(str(result.mean_incremental_qaly)),
+        ceac=result.ceac,
+        scatter=result.scatter,
+        base_case_incremental_cost=base.incremental_cost,
+        base_case_incremental_qaly=base.incremental_qaly,
         interpretation_text=result.interpretation_text,
         algorithm_version=result.algorithm_version,
         computed_by=computed_by,

@@ -17,8 +17,9 @@ from .serializers import (
     EconDeterministicResultSerializer,
     EconomicModelSerializer,
     EconomicParameterSerializer,
+    EconPSAResultSerializer,
 )
-from .service import IncompleteModelError, run_bia, run_deterministic
+from .service import IncompleteModelError, run_bia, run_deterministic, run_psa
 
 
 def _get_case(case_id: str) -> Case:
@@ -111,6 +112,9 @@ class EconParametersView(APIView):
                     "source_reference": item.get("source_reference", ""),
                     "source_year": item.get("source_year"),
                     "notes": item.get("notes", ""),
+                    "distribution": item.get("distribution", "fixed"),
+                    "dist_param1": item.get("dist_param1"),
+                    "dist_param2": item.get("dist_param2"),
                     "created_by": request.user,
                     "last_edited_by": request.user,
                 },
@@ -190,6 +194,56 @@ class EconBIAResultLatestView(APIView):
         if latest is None:
             return Response(None, status=status.HTTP_204_NO_CONTENT)
         return Response(EconBIAResultSerializer(latest).data)
+
+
+class EconPSAComputeView(APIView):
+    """POST compute → append-only EconPSAResult (Monte-Carlo PSA)."""
+
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def post(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        model = _get_model(case)
+        if model is None:
+            return Response(
+                {"detail": "Model ekonomi belum dibuat untuk kasus ini."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data or {}
+        try:
+            n = int(data.get("n_simulations", 1000))
+            seed = int(data.get("seed", 42))
+        except (TypeError, ValueError):
+            return Response({"detail": "n_simulations & seed harus bilangan bulat."}, status=400)
+        n = max(100, min(n, 20000))  # keep the request responsive
+
+        kwargs = {"n_simulations": n, "seed": seed}
+        for key in ("wtp_min", "wtp_max", "wtp_step"):
+            if data.get(key) is not None:
+                kwargs[key] = float(data[key])
+
+        try:
+            result = run_psa(model, computed_by=request.user, **kwargs)
+        except IncompleteModelError as exc:
+            return Response(
+                {"detail": str(exc), "missing": exc.missing},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(EconPSAResultSerializer(result).data, status=status.HTTP_201_CREATED)
+
+
+class EconPSAResultLatestView(APIView):
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def get(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        latest = case.econ_psa_results.order_by("-computed_at").first()
+        if latest is None:
+            return Response(None, status=status.HTTP_204_NO_CONTENT)
+        return Response(EconPSAResultSerializer(latest).data)
 
 
 class EconResultListView(APIView):

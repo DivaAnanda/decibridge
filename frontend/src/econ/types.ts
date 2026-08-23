@@ -207,3 +207,30 @@ export const BIA_SEVERITY_COLOR: Record<string, string> = {
   significant: 'yellow',
   prohibitive: 'red',
 }
+
+export interface CEACPoint {
+  wtp: number
+  prob: number
+}
+
+export interface EconPSAResult {
+  id: number
+  n_simulations: number
+  random_seed: number
+  wtp_base: string
+  prob_cost_effective_base: string
+  mean_incremental_cost: string
+  mean_incremental_qaly: string
+  ceac: CEACPoint[]
+  scatter: number[][]
+  base_case_incremental_cost: string
+  base_case_incremental_qaly: string
+  interpretation_text: string
+  algorithm_version: string
+  computed_at: string
+}
+
+export interface PSAConfig {
+  n_simulations: number
+  seed: number
+}

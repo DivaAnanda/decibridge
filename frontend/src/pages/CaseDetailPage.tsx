@@ -24,6 +24,7 @@ import {
   IconArrowLeft,
   IconBulb,
   IconCalculator,
+  IconChartDots,
   IconChevronDown,
   IconCoin,
   IconFileText,
@@ -43,6 +44,7 @@ import {
 } from '../cases/types'
 import { EconTab } from '../econ/EconTab'
 import { EconBIATab } from '../econ/EconBIATab'
+import { EconPSATab } from '../econ/EconPSATab'
 import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
 import { ApprovalTab } from '../approval/ApprovalTab'
@@ -262,6 +264,9 @@ export function CaseDetailPage(): JSX.Element {
           <Tabs.Tab value="bia" leftSection={<IconCoin size={14} />}>
             BIA
           </Tabs.Tab>
+          <Tabs.Tab value="psa" leftSection={<IconChartDots size={14} />}>
+            PSA
+          </Tabs.Tab>
           <Tabs.Tab value="etd" leftSection={<IconScale size={14} />}>
             EtD (9 domain)
           </Tabs.Tab>
@@ -287,6 +292,9 @@ export function CaseDetailPage(): JSX.Element {
         </Tabs.Panel>
         <Tabs.Panel value="bia" pt="md">
           <EconBIATab caseId={data.case_id} caseIsLocked={data.is_locked} />
+        </Tabs.Panel>
+        <Tabs.Panel value="psa" pt="md">
+          <EconPSATab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="etd" pt="md">
           <EtDTab caseId={data.case_id} caseIsLocked={data.is_locked} />
