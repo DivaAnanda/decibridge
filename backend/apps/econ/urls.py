@@ -1,6 +1,9 @@
 from django.urls import path
 
 from .views import (
+    EconBIAComputeView,
+    EconBIAResultLatestView,
+    EconBIAResultListView,
     EconComputeView,
     EconModelView,
     EconParametersView,
@@ -16,4 +19,7 @@ urlpatterns = [
     path("cases/<str:case_id>/econ/compute/", EconComputeView.as_view(), name="compute"),
     path("cases/<str:case_id>/econ/results/", EconResultListView.as_view(), name="results"),
     path("cases/<str:case_id>/econ/results/latest/", EconResultLatestView.as_view(), name="result_latest"),
+    path("cases/<str:case_id>/econ/bia/compute/", EconBIAComputeView.as_view(), name="bia_compute"),
+    path("cases/<str:case_id>/econ/bia/results/", EconBIAResultListView.as_view(), name="bia_results"),
+    path("cases/<str:case_id>/econ/bia/results/latest/", EconBIAResultLatestView.as_view(), name="bia_result_latest"),
 ]

@@ -42,7 +42,7 @@ import {
   type CaseDetail,
 } from '../cases/types'
 import { EconTab } from '../econ/EconTab'
-import { BIATab } from '../bia/BIATab'
+import { EconBIATab } from '../econ/EconBIATab'
 import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
 import { ApprovalTab } from '../approval/ApprovalTab'
@@ -286,7 +286,7 @@ export function CaseDetailPage(): JSX.Element {
           <EconTab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="bia" pt="md">
-          <BIATab caseId={data.case_id} caseIsLocked={data.is_locked} />
+          <EconBIATab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="etd" pt="md">
           <EtDTab caseId={data.case_id} caseIsLocked={data.is_locked} />

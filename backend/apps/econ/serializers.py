@@ -7,6 +7,7 @@ from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 
 from .models import (
+    EconBIAResult,
     EconDeterministicResult,
     EconomicModel,
     EconomicParameter,
@@ -28,6 +29,7 @@ class EconomicModelSerializer(serializers.ModelSerializer):
             "cost_discount_rate",
             "outcome_discount_rate",
             "wtp_threshold",
+            "annual_budget_baseline",
             "notes",
             "created_at",
             "updated_at",
@@ -101,6 +103,28 @@ class EconomicParameterSerializer(serializers.ModelSerializer):
             if param_type == ParamType.COST and value < 0:
                 raise serializers.ValidationError({"value": "Biaya tidak boleh negatif."})
         return attrs
+
+
+class EconBIAResultSerializer(serializers.ModelSerializer):
+    computed_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = EconBIAResult
+        fields = [
+            "id",
+            "input_snapshot",
+            "cumulative_net_impact",
+            "pct_of_total_baseline",
+            "annual_budget_baseline",
+            "severity",
+            "budget_score",
+            "per_year",
+            "interpretation_text",
+            "algorithm_version",
+            "computed_at",
+            "computed_by",
+        ]
+        read_only_fields = fields
 
 
 class EconDeterministicResultSerializer(serializers.ModelSerializer):

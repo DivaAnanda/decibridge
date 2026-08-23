@@ -133,6 +133,14 @@ class EconomicModel(models.Model):
         decimal_places=COST_DECIMAL_PLACES,
         default=DEFAULT_WTP_IDR,
     )
+    annual_budget_baseline = models.DecimalField(
+        _("Anggaran farmasi tahunan baseline (IDR)"),
+        max_digits=COST_MAX_DIGITS,
+        decimal_places=COST_DECIMAL_PLACES,
+        null=True,
+        blank=True,
+        help_text=_("Dasar perhitungan % dampak anggaran (BIA)"),
+    )
 
     notes = models.TextField(blank=True, default="")
 
@@ -386,3 +394,53 @@ class EconDeterministicResult(models.Model):
 
     def delete(self, *args, **kwargs):
         raise PermissionError("EconDeterministicResult rows are append-only and cannot be deleted.")
+
+
+class EconBIAResult(models.Model):
+    """One immutable cost-offset Budget Impact Analysis run. Append-only."""
+
+    case = models.ForeignKey(
+        Case, on_delete=models.CASCADE, related_name="econ_bia_results"
+    )
+    input_snapshot = models.JSONField(help_text=_("Resolved BIA inputs at compute time"))
+
+    cumulative_net_impact = models.DecimalField(max_digits=30, decimal_places=10)
+    pct_of_total_baseline = models.DecimalField(max_digits=12, decimal_places=4)
+    annual_budget_baseline = models.DecimalField(max_digits=COST_MAX_DIGITS, decimal_places=COST_DECIMAL_PLACES)
+    severity = models.CharField(max_length=16)
+    budget_score = models.PositiveSmallIntegerField(
+        help_text=_("0-100 contribution to the traffic-light synthesis (20% weight)")
+    )
+
+    # Per-year breakdown (eligible, uptake, patients, incremental drug cost,
+    # event cost offset, net impact, cumulative, % baseline).
+    per_year = models.JSONField(default=list)
+
+    interpretation_text = models.TextField(blank=True, default="")
+    algorithm_version = models.CharField(max_length=16, default="1.0.0")
+
+    computed_at = models.DateTimeField(default=timezone.now, editable=False)
+    computed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="econ_bia_results_computed",
+    )
+
+    class Meta:
+        ordering = ["-computed_at"]
+        verbose_name = _("BIA Result (econ)")
+        verbose_name_plural = _("BIA Results (econ)")
+        indexes = [models.Index(fields=["case", "-computed_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.case.case_id} BIA #{self.pk} — {self.cumulative_net_impact:,.0f} ({self.severity})"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise PermissionError("EconBIAResult rows are immutable; re-compute to create a new row.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("EconBIAResult rows are append-only and cannot be deleted.")

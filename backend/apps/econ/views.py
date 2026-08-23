@@ -13,11 +13,12 @@ from apps.cases.models import Case
 from .models import EconomicModel, EconomicParameter
 from .permissions import EconPermission
 from .serializers import (
+    EconBIAResultSerializer,
     EconDeterministicResultSerializer,
     EconomicModelSerializer,
     EconomicParameterSerializer,
 )
-from .service import IncompleteModelError, run_deterministic
+from .service import IncompleteModelError, run_bia, run_deterministic
 
 
 def _get_case(case_id: str) -> Case:
@@ -143,6 +144,52 @@ class EconComputeView(APIView):
         return Response(
             EconDeterministicResultSerializer(result).data, status=status.HTTP_201_CREATED
         )
+
+
+class EconBIAComputeView(APIView):
+    """POST compute → append-only EconBIAResult (or 422 with gaps)."""
+
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def post(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        model = _get_model(case)
+        if model is None:
+            return Response(
+                {"detail": "Model ekonomi belum dibuat untuk kasus ini."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = run_bia(model, computed_by=request.user)
+        except IncompleteModelError as exc:
+            return Response(
+                {"detail": str(exc), "missing": exc.missing},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(EconBIAResultSerializer(result).data, status=status.HTTP_201_CREATED)
+
+
+class EconBIAResultListView(APIView):
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def get(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        results = case.econ_bia_results.all().select_related("computed_by")
+        return Response(EconBIAResultSerializer(results, many=True).data)
+
+
+class EconBIAResultLatestView(APIView):
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def get(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        latest = case.econ_bia_results.order_by("-computed_at").first()
+        if latest is None:
+            return Response(None, status=status.HTTP_204_NO_CONTENT)
+        return Response(EconBIAResultSerializer(latest).data)
 
 
 class EconResultListView(APIView):

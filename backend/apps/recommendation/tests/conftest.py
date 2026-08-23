@@ -7,8 +7,7 @@ from decimal import Decimal
 import pytest
 
 from apps.accounts.models import RoleSlug
-from apps.bia.models import BIAResult
-from apps.econ.models import EconDeterministicResult
+from apps.econ.models import EconBIAResult, EconDeterministicResult
 from apps.etd.models import EtDAppraisal
 from apps.recommendation.models import CBACriterion, DomainWeightVote
 
@@ -64,17 +63,16 @@ def seeded_econ_result(pilot_case, hta_user):
 
 @pytest.fixture
 def seeded_bia_result(pilot_case, hta_user):
-    return BIAResult.objects.create(
+    """Econ cost-offset BIA result feeding budget_score 80 (manageable)."""
+    return EconBIAResult.objects.create(
         case=pilot_case,
         input_snapshot={"dummy": True},
-        year1_drug_cost=Decimal("750000000"),
-        year1_comparator_cost_displaced=Decimal("375000000"),
-        year1_net_impact=Decimal("375000000"),
-        cumulative_impact=Decimal("1500000000"),
-        pct_of_annual_budget=Decimal("5.0000"),
+        cumulative_net_impact=Decimal("1500000000"),
+        pct_of_total_baseline=Decimal("3.0000"),
+        annual_budget_baseline=Decimal("50000000000"),
         severity="manageable",
-        direction="cost_increase",
         budget_score=80,
+        per_year=[],
         interpretation_text="seed",
         algorithm_version="1.0.0",
         computed_by=hta_user,

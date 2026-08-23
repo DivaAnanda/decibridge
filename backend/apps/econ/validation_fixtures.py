@@ -21,6 +21,7 @@ MODEL_SCALARS = dict(
     cost_discount_rate=Decimal("0"),
     outcome_discount_rate=Decimal("0"),
     wtp_threshold=Decimal("85000000.0000"),
+    annual_budget_baseline=Decimal("50000000000.0000"),
 )
 
 # Each entry becomes one EconomicParameter row (year-agnostic).
@@ -56,4 +57,17 @@ VALIDATION_PARAMETERS: list[dict] = [
          value=Decimal("0.2415400000"), param_type=ParamType.PROBABILITY,
          unit="proporsi/tahun", data_status=DataStatus.ASSUMPTION,
          source_reference="Diturunkan dari model validasi"),
+    # ── BIA scenario parameters (shared) — illustrative ──────────────────
+    dict(key=ParamKey.ELIGIBLE_POPULATION, alternative=Alternative.SHARED,
+         value=Decimal("1000"), param_type=ParamType.COUNT,
+         unit="pasien/tahun", data_status=DataStatus.ASSUMPTION,
+         source_reference="Asumsi ilustratif (populasi eligible HFrEF)"),
+    dict(key=ParamKey.UPTAKE, alternative=Alternative.SHARED,
+         value=Decimal("0.5000000000"), param_type=ParamType.RATE,
+         unit="proporsi", data_status=DataStatus.ASSUMPTION,
+         source_reference="Asumsi ilustratif (proporsi eligible yang diobati)"),
+    dict(key=ParamKey.MARKET_SHARE, alternative=Alternative.SHARED,
+         value=Decimal("0.5000000000"), param_type=ParamType.RATE,
+         unit="proporsi", data_status=DataStatus.ASSUMPTION,
+         source_reference="Asumsi ilustratif (pangsa intervensi di antara yang diobati)"),
 ]

@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type {
+  EconBIAResult,
   EconModel,
   EconModelPayload,
   EconParameter,
@@ -46,5 +47,18 @@ export async function getLatestEconResult(caseId: string): Promise<EconResult | 
   const response = await apiClient.get<EconResult | null>(`/cases/${caseId}/econ/results/latest/`, {
     validateStatus: (s) => s === 200 || s === 204,
   })
+  return response.status === 204 ? null : response.data
+}
+
+export async function computeEconBIA(caseId: string): Promise<EconBIAResult> {
+  const { data } = await apiClient.post<EconBIAResult>(`/cases/${caseId}/econ/bia/compute/`)
+  return data
+}
+
+export async function getLatestEconBIA(caseId: string): Promise<EconBIAResult | null> {
+  const response = await apiClient.get<EconBIAResult | null>(
+    `/cases/${caseId}/econ/bia/results/latest/`,
+    { validateStatus: (s) => s === 200 || s === 204 },
+  )
   return response.status === 204 ? null : response.data
 }

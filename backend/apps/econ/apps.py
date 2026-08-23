@@ -9,8 +9,14 @@ class EconConfig(AppConfig):
     def ready(self) -> None:
         from apps.audit.signals import register_auditable
 
-        from .models import EconDeterministicResult, EconomicModel, EconomicParameter
+        from .models import (
+            EconBIAResult,
+            EconDeterministicResult,
+            EconomicModel,
+            EconomicParameter,
+        )
 
         register_auditable(EconomicModel)
         register_auditable(EconomicParameter)
         register_auditable(EconDeterministicResult)
+        register_auditable(EconBIAResult)

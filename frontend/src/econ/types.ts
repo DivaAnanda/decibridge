@@ -66,6 +66,7 @@ export interface EconModel {
   cost_discount_rate: string
   outcome_discount_rate: string
   wtp_threshold: string
+  annual_budget_baseline: string | null
   notes: string
   created_at: string
   updated_at: string
@@ -78,6 +79,7 @@ export interface EconModelPayload {
   cost_discount_rate: string
   outcome_discount_rate: string
   wtp_threshold: string
+  annual_budget_baseline?: string | null
   notes?: string
 }
 
@@ -162,4 +164,46 @@ export const DECISION_COLOR: Record<string, string> = {
   dominated: 'red',
   cost_effective: 'teal',
   not_cost_effective: 'red',
+}
+
+export interface BIAYearRow {
+  year: number
+  eligible_population: string
+  uptake: string
+  market_share: string
+  patients_intervention: string
+  patients_comparator: string
+  incremental_drug_cost: string
+  event_cost_offset: string
+  incremental_other: string
+  net_budget_impact: string
+  cumulative_net_impact: string
+  pct_of_annual_baseline: string
+}
+
+export interface EconBIAResult {
+  id: number
+  cumulative_net_impact: string
+  pct_of_total_baseline: string
+  annual_budget_baseline: string
+  severity: string
+  budget_score: number
+  per_year: BIAYearRow[]
+  interpretation_text: string
+  algorithm_version: string
+  computed_at: string
+}
+
+export const BIA_SEVERITY_LABEL: Record<string, string> = {
+  cost_saving: 'Penghematan bersih',
+  manageable: 'Dapat dikelola',
+  significant: 'Signifikan',
+  prohibitive: 'Prohibitif',
+}
+
+export const BIA_SEVERITY_COLOR: Record<string, string> = {
+  cost_saving: 'teal',
+  manageable: 'green',
+  significant: 'yellow',
+  prohibitive: 'red',
 }

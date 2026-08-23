@@ -79,6 +79,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
       cost_discount_rate: '0',
       outcome_discount_rate: '0',
       wtp_threshold: '85000000',
+      annual_budget_baseline: '',
       notes: '',
     },
     validate: {
@@ -96,6 +97,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
         cost_discount_rate: modelQuery.data.cost_discount_rate,
         outcome_discount_rate: modelQuery.data.outcome_discount_rate,
         wtp_threshold: modelQuery.data.wtp_threshold,
+        annual_budget_baseline: modelQuery.data.annual_budget_baseline ?? '',
         notes: modelQuery.data.notes,
       })
     }
@@ -215,7 +217,11 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
             </Text>
           )}
         </Group>
-        <form onSubmit={form.onSubmit((values) => saveModel.mutate(values))}>
+        <form
+          onSubmit={form.onSubmit((values) =>
+            saveModel.mutate({ ...values, annual_budget_baseline: values.annual_budget_baseline || null }),
+          )}
+        >
           <fieldset disabled={!canEdit} style={{ border: 'none', padding: 0, margin: 0 }}>
             <Grid>
               <Grid.Col span={{ base: 6, sm: 3 }}>
@@ -229,6 +235,13 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
                 <TextInput label="WTP threshold (IDR/QALY)" {...form.getInputProps('wtp_threshold')} />
+              </Grid.Col>
+              <Grid.Col span={{ base: 6, sm: 3 }}>
+                <TextInput
+                  label="Anggaran tahunan baseline (BIA)"
+                  description="Dasar % dampak anggaran"
+                  {...form.getInputProps('annual_budget_baseline')}
+                />
               </Grid.Col>
               <Grid.Col span={12}>
                 <Textarea label="Catatan" autosize minRows={1} {...form.getInputProps('notes')} />

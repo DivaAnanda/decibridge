@@ -15,6 +15,12 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 
+from .engine_bia import (
+    BIAAlternativeParams,
+    BIAInput,
+    BIAYearParams,
+    compute_bia,
+)
 from .engine_deterministic import (
     AlternativeInputs,
     DeterministicInput,
@@ -22,6 +28,7 @@ from .engine_deterministic import (
 )
 from .models import (
     Alternative,
+    EconBIAResult,
     EconDeterministicResult,
     EconomicModel,
     ParamKey,
@@ -146,6 +153,120 @@ def run_deterministic(model: EconomicModel, computed_by: User | None = None) -> 
                 "other": str(result.comparator.other_cost_total),
             },
         },
+        interpretation_text=result.interpretation_text,
+        algorithm_version=result.algorithm_version,
+        computed_by=computed_by,
+    )
+
+
+# ── Budget Impact Analysis (R4) ─────────────────────────────────────────────
+
+# Shared scenario parameters required by the cost-offset BIA, resolved per year.
+_BIA_SCENARIO_KEYS = [
+    ParamKey.ELIGIBLE_POPULATION,
+    ParamKey.UPTAKE,
+    ParamKey.MARKET_SHARE,
+]
+
+
+def _bia_alternative(model: EconomicModel, alt: str, missing: list[str]) -> BIAAlternativeParams:
+    def need(key: str) -> Decimal:
+        val = model.value_of(key, alt)
+        if val is None:
+            missing.append(f"{ParamKey(key).label} ({alt})")
+            return Decimal("0")
+        return val
+
+    drug_cost = need(ParamKey.DRUG_COST)
+    event_probability = need(ParamKey.EVENT_PROBABILITY)
+    other_cost = model.value_of(ParamKey.OTHER_COST, alt) or Decimal("0")
+    return BIAAlternativeParams(
+        drug_cost=drug_cost, event_probability=event_probability, other_cost=other_cost
+    )
+
+
+def build_bia_input(model: EconomicModel) -> BIAInput:
+    """Resolve stored parameters into a pure BIA engine input. Raises IncompleteModelError."""
+    missing: list[str] = []
+
+    if model.annual_budget_baseline is None:
+        missing.append("Anggaran farmasi tahunan baseline")
+
+    event_cost = model.value_of(ParamKey.EVENT_COST, Alternative.SHARED)
+    if event_cost is None:
+        missing.append(f"{ParamKey(ParamKey.EVENT_COST).label} (shared)")
+
+    intervention = _bia_alternative(model, Alternative.INTERVENTION, missing)
+    comparator = _bia_alternative(model, Alternative.COMPARATOR, missing)
+
+    years: list[BIAYearParams] = []
+    for t in range(1, model.horizon_years + 1):
+        resolved = {}
+        for key in _BIA_SCENARIO_KEYS:
+            val = model.value_of(key, Alternative.SHARED, year_index=t)
+            if val is None:
+                missing.append(f"{ParamKey(key).label} (tahun {t})")
+            resolved[key] = val or Decimal("0")
+        years.append(
+            BIAYearParams(
+                year=t,
+                eligible_population=resolved[ParamKey.ELIGIBLE_POPULATION],
+                uptake=resolved[ParamKey.UPTAKE],
+                market_share=resolved[ParamKey.MARKET_SHARE],
+            )
+        )
+
+    if missing:
+        raise IncompleteModelError(missing)
+
+    return BIAInput(
+        horizon_years=model.horizon_years,
+        annual_budget_baseline=model.annual_budget_baseline,
+        event_cost=event_cost,
+        intervention=intervention,
+        comparator=comparator,
+        years=years,
+    )
+
+
+def _bia_year_rows_json(rows) -> list[dict]:
+    return [
+        {
+            "year": r.year,
+            "eligible_population": str(r.eligible_population),
+            "uptake": str(r.uptake),
+            "market_share": str(r.market_share),
+            "patients_intervention": str(r.patients_intervention),
+            "patients_comparator": str(r.patients_comparator),
+            "incremental_drug_cost": str(r.incremental_drug_cost),
+            "event_cost_offset": str(r.event_cost_offset),
+            "incremental_other": str(r.incremental_other),
+            "net_budget_impact": str(r.net_budget_impact),
+            "cumulative_net_impact": str(r.cumulative_net_impact),
+            "pct_of_annual_baseline": str(r.pct_of_annual_baseline),
+        }
+        for r in rows
+    ]
+
+
+def run_bia(model: EconomicModel, computed_by: User | None = None) -> EconBIAResult:
+    """Resolve -> compute -> persist an append-only cost-offset BIA result."""
+    bia_input = build_bia_input(model)
+    result = compute_bia(bia_input)
+
+    return EconBIAResult.objects.create(
+        case=model.case,
+        input_snapshot={
+            "horizon_years": bia_input.horizon_years,
+            "annual_budget_baseline": str(bia_input.annual_budget_baseline),
+            "event_cost": str(bia_input.event_cost),
+        },
+        cumulative_net_impact=result.cumulative_net_impact,
+        pct_of_total_baseline=result.pct_of_total_baseline,
+        annual_budget_baseline=bia_input.annual_budget_baseline,
+        severity=result.severity,
+        budget_score=result.budget_score,
+        per_year=_bia_year_rows_json(result.year_rows),
         interpretation_text=result.interpretation_text,
         algorithm_version=result.algorithm_version,
         computed_by=computed_by,

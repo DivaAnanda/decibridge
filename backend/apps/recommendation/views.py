@@ -12,9 +12,8 @@ from rest_framework.views import APIView
 
 from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
-from apps.bia.models import BIAResult
 from apps.cases.models import Case
-from apps.econ.models import EconDeterministicResult
+from apps.econ.models import EconBIAResult, EconDeterministicResult
 from apps.econ.scoring import ce_score_from_result
 from apps.etd.aggregation import aggregate_domain, aggregate_overall
 from apps.etd.models import EtDAppraisal, EtDDomain
@@ -186,7 +185,7 @@ class RecommendationComputeView(APIView):
         latest_econ: EconDeterministicResult | None = (
             case.econ_deterministic_results.order_by("-computed_at").first()
         )
-        latest_bia: BIAResult | None = case.bia_results.order_by("-computed_at").first()
+        latest_bia: EconBIAResult | None = case.econ_bia_results.order_by("-computed_at").first()
 
         domains = list(EtDDomain.objects.all().order_by("order"))
         appraisals_by_domain: dict[int, list[EtDAppraisal]] = {d.pk: [] for d in domains}

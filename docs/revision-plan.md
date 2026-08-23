@@ -157,8 +157,18 @@ HTTP 422 + missing list when incomplete; `Recommendation.cba_score` made nullabl
 
 ---
 
-### R4 — BIA rework with event cost-offset  *(Req #9)*
-New `bia/engine.py` logic:
+### R4 — BIA rework with event cost-offset  *(Req #9)*  — ✅ DONE (econ-backed)
+*Built on the shared econ parameter model (not a standalone rework): pure
+`apps/econ/engine_bia.py` (event cost-offset, per-year table, severity/budget-score),
+append-only `EconBIAResult`, `service.run_bia` + `build_bia_input`, DRF endpoints
+`/econ/bia/compute|results`, and the recommendation `budget_score` rewired to it.
+`annual_budget_baseline` added to `EconomicModel`. Frontend BIA tab replaced by
+`EconBIATab` (compute + cost-offset per-year table; params edited in Analisis Ekonomi).
+Definitions surfaced: `patients_int = eligible × uptake × market_share`. Seed extended
+(population/uptake/market-share/baseline). Verified on real data: cumulative 3,325,010,183.48
+IDR, manageable, budget_score 80.*
+
+Original plan (for reference) — new `bia/engine.py` logic:
 ```
 incremental_drug_budget = patients_int × (drug_cost_int − drug_cost_comp)
 event_cost_offset       = patients_int × (event_prob_comp − event_prob_int) × event_cost
