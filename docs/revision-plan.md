@@ -213,8 +213,19 @@ New `apps/econ/engine_psa.py` (numpy/scipy) — add deps.
 
 ---
 
-### R6 — Excel validation import + validation report  *(Req #12)*  — partially self-served
-Revives deferred Sprint 3, now concrete.
+### R6 — Excel validation import + validation report  *(Req #12)*  — ✅ DONE (self-served)
+*Since no lecturer workbook exists, we own the format. `validation_workbook.py`
+build+parse (sheets: case_meta, model_scalars, economic_model_params,
+expected_deterministic_results, expected_psa_summary). `validation_service.import_and_validate`
+maps a workbook onto a case, validates (0–1 ranges, non-negative costs, duplicates, missing
+data source, case_id consistency), runs the deterministic + PSA engines, and produces a
+PASS/FAIL report with expected/actual/diff/tolerance per metric. DRF `POST /econ/validate/`
+(upload) + `GET /econ/validate/template/` (download). `export_validation_workbook` command +
+generated `docs/DeciBridge_Economic_Validation_Model.xlsx`. Frontend `ValidationImportCard`
+(download template + upload + report table) in the Analisis Ekonomi tab. Our generated
+workbook validates PASS end-to-end. openpyxl added to pyproject. 7 new tests.*
+
+Original plan (for reference) — revives deferred Sprint 3, now concrete.
 - **First: generate our own** `DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx` encoding
   `HF_ARNI_ACEI_001` with sheets: `case_meta`, `clinical_outcomes`, `cost_inputs`,
   `economic_model_params`, `expected_deterministic_results`, `expected_psa_summary`.

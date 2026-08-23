@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from io import BytesIO
+
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -20,6 +24,8 @@ from .serializers import (
     EconPSAResultSerializer,
 )
 from .service import IncompleteModelError, run_bia, run_deterministic, run_psa
+from .validation_service import import_and_validate
+from .validation_workbook import build_workbook
 
 
 def _get_case(case_id: str) -> Case:
@@ -244,6 +250,45 @@ class EconPSAResultLatestView(APIView):
         if latest is None:
             return Response(None, status=status.HTTP_204_NO_CONTENT)
         return Response(EconPSAResultSerializer(latest).data)
+
+
+class EconValidationTemplateView(APIView):
+    """GET → download the validation workbook template (.xlsx)."""
+
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    def get(self, request: Request, case_id: str) -> HttpResponse:
+        _get_case(case_id)  # 404 if the case doesn't exist
+        buffer = BytesIO()
+        build_workbook().save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="DeciBridge_Economic_Validation_Model.xlsx"'
+        )
+        return response
+
+
+class EconValidateView(APIView):
+    """POST a validation workbook (multipart 'file') → apply + PASS/FAIL report."""
+
+    permission_classes = (IsAuthenticated, EconPermission)
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response({"detail": "Unggah file workbook (.xlsx)."}, status=400)
+        try:
+            report = import_and_validate(case, upload, request.user)
+        except Exception as exc:  # openpyxl parse errors etc.
+            return Response({"detail": f"Gagal membaca workbook: {exc}"}, status=400)
+        return Response(report, status=status.HTTP_200_OK)
 
 
 class EconResultListView(APIView):

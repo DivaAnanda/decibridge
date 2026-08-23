@@ -45,6 +45,7 @@ import {
   type EconParameterPayload,
 } from './types'
 import { EconResultCard } from './EconResultCard'
+import { ValidationImportCard } from './ValidationImportCard'
 
 interface Props {
   caseId: string
@@ -394,6 +395,8 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
           Belum ada perhitungan deterministik. Lengkapi model + parameter lalu klik "Hitung".
         </Alert>
       )}
+
+      <ValidationImportCard caseId={caseId} canEdit={canEdit} />
     </Stack>
   )
 }

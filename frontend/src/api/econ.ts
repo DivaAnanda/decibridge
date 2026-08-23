@@ -8,6 +8,7 @@ import type {
   EconPSAResult,
   EconResult,
   PSAConfig,
+  ValidationReport,
 } from '../econ/types'
 
 export async function getEconModel(caseId: string): Promise<EconModel | null> {
@@ -76,4 +77,18 @@ export async function getLatestEconPSA(caseId: string): Promise<EconPSAResult | 
     { validateStatus: (s) => s === 200 || s === 204 },
   )
   return response.status === 204 ? null : response.data
+}
+
+export async function validateWorkbook(caseId: string, file: File): Promise<ValidationReport> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await apiClient.post<ValidationReport>(`/cases/${caseId}/econ/validate/`, form)
+  return data
+}
+
+export async function downloadValidationTemplate(caseId: string): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>(`/cases/${caseId}/econ/validate/template/`, {
+    responseType: 'blob',
+  })
+  return data
 }

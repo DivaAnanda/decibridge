@@ -11,6 +11,8 @@ from .views import (
     EconPSAResultLatestView,
     EconResultLatestView,
     EconResultListView,
+    EconValidateView,
+    EconValidationTemplateView,
 )
 
 app_name = "econ"
@@ -26,4 +28,6 @@ urlpatterns = [
     path("cases/<str:case_id>/econ/bia/results/latest/", EconBIAResultLatestView.as_view(), name="bia_result_latest"),
     path("cases/<str:case_id>/econ/psa/compute/", EconPSAComputeView.as_view(), name="psa_compute"),
     path("cases/<str:case_id>/econ/psa/results/latest/", EconPSAResultLatestView.as_view(), name="psa_result_latest"),
+    path("cases/<str:case_id>/econ/validate/template/", EconValidationTemplateView.as_view(), name="validate_template"),
+    path("cases/<str:case_id>/econ/validate/", EconValidateView.as_view(), name="validate"),
 ]

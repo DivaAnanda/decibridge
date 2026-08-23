@@ -234,3 +234,19 @@ export interface PSAConfig {
   n_simulations: number
   seed: number
 }
+
+export interface ValidationCheck {
+  metric: string
+  expected: string
+  actual: string | null
+  diff: string | null
+  tolerance: string
+  pass: boolean
+}
+
+export interface ValidationReport {
+  status: 'PASS' | 'FAIL'
+  issues: string[]
+  checks: ValidationCheck[]
+  econ_result_id?: number
+}
