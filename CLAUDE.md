@@ -39,13 +39,60 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 | 9 | Policy brief DOCX/PDF export (python-docx + docx2pdf, MS Word required) | ✅ shipped + verified + committed |
 | 10 | Versioning + audit reconstruction UI (auto-snapshot on lock + timeline + diff) | ✅ shipped + verified + committed |
 | 11 | Long-term archive (SHA-256 manifest + 7-year retention + Admin IT user) | ✅ shipped + verified + committed |
-| 12 | Hardening + Playwright smoke + user manuals + demo script + deployment notes + landing-page redesign + version bump to v1.0.0 | ✅ shipped + tests green — **awaiting your manual verification** |
+| 12 | Hardening + Playwright smoke + user manuals + demo script + deployment notes + dashboard redesign + version bump to v1.0.0 | ✅ shipped + verified + committed |
+| 13 | Public marketing landing page (Mantine port of Accenprove style) + routing rewire (`/` = landing, `/dashboard` = authed home) | ✅ shipped + verified + committed |
+| 14 | Production deployment to Railway (Dockerfile + LibreOffice swap + SPA fallback + Whitenoise compressed static) | ✅ **LIVE at https://decibridge-production.up.railway.app** |
 
-**🎉 12-sprint roadmap complete.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
-| 11 | Long-term archive (read-only retention) | pending |
-| 12 | Hardening + E2E Playwright + docs | pending |
+**🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 255 tests, all passing.** Coverage target 80% (well above).
+**Test suite: 284 tests, all passing.** Coverage target 80% (currently ~86%).
+
+## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
+
+After the first lecturer demo we received a substantial revision request turning the
+"CEA Quick" MVP into a proper HTA-grade cost-utility engine. Full plan + phase tracking:
+**`docs/revision-plan.md`**. Phases R0–R6; status so far:
+
+- **R0 ✅** — CEA/BIA "Hitung" button now enables immediately after "Simpan" (`setQueryData`, no refetch race).
+- **R1 ✅** — new additive **`apps/econ`**: `EconomicModel` + `EconomicParameter` registry. High precision (`DECIMAL(20,4)` cost, `DECIMAL(18,10)` rate/utility, `DECIMAL(28,10)` value), per-parameter provenance metadata (source, year, observed/proxy/assumption), auto-versioning, `value_of()` resolver with alternative + per-year fallback. Never round in the calc layer.
+- **R2 ✅** — deterministic engine `apps/econ/engine_deterministic.py` (multi-year cost+QALY, discounting, ICER, NMB, INB, decision rules, full precision, no premature rounding) + append-only `EconDeterministicResult` + `service.py` + DRF API (`/cases/{id}/econ/model|parameters|compute|results`). Frontend **CEA tab replaced by `src/econ/EconTab.tsx`** (label "Analisis Ekonomi"). Reproduces the lecturer's acceptance table EXACTLY (ICER 516,105,577.57 / INB −11,109,590.73), verified in-browser.
+- **R3–R6 ⏳** — missing-data gating (empty CBA ≠ 100, "Belum dapat dihitung"), BIA cost-offset rework, PSA/CEAC/CE-plane, Excel validation import. See plan.
+
+**Key revision facts:**
+- **No workbook.** Lecturer's `DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx` was never provided. We build engines correct-by-formula and seed our own verified default params (`apps/econ/validation_fixtures.py`) that reproduce the acceptance numbers. `python manage.py seed_econ_validation_case` populates HF_ARNI_ACEI_001.
+- **R3 follow-up owed:** the traffic-light recommendation still reads legacy `CEAResult.ce_score`; rewire to consume the econ deterministic result during R3.
+- The legacy `apps/cea` ("CEA Quick") backend is untouched and still exists; only the UI tab was swapped to the econ model.
+- `vite.config.ts` `base` is now gated on build mode (prod `/static/`, dev `/`). Local dev serves at `/` again; deep-link refreshes work.
+
+## Live deployment
+
+| | |
+|---|---|
+| URL | https://decibridge-production.up.railway.app |
+| Platform | Railway (single service: Django serves both API + React build) |
+| DB | Railway managed Postgres |
+| Persistent storage | Railway volume mounted at `/app/media` |
+| DOCX→PDF on Linux | LibreOffice headless via `soffice` (replaces docx2pdf which needs Word) |
+| Test users | All 6 from `create_test_users`, password `TestPass123!` |
+| Demo creds intentionally public | Acceptable for portfolio (fake data) |
+
+Deploy guide: `docs/railway-deploy.md` (covers GH push, Postgres add-on, env vars, volume, domain, smoke tests).
+
+### Deploy gotchas chain (every one of these bit us — don't repeat)
+
+1. `vite.config.ts` imported `defineConfig` from `'vite'` but used Vitest's `test` key → tsc -b bailed → frontend stage failed. Fix: import from `'vitest/config'`.
+2. Railway healthcheck probes hit container with Host `healthcheck.railway.app` → `DisallowedHost`. Fix: settings auto-appends `healthcheck.railway.app` + `RAILWAY_PUBLIC_DOMAIN` to ALLOWED_HOSTS.
+3. `SECURE_SSL_REDIRECT=True` (Sprint 0 hardening) → healthcheck probes (bypass edge proxy, no X-Forwarded-Proto) got 301. Fix: removed SECURE_SSL_REDIRECT on managed-edge platforms.
+4. Vite's default `base: '/'` made index.html reference `/assets/...` which SPA fallback re-served as HTML → blank white page. Fix: `base: '/static/'` + `%BASE_URL%` placeholder on favicon.
+5. WhiteNoise `CompressedManifestStaticFilesStorage` would re-hash Vite's already-hashed asset filenames → 404. Fix: use plain `CompressedStaticFilesStorage`.
+
+### Operational quick-refs
+
+- Force a redeploy: push any commit, or in Railway UI: Deployments → Redeploy this version
+- Roll back: Deployments → pick previous successful → Redeploy this version
+- Shell into the running container: Railway service → Settings → Open Shell
+- View live logs: Deployments → latest → Runtime Logs tab
+- Add an env var: Variables tab → Raw Editor for bulk paste
 
 ## Test-user provisioning
 
