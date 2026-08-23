@@ -65,6 +65,7 @@ LOCAL_APPS = [
     "apps.audit",
     "apps.cases",
     "apps.cea",
+    "apps.econ",
     "apps.bia",
     "apps.etd",
     "apps.recommendation",

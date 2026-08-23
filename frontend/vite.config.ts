@@ -3,13 +3,13 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
-  // In production the React build is served by Django + WhiteNoise from
-  // STATIC_URL ("/static/"), so all asset references in the built
-  // index.html must point there. Local dev (`npm run dev`) doesn't read
-  // this — Vite's dev server serves from "/" regardless.
-  base: '/static/',
+  // Production build is served by Django + WhiteNoise from STATIC_URL
+  // ("/static/"), so built asset references must point there. The dev server
+  // (`command === 'serve'`) must stay at "/" so client-side deep links and
+  // refreshes resolve locally — otherwise every /cases/:id refresh 404s.
+  base: command === 'build' ? '/static/' : '/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -40,4 +40,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

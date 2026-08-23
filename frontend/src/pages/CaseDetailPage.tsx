@@ -41,7 +41,7 @@ import {
   type AllowedTransition,
   type CaseDetail,
 } from '../cases/types'
-import { CEATab } from '../cea/CEATab'
+import { EconTab } from '../econ/EconTab'
 import { BIATab } from '../bia/BIATab'
 import { EtDTab } from '../etd/EtDTab'
 import { RecommendationTab } from '../recommendation/RecommendationTab'
@@ -257,7 +257,7 @@ export function CaseDetailPage(): JSX.Element {
             Ringkasan
           </Tabs.Tab>
           <Tabs.Tab value="cea" leftSection={<IconCalculator size={14} />}>
-            CEA Quick
+            Analisis Ekonomi
           </Tabs.Tab>
           <Tabs.Tab value="bia" leftSection={<IconCoin size={14} />}>
             BIA
@@ -283,7 +283,7 @@ export function CaseDetailPage(): JSX.Element {
           <OverviewPanel data={data} />
         </Tabs.Panel>
         <Tabs.Panel value="cea" pt="md">
-          <CEATab caseId={data.case_id} caseIsLocked={data.is_locked} />
+          <EconTab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="bia" pt="md">
           <BIATab caseId={data.case_id} caseIsLocked={data.is_locked} />
