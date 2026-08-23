@@ -14,12 +14,18 @@ from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
 from apps.bia.models import BIAResult
 from apps.cases.models import Case
-from apps.cea.models import CEAResult
+from apps.econ.models import EconDeterministicResult
+from apps.econ.scoring import ce_score_from_result
 from apps.etd.aggregation import aggregate_domain, aggregate_overall
 from apps.etd.models import EtDAppraisal, EtDDomain
 
 from .aggregation import aggregate_per_domain
-from .engine import ALGORITHM_VERSION, SynthesisInput, compute_recommendation
+from .engine import (
+    ALGORITHM_VERSION,
+    STATUS_INCOMPLETE,
+    SynthesisInput,
+    compute_recommendation,
+)
 from .models import CBACriterion, DomainWeightVote, Recommendation
 from .permissions import CBAPermission, ComputePermission, WeightVotePermission
 from .serializers import (
@@ -177,7 +183,9 @@ class RecommendationComputeView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        latest_cea: CEAResult | None = case.cea_results.order_by("-computed_at").first()
+        latest_econ: EconDeterministicResult | None = (
+            case.econ_deterministic_results.order_by("-computed_at").first()
+        )
         latest_bia: BIAResult | None = case.bia_results.order_by("-computed_at").first()
 
         domains = list(EtDDomain.objects.all().order_by("order"))
@@ -198,16 +206,26 @@ class RecommendationComputeView(APIView):
 
         synth_input = SynthesisInput(
             evidence_strength_score=overall.evidence_strength_score,
-            ce_score=(Decimal(latest_cea.ce_score) if latest_cea else None),
+            ce_score=(ce_score_from_result(latest_econ) if latest_econ else None),
             budget_score=(Decimal(latest_bia.budget_score) if latest_bia else None),
             cba_criteria_count=len(cba_criteria),
             cba_satisfied_count=cba_satisfied,
         )
         synth = compute_recommendation(synth_input)
 
+        # R3: do not persist / do not fabricate a RED when inputs are incomplete.
+        if synth.status == STATUS_INCOMPLETE:
+            return Response(
+                {
+                    "detail": synth.justification_text,
+                    "missing_components": synth.missing_components,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         snapshot = {
             "synthesis_input": synth_input.snapshot(),
-            "cea_result_id": latest_cea.pk if latest_cea else None,
+            "econ_result_id": latest_econ.pk if latest_econ else None,
             "bia_result_id": latest_bia.pk if latest_bia else None,
             "etd_domains_completed": overall.domains_completed,
             "etd_domains_total": overall.domains_total,

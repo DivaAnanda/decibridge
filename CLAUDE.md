@@ -45,7 +45,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 284 tests, all passing.** Coverage target 80% (currently ~86%).
+**Test suite: 287 tests, all passing.** Coverage target 80% (currently ~86%).
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 
@@ -56,12 +56,13 @@ After the first lecturer demo we received a substantial revision request turning
 - **R0 ✅** — CEA/BIA "Hitung" button now enables immediately after "Simpan" (`setQueryData`, no refetch race).
 - **R1 ✅** — new additive **`apps/econ`**: `EconomicModel` + `EconomicParameter` registry. High precision (`DECIMAL(20,4)` cost, `DECIMAL(18,10)` rate/utility, `DECIMAL(28,10)` value), per-parameter provenance metadata (source, year, observed/proxy/assumption), auto-versioning, `value_of()` resolver with alternative + per-year fallback. Never round in the calc layer.
 - **R2 ✅** — deterministic engine `apps/econ/engine_deterministic.py` (multi-year cost+QALY, discounting, ICER, NMB, INB, decision rules, full precision, no premature rounding) + append-only `EconDeterministicResult` + `service.py` + DRF API (`/cases/{id}/econ/model|parameters|compute|results`). Frontend **CEA tab replaced by `src/econ/EconTab.tsx`** (label "Analisis Ekonomi"). Reproduces the lecturer's acceptance table EXACTLY (ICER 516,105,577.57 / INB −11,109,590.73), verified in-browser.
-- **R3–R6 ⏳** — missing-data gating (empty CBA ≠ 100, "Belum dapat dihitung"), BIA cost-offset rework, PSA/CEAC/CE-plane, Excel validation import. See plan.
+- **R3 ✅** — safe missing-data handling. `recommendation/engine.py` returns `status "incomplete"` + `missing_components` (no fabricated RED) when EtD/CE/BIA missing; empty CBA → `cba_score None` ("not assessed"), composite re-normalised (never auto-100/0). **CE sub-score now comes from the econ deterministic result** (`apps/econ/scoring.py`), not legacy `CEAResult`. Compute returns HTTP 422 + missing list when incomplete; `Recommendation.cba_score` nullable. Frontend shows the missing-inputs alert.
+- **R4–R6 ⏳** — BIA cost-offset rework (#9), PSA/CEAC/CE-plane (#6-8), Excel validation import (#12). See plan.
 
 **Key revision facts:**
 - **No workbook.** Lecturer's `DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx` was never provided. We build engines correct-by-formula and seed our own verified default params (`apps/econ/validation_fixtures.py`) that reproduce the acceptance numbers. `python manage.py seed_econ_validation_case` populates HF_ARNI_ACEI_001.
-- **R3 follow-up owed:** the traffic-light recommendation still reads legacy `CEAResult.ce_score`; rewire to consume the econ deterministic result during R3.
-- The legacy `apps/cea` ("CEA Quick") backend is untouched and still exists; only the UI tab was swapped to the econ model.
+- The traffic-light recommendation now consumes the econ deterministic result (`apps/econ/scoring.py::ce_score_from_result`) — done in R3.
+- The legacy `apps/cea` ("CEA Quick") backend is untouched and still exists (used only by its own tests now); the UI tab and the recommendation CE source were swapped to the econ model.
 - `vite.config.ts` `base` is now gated on build mode (prod `/static/`, dev `/`). Local dev serves at `/` again; deep-link refreshes work.
 
 ## Live deployment

@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Group,
+  List,
   SegmentedControl,
   Stack,
   Text,
@@ -31,6 +32,7 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
     !caseIsLocked && hasRole('hta_analyst', 'farmasi_sekretaris', 'ketua_kft')
 
   const [method, setMethod] = useState<'mean' | 'median'>('mean')
+  const [missing, setMissing] = useState<string[]>([])
   const queryClient = useQueryClient()
 
   const resultsQuery = useQuery({
@@ -41,14 +43,17 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
   const computeMutation = useMutation({
     mutationFn: () => computeRecommendation(caseId, method),
     onSuccess: () => {
+      setMissing([])
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'results'] })
       notifications.show({ color: 'teal', message: 'Rekomendasi berhasil dihitung.' })
     },
-    onError: (err: { response?: { data?: { detail?: string } } }) => {
+    onError: (err: { response?: { data?: { detail?: string; missing_components?: string[] } } }) => {
+      const data = err.response?.data
+      if (data?.missing_components) setMissing(data.missing_components)
       notifications.show({
-        color: 'red',
-        title: 'Komputasi gagal',
-        message: err.response?.data?.detail ?? 'Terjadi kesalahan.',
+        color: 'orange',
+        title: 'Belum dapat dihitung',
+        message: data?.detail ?? 'Terjadi kesalahan.',
       })
     },
   })
@@ -58,6 +63,19 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
   return (
     <Stack gap="lg">
       {latest && <RecommendationCard result={latest} />}
+
+      {missing.length > 0 && (
+        <Alert color="orange" title="Belum dapat dihitung — komponen wajib yang kurang">
+          <List size="sm">
+            {missing.map((m) => (
+              <List.Item key={m}>{m}</List.Item>
+            ))}
+          </List>
+          <Text size="xs" c="dimmed" mt="xs">
+            Rekomendasi akhir hanya dihitung setelah semua komponen wajib lengkap.
+          </Text>
+        </Alert>
+      )}
 
       {!latest && (
         <Alert color="blue" variant="light">

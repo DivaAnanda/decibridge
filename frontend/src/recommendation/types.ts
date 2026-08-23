@@ -66,7 +66,7 @@ export interface Recommendation {
   evidence_strength_score: string | null
   ce_score: string | null
   budget_score: string | null
-  cba_score: string
+  cba_score: string | null
   composite_score: string
   traffic_light: TrafficLight
   traffic_light_label: string

@@ -8,7 +8,7 @@ import pytest
 
 from apps.accounts.models import RoleSlug
 from apps.bia.models import BIAResult
-from apps.cea.models import CEAResult
+from apps.econ.models import EconDeterministicResult
 from apps.etd.models import EtDAppraisal
 from apps.recommendation.models import CBACriterion, DomainWeightVote
 
@@ -36,18 +36,28 @@ def etd_domains(db):
 
 
 @pytest.fixture
-def seeded_cea_result(pilot_case, hta_user):
-    return CEAResult.objects.create(
+def seeded_econ_result(pilot_case, hta_user):
+    """Deterministic econ result that maps to CE sub-score 100 (ICER well under WTP)."""
+    return EconDeterministicResult.objects.create(
         case=pilot_case,
         input_snapshot={"dummy": True},
-        incremental_cost=Decimal("5000000"),
-        incremental_effect=Decimal("0.5000"),
-        icer_value=Decimal("10000000"),
-        wtop_threshold_used=Decimal("250000000"),
-        dominance="cost_effective_safe",
-        ce_score=100,
+        total_cost_intervention=Decimal("18499451.85"),
+        total_cost_comparator=Decimal("5199411.1161"),
+        total_qaly_intervention=Decimal("0.655"),
+        total_qaly_comparator=Decimal("0.62923"),
+        incremental_cost=Decimal("13300040.7339"),
+        incremental_qaly=Decimal("0.5000"),
+        icer=Decimal("10000000"),
+        nmb_intervention=Decimal("1"),
+        nmb_comparator=Decimal("0"),
+        inb=Decimal("1"),
+        wtp_threshold_used=Decimal("250000000"),
+        decision_code="cost_effective",
+        is_cost_effective=True,
+        is_dominant=False,
+        is_dominated=False,
         interpretation_text="seed",
-        algorithm_version="1.0.0",
+        algorithm_version="2.0.0",
         computed_by=hta_user,
     )
 

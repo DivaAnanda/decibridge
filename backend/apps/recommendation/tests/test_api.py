@@ -95,30 +95,36 @@ class TestRecommendationCompute:
         self,
         hta_client,
         pilot_case,
-        seeded_cea_result,
+        seeded_econ_result,
         seeded_bia_result,
         seeded_etd_votes,
     ):
         response = hta_client.post(_compute_url(pilot_case.case_id))
         assert response.status_code == status.HTTP_201_CREATED, response.data
-        # Evidence ≈ 87.5 (judgement 75, certainty high 100 → combined 87.5)
-        # CE 100, Budget 80, CBA 100 (no criteria)
-        # composite ≈ 87.5*0.4 + 100*0.3 + 80*0.2 + 100*0.1 = 35 + 30 + 16 + 10 = 91
+        # Evidence 87.5 (judgement 75, certainty high 100 → combined 87.5), CE 100,
+        # Budget 80, no CBA → re-normalise: (87.5*.4 + 100*.3 + 80*.2)/0.9 = 90.00
         assert response.data["traffic_light"] == "green"
-        assert response.data["cba_score"] == "100.00"
+        assert response.data["cba_score"] is None  # not assessed, never auto-100
         assert Recommendation.objects.filter(case=pilot_case).count() == 1
 
-    def test_compute_without_etd_lowers_score(
-        self, hta_client, pilot_case, seeded_cea_result, seeded_bia_result
+    def test_compute_without_etd_is_incomplete(
+        self, hta_client, pilot_case, seeded_econ_result, seeded_bia_result
     ):
-        # No EtD votes → evidence is None → treated as 0
-        # composite = 0*0.4 + 100*0.3 + 80*0.2 + 100*0.1 = 0 + 30 + 16 + 10 = 56
+        # No EtD votes → evidence missing → incomplete, NOT a fabricated RED.
         response = hta_client.post(_compute_url(pilot_case.case_id))
-        assert response.status_code == status.HTTP_201_CREATED
-        assert response.data["traffic_light"] == "red"
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.data["missing_components"]
+        assert Recommendation.objects.filter(case=pilot_case).count() == 0
+
+    def test_compute_without_econ_is_incomplete(
+        self, hta_client, pilot_case, seeded_bia_result, seeded_etd_votes
+    ):
+        response = hta_client.post(_compute_url(pilot_case.case_id))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.data["missing_components"]
 
     def test_each_compute_appends_new_row(
-        self, hta_client, pilot_case, seeded_cea_result, seeded_bia_result
+        self, hta_client, pilot_case, seeded_econ_result, seeded_bia_result, seeded_etd_votes
     ):
         hta_client.post(_compute_url(pilot_case.case_id))
         hta_client.post(_compute_url(pilot_case.case_id))
@@ -128,14 +134,14 @@ class TestRecommendationCompute:
         self,
         kft_member_client,
         pilot_case,
-        seeded_cea_result,
+        seeded_econ_result,
         seeded_bia_result,
         seeded_etd_votes,
     ):
         response = kft_member_client.post(_compute_url(pilot_case.case_id))
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_locked_case_rejects_compute(self, hta_client, pilot_case, seeded_cea_result):
+    def test_locked_case_rejects_compute(self, hta_client, pilot_case, seeded_econ_result):
         pilot_case.status = "locked"
         pilot_case.save()
         response = hta_client.post(_compute_url(pilot_case.case_id))
@@ -145,7 +151,7 @@ class TestRecommendationCompute:
         self,
         hta_client,
         pilot_case,
-        seeded_cea_result,
+        seeded_econ_result,
         seeded_bia_result,
         seeded_etd_votes,
         cba_factory,
@@ -161,7 +167,7 @@ class TestRecommendationCompute:
 @pytest.mark.django_db
 class TestRecommendationImmutability:
     def test_cannot_be_updated(
-        self, hta_client, pilot_case, seeded_cea_result, seeded_bia_result
+        self, hta_client, pilot_case, seeded_econ_result, seeded_bia_result, seeded_etd_votes
     ):
         hta_client.post(_compute_url(pilot_case.case_id))
         rec = Recommendation.objects.first()
@@ -170,7 +176,7 @@ class TestRecommendationImmutability:
             rec.save()
 
     def test_cannot_be_deleted(
-        self, hta_client, pilot_case, seeded_cea_result, seeded_bia_result
+        self, hta_client, pilot_case, seeded_econ_result, seeded_bia_result, seeded_etd_votes
     ):
         hta_client.post(_compute_url(pilot_case.case_id))
         rec = Recommendation.objects.first()
@@ -185,8 +191,9 @@ class TestResultsList:
         hta_client,
         kft_member_client,
         pilot_case,
-        seeded_cea_result,
+        seeded_econ_result,
         seeded_bia_result,
+        seeded_etd_votes,
     ):
         hta_client.post(_compute_url(pilot_case.case_id))
         response = kft_member_client.get(_results_url(pilot_case.case_id))

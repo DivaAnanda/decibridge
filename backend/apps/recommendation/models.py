@@ -138,7 +138,8 @@ class Recommendation(models.Model):
     evidence_strength_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     ce_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     budget_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
-    cba_score = models.DecimalField(max_digits=6, decimal_places=2)
+    # Null = CBA not assessed (no criteria defined) — never auto-100 (R3).
+    cba_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
 
     # Composite (weighted)
     composite_score = models.DecimalField(max_digits=6, decimal_places=2)

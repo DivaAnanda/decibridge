@@ -137,8 +137,16 @@ higher cost & lower QALY = dominated; incremental_qaly=0 → ICER "N/A" (no div 
 
 ---
 
-### R3 — Safe missing-data handling + recommendation gating  *(Req #10)*
-**Reverses current behaviour (missing→0, empty CBA→100).**
+### R3 — Safe missing-data handling + recommendation gating  *(Req #10)*  — ✅ DONE
+**Reversed the old behaviour (missing→0, empty CBA→100).**
+*Engine `recommendation/engine.py` now returns `status: "incomplete"` + `missing_components`
+(no fabricated RED) when any mandatory component (EtD / CE / BIA) is absent; empty CBA →
+`cba_score = None` ("not assessed"), composite re-normalised over present components (never
+auto-100/auto-0). CE sub-score now derived from the econ deterministic result via
+`apps/econ/scoring.py` (legacy CEAResult no longer feeds it). Compute endpoint returns
+HTTP 422 + missing list when incomplete; `Recommendation.cba_score` made nullable (migration
+0002). Frontend `RecommendationTab` shows a "Belum dapat dihitung" missing-inputs alert;
+`RecommendationCard` renders not-assessed CBA. 287 tests passing, 86.3% coverage.*
 - Recommendation only computes when **all mandatory components exist**; otherwise status
   **"Belum dapat dihitung"** + a list of missing inputs.
 - Empty CBA → `null` / "not assessed", **not 100**. Missing sub-score → not silently 0/100.

@@ -1,4 +1,11 @@
-"""Pure-function tests for the synthesis engine."""
+"""Pure-function tests for the synthesis engine (R3 semantics).
+
+R3 changes vs the original:
+  * Missing a mandatory component (EtD / CE / BIA) → status "incomplete", no
+    traffic light (never a fabricated RED).
+  * Empty CBA → "not assessed" (cba_score None), composite re-normalised over the
+    present components (never an automatic 100).
+"""
 
 from __future__ import annotations
 
@@ -6,6 +13,11 @@ from decimal import Decimal
 
 from apps.recommendation.engine import (
     GREEN_THRESHOLD,
+    LABEL_BUDGET,
+    LABEL_CE,
+    LABEL_EVIDENCE,
+    STATUS_COMPLETE,
+    STATUS_INCOMPLETE,
     YELLOW_THRESHOLD,
     SynthesisInput,
     compute_recommendation,
@@ -28,25 +40,24 @@ def _inp(
     )
 
 
-class TestCompositeArithmetic:
-    def test_all_subscores_eighty_no_cba(self):
-        # composite = 80*0.4 + 80*0.3 + 80*0.2 + 100*0.1 = 32 + 24 + 16 + 10 = 82
+class TestNoCBARenormalisation:
+    def test_all_eighty_no_cba_renormalises_to_eighty(self):
+        # (80*.4 + 80*.3 + 80*.2) / 0.9 = 72 / 0.9 = 80.00
         r = compute_recommendation(_inp())
-        assert r.composite_score == Decimal("82.00")
-        assert r.cba_score == Decimal("100")  # no criteria → auto 100
+        assert r.status == STATUS_COMPLETE
+        assert r.cba_score is None  # not assessed — never auto-100
+        assert r.composite_score == Decimal("80.00")
         assert r.traffic_light == "green"
 
-    def test_all_subscores_fifty_no_cba(self):
-        # 50*0.4 + 50*0.3 + 50*0.2 + 100*0.1 = 20 + 15 + 10 + 10 = 55
+    def test_all_fifty_no_cba(self):
         r = compute_recommendation(_inp(50, 50, 50))
-        assert r.composite_score == Decimal("55.00")
+        assert r.composite_score == Decimal("50.00")
         assert r.traffic_light == "red"
 
-    def test_threshold_band_yellow(self):
-        # Target composite ≈ 65 (between 60 and 75)
-        # 60*0.4 + 70*0.3 + 60*0.2 + 100*0.1 = 24 + 21 + 12 + 10 = 67
+    def test_mixed_no_cba_yellow(self):
+        # (60*.4 + 70*.3 + 60*.2) / 0.9 = 57 / 0.9 = 63.33
         r = compute_recommendation(_inp(60, 70, 60))
-        assert r.composite_score == Decimal("67.00")
+        assert r.composite_score == Decimal("63.33")
         assert r.traffic_light == "yellow"
 
 
@@ -54,62 +65,67 @@ class TestCBABranch:
     def test_full_cba_satisfaction_keeps_green(self):
         r = compute_recommendation(_inp(cba_count=3, cba_sat=3))
         assert r.cba_score == Decimal("100")
+        assert r.composite_score == Decimal("82.00")
         assert r.traffic_light == "green"
 
-    def test_partial_cba_drops_to_yellow_even_if_high_score(self):
-        # composite would be 82 (green), but CBA partial → yellow per the algorithm
+    def test_partial_cba_drops_to_yellow(self):
         r = compute_recommendation(_inp(cba_count=3, cba_sat=2))
         assert r.cba_score == Decimal("50")
-        # composite = 80*0.4 + 80*0.3 + 80*0.2 + 50*0.1 = 77 — still >= 75 numerically
-        # but green requires CBA fully met; CBA partial caps at yellow.
+        assert r.composite_score == Decimal("77.00")
         assert r.traffic_light == "yellow"
 
     def test_no_cba_satisfaction_pushes_red_when_score_low(self):
         r = compute_recommendation(_inp(40, 40, 40, cba_count=3, cba_sat=0))
-        # 40*0.4 + 40*0.3 + 40*0.2 + 0*0.1 = 36
         assert r.cba_score == Decimal("0")
         assert r.composite_score == Decimal("36.00")
         assert r.traffic_light == "red"
 
-    def test_zero_criteria_treats_cba_as_pass(self):
-        r = compute_recommendation(_inp(80, 80, 80, cba_count=0, cba_sat=0))
-        assert r.cba_score == Decimal("100")
-        assert r.traffic_light == "green"
 
-
-class TestMissingSubscores:
-    def test_missing_evidence_treated_as_zero(self):
-        # 0*0.4 + 80*0.3 + 80*0.2 + 100*0.1 = 0 + 24 + 16 + 10 = 50
+class TestMissingDataGating:
+    def test_missing_evidence_is_incomplete(self):
         r = compute_recommendation(_inp(evidence=None))
-        assert r.composite_score == Decimal("50.00")
-        assert r.traffic_light == "red"
-        assert "EtD belum dihitung" in r.justification_text
+        assert r.status == STATUS_INCOMPLETE
+        assert r.traffic_light is None
+        assert r.composite_score is None
+        assert LABEL_EVIDENCE in r.missing_components
+        assert "Belum dapat dihitung" in r.justification_text
 
-    def test_missing_cea_called_out_in_narrative(self):
+    def test_missing_ce_is_incomplete(self):
         r = compute_recommendation(_inp(ce=None))
-        assert "CEA belum dijalankan" in r.justification_text
+        assert r.status == STATUS_INCOMPLETE
+        assert LABEL_CE in r.missing_components
+
+    def test_missing_budget_is_incomplete(self):
+        r = compute_recommendation(_inp(budget=None))
+        assert r.status == STATUS_INCOMPLETE
+        assert LABEL_BUDGET in r.missing_components
+
+    def test_multiple_missing_all_listed(self):
+        r = compute_recommendation(_inp(evidence=None, ce=None, budget=None))
+        assert set(r.missing_components) == {LABEL_EVIDENCE, LABEL_CE, LABEL_BUDGET}
+
+    def test_empty_cba_alone_does_not_block(self):
+        # CBA empty is "not assessed", not a missing mandatory component.
+        r = compute_recommendation(_inp(cba_count=0))
+        assert r.status == STATUS_COMPLETE
 
 
-class TestNarrative:
+class TestNarrativeAndBoundaries:
     def test_green_narrative_mentions_traffic_light(self):
-        r = compute_recommendation(_inp())
-        assert "HIJAU" in r.justification_text
+        assert "HIJAU" in compute_recommendation(_inp()).justification_text
 
     def test_red_narrative_mentions_traffic_light(self):
-        r = compute_recommendation(_inp(30, 30, 30))
-        assert "MERAH" in r.justification_text
+        assert "MERAH" in compute_recommendation(_inp(30, 30, 30)).justification_text
 
-
-class TestThresholdBoundaries:
-    def test_exactly_75_with_no_cba_is_green(self):
-        # 75*0.4 + 75*0.3 + 75*0.2 + 100*0.1 = 30 + 22.5 + 15 + 10 = 77.5
+    def test_exactly_seventy_five_no_cba_is_green(self):
+        # (75*0.9)/0.9 = 75.00
         r = compute_recommendation(_inp(75, 75, 75))
+        assert r.composite_score == Decimal("75.00")
         assert r.composite_score >= GREEN_THRESHOLD
         assert r.traffic_light == "green"
 
-    def test_exactly_60_is_yellow(self):
-        # 50*0.4 + 70*0.3 + 70*0.2 + 100*0.1 = 20 + 21 + 14 + 10 = 65
+    def test_low_mixed_no_cba_is_yellow(self):
+        # (50*.4 + 70*.3 + 70*.2)/0.9 = 55/0.9 = 61.11
         r = compute_recommendation(_inp(50, 70, 70))
-        assert r.composite_score >= YELLOW_THRESHOLD
-        assert r.composite_score < GREEN_THRESHOLD
+        assert YELLOW_THRESHOLD <= r.composite_score < GREEN_THRESHOLD
         assert r.traffic_light == "yellow"
