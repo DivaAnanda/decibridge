@@ -101,8 +101,10 @@ export function BIATab({ caseId, caseIsLocked }: Props): JSX.Element {
 
   const saveMutation = useMutation({
     mutationFn: (payload: BIAInputPayload) => saveBIAInput(caseId, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['bia', caseId, 'input'] })
+    onSuccess: (saved) => {
+      // Seed the cache from the PUT response so the "Hitung BIA" button enables
+      // immediately — no refetch round-trip, no page refresh needed.
+      queryClient.setQueryData(['bia', caseId, 'input'], saved)
       notifications.show({ color: 'teal', message: 'Input BIA disimpan.' })
     },
     onError: (err: { response?: { data?: Record<string, unknown> } }) => {

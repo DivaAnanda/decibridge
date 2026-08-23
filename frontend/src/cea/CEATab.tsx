@@ -107,8 +107,10 @@ export function CEATab({ caseId, caseIsLocked }: Props) {
 
   const saveMutation = useMutation({
     mutationFn: (payload: CEAInputPayload) => saveCEAInput(caseId, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['cea', caseId, 'input'] })
+    onSuccess: (saved) => {
+      // Seed the cache from the PUT response so the "Hitung CEA" button enables
+      // immediately — no refetch round-trip, no page refresh needed.
+      queryClient.setQueryData(['cea', caseId, 'input'], saved)
       notifications.show({ color: 'teal', message: 'Input CEA disimpan.' })
     },
     onError: (err: { response?: { data?: Record<string, unknown> } }) => {
