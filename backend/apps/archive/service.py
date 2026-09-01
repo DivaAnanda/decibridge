@@ -63,6 +63,56 @@ def _cea_row(r: CEAResult) -> dict:
     }
 
 
+def _econ_det_row(r) -> dict:
+    return {
+        "id": r.pk,
+        "total_cost_intervention": r.total_cost_intervention,
+        "total_cost_comparator": r.total_cost_comparator,
+        "total_qaly_intervention": r.total_qaly_intervention,
+        "total_qaly_comparator": r.total_qaly_comparator,
+        "incremental_cost": r.incremental_cost,
+        "incremental_qaly": r.incremental_qaly,
+        "icer": r.icer,
+        "inb": r.inb,
+        "wtp_threshold_used": r.wtp_threshold_used,
+        "decision_code": r.decision_code,
+        "clinical": r.clinical,
+        "algorithm_version": r.algorithm_version,
+        "computed_at": r.computed_at,
+        "input_snapshot": r.input_snapshot,
+    }
+
+
+def _econ_bia_row(r) -> dict:
+    return {
+        "id": r.pk,
+        "cumulative_net_impact": r.cumulative_net_impact,
+        "pct_of_total_baseline": r.pct_of_total_baseline,
+        "annual_budget_baseline": r.annual_budget_baseline,
+        "severity": r.severity,
+        "budget_score": r.budget_score,
+        "per_year": r.per_year,
+        "scenarios": r.scenarios,
+        "algorithm_version": r.algorithm_version,
+        "computed_at": r.computed_at,
+    }
+
+
+def _econ_psa_row(r) -> dict:
+    return {
+        "id": r.pk,
+        "n_simulations": r.n_simulations,
+        "random_seed": r.random_seed,
+        "wtp_base": r.wtp_base,
+        "prob_cost_effective_base": r.prob_cost_effective_base,
+        "mean_incremental_cost": r.mean_incremental_cost,
+        "mean_incremental_qaly": r.mean_incremental_qaly,
+        "ceac": r.ceac,
+        "algorithm_version": r.algorithm_version,
+        "computed_at": r.computed_at,
+    }
+
+
 def _bia_row(r: BIAResult) -> dict:
     return {
         "id": r.pk,
@@ -230,6 +280,16 @@ def archive_case(case: Case, archived_by) -> ArchiveRecord:
         retention_until=retention_until,
         cea_results=[_cea_row(r) for r in case.cea_results.all().order_by("computed_at")],
         bia_results=[_bia_row(r) for r in case.bia_results.all().order_by("computed_at")],
+        econ_deterministic_results=[
+            _econ_det_row(r)
+            for r in case.econ_deterministic_results.all().order_by("computed_at")
+        ],
+        econ_bia_results=[
+            _econ_bia_row(r) for r in case.econ_bia_results.all().order_by("computed_at")
+        ],
+        econ_psa_results=[
+            _econ_psa_row(r) for r in case.econ_psa_results.all().order_by("computed_at")
+        ],
         etd_appraisals=[
             _etd_row(a)
             for a in case.etd_appraisals.select_related("domain", "member").order_by("pk")
@@ -267,6 +327,9 @@ def archive_case(case: Case, archived_by) -> ArchiveRecord:
     artifact_counts = {
         "cea_results": len(manifest["artifacts"]["cea_results"]),
         "bia_results": len(manifest["artifacts"]["bia_results"]),
+        "econ_deterministic_results": len(manifest["artifacts"]["econ_deterministic_results"]),
+        "econ_bia_results": len(manifest["artifacts"]["econ_bia_results"]),
+        "econ_psa_results": len(manifest["artifacts"]["econ_psa_results"]),
         "etd_appraisals": len(manifest["artifacts"]["etd_appraisals"]),
         "references": len(manifest["artifacts"]["references"]),
         "recommendations": len(manifest["artifacts"]["recommendations"]),

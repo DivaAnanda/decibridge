@@ -97,6 +97,38 @@ export function EconResultCard({ result }: Props): JSX.Element {
         </Text>
       )}
 
+      {result.clinical && 'absolute_risk_reduction' in result.clinical && (
+        <>
+          <Divider my="md" label="Validasi klinis (sekunder)" labelPosition="left" />
+          <Grid>
+            <Grid.Col span={{ base: 6, sm: 3 }}>
+              <Metric
+                label="Penurunan risiko absolut"
+                value={qaly(result.clinical.absolute_risk_reduction, 4)}
+              />
+            </Grid.Col>
+            <Grid.Col span={{ base: 6, sm: 3 }}>
+              <Metric
+                label="Relative risk (RR)"
+                value={result.clinical.relative_risk ? qaly(result.clinical.relative_risk, 4) : '—'}
+              />
+            </Grid.Col>
+            <Grid.Col span={{ base: 6, sm: 3 }}>
+              <Metric
+                label="NNT (12 bulan)"
+                value={result.clinical.nnt ? qaly(result.clinical.nnt, 2) : '—'}
+              />
+            </Grid.Col>
+            <Grid.Col span={{ base: 6, sm: 3 }}>
+              <Metric
+                label="Penghematan admisi/pasien/thn"
+                value={`Rp ${idr(result.clinical.admission_cost_saving_per_patient_year, 0)}`}
+              />
+            </Grid.Col>
+          </Grid>
+        </>
+      )}
+
       <Divider my="md" label="Rincian per tahun (sebelum → sesudah discounting)" labelPosition="left" />
 
       <Table.ScrollContainer minWidth={640}>

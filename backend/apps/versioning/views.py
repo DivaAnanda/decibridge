@@ -140,6 +140,12 @@ class VersionStateView(APIView):
             "recommendation": _serialize_recommendation(version.recommendation_id),
             "approval": _serialize_approval(version.approval_id),
             "policy_brief": _serialize_policy_brief(version.policy_brief_document_id),
+            # Phase V2: the full immutable value snapshot taken at lock time.
+            # This is the authoritative reconstruction source — the pointer
+            # fields above are retained for backwards compatibility only, and
+            # cover just the legacy CEA/BIA rows.
+            "snapshot": version.snapshot,
+            "has_snapshot": version.snapshot is not None,
         }
         return Response(payload)
 

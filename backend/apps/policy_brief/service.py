@@ -107,16 +107,55 @@ def _build_case_info(case: Case) -> engine.CaseInfo:
     )
 
 
+DECISION_LABEL_ID = {
+    "dominant": "Dominan (lebih murah & lebih efektif)",
+    "dominated": "Dominated (lebih mahal & kurang efektif)",
+    "cost_effective": "Cost-effective pada WTP terpilih",
+    "not_cost_effective": "Tidak cost-effective pada WTP terpilih",
+}
+
+BIA_SEVERITY_LABEL_ID = {
+    "cost_saving": "Penghematan bersih",
+    "manageable": "Dapat dikelola",
+    "significant": "Signifikan",
+    "prohibitive": "Prohibitif",
+    "not_assessed": "Belum dinilai",
+}
+
+
 def _build_cea(case: Case) -> engine.CEABlock | None:
-    cea_result = (
-        CEAResult.objects.filter(case=case).order_by("-computed_at").first()
-    )
+    """Cost-utility block.
+
+    Reads the econ deterministic result (the current engine); falls back to the
+    legacy CEA-Quick row so briefs for cases locked before the econ migration
+    still render. Keeping both here is what makes the Brief agree with the
+    Analisis Ekonomi tab for every case, old or new.
+    """
+    from apps.econ.models import EconDeterministicResult
+    from apps.econ.scoring import ce_score_from_result
+
+    det = EconDeterministicResult.objects.filter(case=case).order_by("-computed_at").first()
+    if det is not None:
+        return engine.CEABlock(
+            icer=det.icer,
+            dominance_label=DECISION_LABEL_ID.get(det.decision_code, det.decision_code),
+            cost_drug=det.total_cost_intervention,
+            cost_comparator=det.total_cost_comparator,
+            efficacy_drug=det.total_qaly_intervention,
+            efficacy_comparator=det.total_qaly_comparator,
+            wtop_threshold=det.wtp_threshold_used,
+            ce_score=ce_score_from_result(det),
+            # The econ engine quantifies uncertainty via PSA, not a +/-20% band.
+            sensitivity_low_icer=None,
+            sensitivity_high_icer=None,
+        )
+
+    cea_result = CEAResult.objects.filter(case=case).order_by("-computed_at").first()
     if cea_result is None:
         return None
 
     cea_input = CEAInput.objects.filter(case=case).first()
     if cea_input is None:
-        # Use snapshot if present
         snap = cea_result.input_snapshot or {}
         cost_drug = Decimal(str(snap.get("drug_cost_per_unit", "0")))
         cost_comparator = Decimal(str(snap.get("comparator_cost_per_unit", "0")))
@@ -143,9 +182,31 @@ def _build_cea(case: Case) -> engine.CEABlock | None:
 
 
 def _build_bia(case: Case) -> engine.BIABlock | None:
-    bia_result = (
-        BIAResult.objects.filter(case=case).order_by("-computed_at").first()
-    )
+    """Budget-impact block: econ cost-offset BIA, legacy fallback."""
+    from apps.econ.models import EconBIAResult
+
+    econ_bia = EconBIAResult.objects.filter(case=case).order_by("-computed_at").first()
+    if econ_bia is not None:
+        rows: list[engine.BIAYearRow] = []
+        for row in econ_bia.per_year or []:
+            rows.append(
+                engine.BIAYearRow(
+                    year=int(row.get("year", 0)),
+                    patients=int(Decimal(str(row.get("patients_intervention", "0")))),
+                    cost_impact=Decimal(str(row.get("net_budget_impact", "0"))),
+                    pct_of_budget=Decimal(str(row.get("pct_of_annual_baseline", "0"))).quantize(
+                        Decimal("0.01")
+                    ),
+                )
+            )
+        return engine.BIABlock(
+            rows=rows,
+            cumulative_impact=econ_bia.cumulative_net_impact,
+            cumulative_pct_of_budget=econ_bia.pct_of_total_baseline,
+            severity_label=BIA_SEVERITY_LABEL_ID.get(econ_bia.severity, econ_bia.severity),
+        )
+
+    bia_result = BIAResult.objects.filter(case=case).order_by("-computed_at").first()
     if bia_result is None:
         return None
 
@@ -157,18 +218,14 @@ def _build_bia(case: Case) -> engine.BIABlock | None:
     )
     eligible = bia_input.eligible_population if bia_input else 0
 
-    rows: list[engine.BIAYearRow] = []
-
-    # Year 1 always present
-    rows.append(
+    rows = [
         engine.BIAYearRow(
             year=1,
             patients=eligible,
             cost_impact=bia_result.year1_net_impact,
             pct_of_budget=_pct_of_budget(bia_result.year1_net_impact, bia_input),
         )
-    )
-
+    ]
     if horizon == 3:
         if bia_result.year2_net_impact_interpolated is not None:
             rows.append(

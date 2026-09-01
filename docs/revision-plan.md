@@ -48,6 +48,22 @@ return **HTTP 422 + the missing list**; `GET /cases/{id}/readiness/` feeds an ex
 **Kelengkapan Dossier** checklist on Sign-Off, so the rule is visible rather than only
 appearing as a rejection.
 
+### V4 — Finish the econ migration ✅
+The half-finished R2/R4 migration was the root cause of his report, and three
+consumers were still on the legacy tables:
+* **Policy Brief** — `_build_cea` / `_build_bia` now read the econ deterministic and
+  cost-offset BIA results, falling back to legacy CEA-Quick / BIA rows so briefs for
+  pre-migration cases still render. This is what makes the Brief agree with the
+  Analisis Ekonomi tab for every case, old or new.
+* **Versi** — the version state endpoint now returns the full `snapshot`
+  (+ `has_snapshot`); the pointer fields remain for backwards compatibility only.
+* **Archive manifest** — now inventories `econ_deterministic_results`,
+  `econ_bia_results` and `econ_psa_results` alongside the legacy rows.
+
+Frontend also surfaces the new V1 data: the BIA uptake-scenario table
+(low/medium/high) and the clinical validation block (ARR, RR, NNT, admission cost
+saving per patient-year).
+
 `HF_ARNI_ACEI_004` is preserved (never deleted) for his regression test.
 
 ---

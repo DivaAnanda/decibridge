@@ -39,7 +39,11 @@ export const PARAM_KEY_LABEL: Record<string, string> = {
   event_disutility: 'Disutility kejadian',
   eligible_population: 'Jumlah populasi eligible',
   uptake: 'Uptake',
-  market_share: 'Market share',
+  market_share: 'Market share (opsional, default 1,0)',
+  uptake_low: 'Uptake skenario rendah',
+  uptake_medium: 'Uptake skenario menengah',
+  uptake_high: 'Uptake skenario tinggi',
+  median_los: 'Median length of stay (hari)',
 }
 
 export const PARAM_KEY_DEFAULT_TYPE: Record<string, ParamType> = {
@@ -52,6 +56,10 @@ export const PARAM_KEY_DEFAULT_TYPE: Record<string, ParamType> = {
   eligible_population: 'count',
   uptake: 'rate',
   market_share: 'rate',
+  uptake_low: 'rate',
+  uptake_medium: 'rate',
+  uptake_high: 'rate',
+  median_los: 'count',
 }
 
 interface AuditUser {
@@ -147,6 +155,7 @@ export interface EconResult {
   is_dominated: boolean
   per_year: { intervention: YearRow[]; comparator: YearRow[] }
   cost_breakdown: { intervention: CostBreakdown; comparator: CostBreakdown }
+  clinical: ClinicalOutputs | Record<string, never>
   interpretation_text: string
   algorithm_version: string
   computed_at: string
@@ -181,17 +190,43 @@ export interface BIAYearRow {
   pct_of_annual_baseline: string
 }
 
+export interface BIAScenarioRow {
+  label: string
+  uptake: string
+  eligible_population: string
+  patients_intervention: string
+  incremental_drug_cost: string
+  event_cost_offset: string
+  net_budget_impact: string
+}
+
+export interface ClinicalOutputs {
+  absolute_risk_reduction: string
+  relative_risk: string | null
+  relative_risk_reduction: string | null
+  nnt: string | null
+  admission_cost_saving_per_patient_year: string
+  los_difference: string | null
+}
+
 export interface EconBIAResult {
   id: number
+  scenarios: BIAScenarioRow[]
   cumulative_net_impact: string
   pct_of_total_baseline: string
-  annual_budget_baseline: string
+  annual_budget_baseline: string | null
   severity: string
-  budget_score: number
+  budget_score: number | null
   per_year: BIAYearRow[]
   interpretation_text: string
   algorithm_version: string
   computed_at: string
+}
+
+export const BIA_SCENARIO_LABEL: Record<string, string> = {
+  low: 'Rendah',
+  medium: 'Menengah',
+  high: 'Tinggi',
 }
 
 export const BIA_SEVERITY_LABEL: Record<string, string> = {

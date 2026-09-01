@@ -20,7 +20,12 @@ import { IconCalculator } from '@tabler/icons-react'
 
 import { computeEconBIA, getLatestEconBIA } from '../api/econ'
 import { useAuth } from '../auth/useAuth'
-import { BIA_SEVERITY_COLOR, BIA_SEVERITY_LABEL, type EconBIAResult } from './types'
+import {
+  BIA_SCENARIO_LABEL,
+  BIA_SEVERITY_COLOR,
+  BIA_SEVERITY_LABEL,
+  type EconBIAResult,
+} from './types'
 
 interface Props {
   caseId: string
@@ -55,7 +60,7 @@ function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
         </Grid.Col>
         <Grid.Col span={{ base: 6, sm: 4 }}>
           <Text size="xs" c="dimmed">Skor anggaran (bobot 20%)</Text>
-          <Text ff="monospace" fw={600}>{result.budget_score} / 100</Text>
+          <Text ff="monospace" fw={600}>{result.budget_score === null ? 'Belum dinilai' : `${result.budget_score} / 100`}</Text>
         </Grid.Col>
       </Grid>
 
@@ -63,7 +68,48 @@ function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
         <Text size="sm" c="dimmed" mt="md">{result.interpretation_text}</Text>
       )}
 
-      <Table.ScrollContainer minWidth={720} mt="md">
+      {result.scenarios?.length > 0 && (
+        <>
+          <Text size="sm" fw={600} mt="md" mb={4}>
+            Skenario uptake (1 tahun)
+          </Text>
+          <Table.ScrollContainer minWidth={640}>
+            <Table striped withTableBorder>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Skenario</Table.Th>
+                  <Table.Th>Uptake</Table.Th>
+                  <Table.Th>Pasien intervensi</Table.Th>
+                  <Table.Th>Δ biaya obat</Table.Th>
+                  <Table.Th>Cost offset</Table.Th>
+                  <Table.Th>Dampak bersih</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {result.scenarios.map((sc) => (
+                  <Table.Tr key={sc.label}>
+                    <Table.Td>{BIA_SCENARIO_LABEL[sc.label] ?? sc.label}</Table.Td>
+                    <Table.Td ff="monospace">
+                      {(Number(sc.uptake) * 100).toFixed(0)}%
+                    </Table.Td>
+                    <Table.Td ff="monospace">{idr(sc.patients_intervention)}</Table.Td>
+                    <Table.Td ff="monospace">{idr(sc.incremental_drug_cost)}</Table.Td>
+                    <Table.Td ff="monospace">{idr(sc.event_cost_offset)}</Table.Td>
+                    <Table.Td ff="monospace" fw={600}>
+                      {idr(sc.net_budget_impact)}
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </>
+      )}
+
+      <Text size="sm" fw={600} mt="md" mb={4}>
+        Rincian per tahun
+      </Text>
+      <Table.ScrollContainer minWidth={720}>
         <Table striped withTableBorder>
           <Table.Thead>
             <Table.Tr>

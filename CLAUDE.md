@@ -72,7 +72,9 @@ Source: Pak Anom's acceptance test of `HF_ARNI_ACEI_004` + the real
 - **V2 ✅** — **`CaseVersion.snapshot`** JSON stores the full immutable VALUE snapshot on lock (econ model+params, deterministic, BIA, PSA, EtD per-domain, CBA, recommendation, approval, **+ legacy CEA/BIA**). Built by `apps/cases/decision_snapshot.py`; backfill: `python manage.py backfill_decision_snapshots`.
 - **V3 ✅** — `apps/cases/completeness.py` gates approve/lock: **all 9 EtD domains mandatory** (user decision), + CEA + BIA + recommendation. CBA advisory. Blocked → **HTTP 422 + missing list**; `GET /cases/{id}/readiness/` drives the "Kelengkapan Dossier" checklist on Sign-Off.
 
-**Root cause of his report (own-goal to remember):** R2/R4 migrated the compute tabs to `apps/econ` but left **Sign-Off, Brief, Versi, Archive and the lock snapshot** on the legacy `apps/cea`/`apps/bia` tables. Sign-Off dossier is now migrated to econ; **Brief, Versi reconstruction and Archive manifest still read legacy** — migrate them to the snapshot next.
+- **V4 ✅** — finished the migration. **Policy Brief** (`policy_brief/service.py`) now builds its CEA/BIA blocks from the econ results with a legacy fallback for pre-migration cases; **Versi** state endpoint returns the full `snapshot` (+ `has_snapshot`); **Archive manifest** now inventories `econ_deterministic_results`, `econ_bia_results`, `econ_psa_results`. Frontend surfaces BIA uptake scenarios and the clinical validation block (ARR/RR/NNT/admission saving).
+
+**Root cause of his report (own-goal to remember):** R2/R4 migrated the compute tabs to `apps/econ` but left **Sign-Off, Brief, Versi, Archive and the lock snapshot** on the legacy `apps/cea`/`apps/bia` tables. All are now migrated (econ-first, legacy fallback). `apps/cea`/`apps/bia` remain only as fallback readers for cases locked before the migration.
 
 **Never delete `HF_ARNI_ACEI_004`** — it is his regression case for locked-snapshot + cross-module consistency.
 

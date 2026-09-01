@@ -63,6 +63,9 @@ def build_manifest(
     retention_until: datetime,
     cea_results: Iterable[dict],
     bia_results: Iterable[dict],
+    econ_deterministic_results: Iterable[dict] = (),
+    econ_bia_results: Iterable[dict] = (),
+    econ_psa_results: Iterable[dict] = (),
     etd_appraisals: Iterable[dict],
     references: Iterable[dict],
     recommendations: Iterable[dict],
@@ -86,6 +89,11 @@ def build_manifest(
         "artifacts": {
             "cea_results": [row_summary(r) for r in cea_results],
             "bia_results": [row_summary(r) for r in bia_results],
+            # Econ engine artifacts (current); the two above are the legacy
+            # CEA-Quick / BIA rows retained for pre-migration cases.
+            "econ_deterministic_results": [row_summary(r) for r in econ_deterministic_results],
+            "econ_bia_results": [row_summary(r) for r in econ_bia_results],
+            "econ_psa_results": [row_summary(r) for r in econ_psa_results],
             "etd_appraisals": [row_summary(r) for r in etd_appraisals],
             "references": [row_summary(r) for r in references],
             "recommendations": [row_summary(r) for r in recommendations],
