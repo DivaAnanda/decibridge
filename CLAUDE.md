@@ -76,6 +76,21 @@ Source: Pak Anom's acceptance test of `HF_ARNI_ACEI_004` + the real
 
 **Root cause of his report (own-goal to remember):** R2/R4 migrated the compute tabs to `apps/econ` but left **Sign-Off, Brief, Versi, Archive and the lock snapshot** on the legacy `apps/cea`/`apps/bia` tables. All are now migrated (econ-first, legacy fallback). `apps/cea`/`apps/bia` remain only as fallback readers for cases locked before the migration.
 
+### Deploy notes (round 2)
+
+- `entrypoint.sh` now runs **`backfill_decision_snapshots`** on every container boot. It
+  only fills versions whose `snapshot` is NULL, so it is a no-op after the first boot —
+  this removes the need for Railway shell access to populate pre-V2 locked cases.
+- **`seed_econ_validation_case` is deliberately NOT in the entrypoint**: it overwrites the
+  economic parameters for `HF_ARNI_ACEI_001` and would silently wipe lecturer edits on
+  every deploy. Run it manually via the Railway shell when you want the workbook values.
+- **Verification gotcha:** the SPA catch-all serves `index.html` with **HTTP 200** for any
+  unmatched path, so a missing API route looks identical to a working one if you only
+  check the status code. Always assert on the response **body** (JSON vs `<!doctype html>`)
+  when probing whether a deploy is live.
+- The versioning state endpoint takes the **version id** (int), not the version number:
+  `/cases/{case_id}/versions/{version_id}/state/`.
+
 **Never delete `HF_ARNI_ACEI_004`** — it is his regression case for locked-snapshot + cross-module consistency.
 
 **Key revision facts:**
