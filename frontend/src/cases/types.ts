@@ -110,3 +110,17 @@ export const TRANSITION_LABEL_ID: Record<string, string> = {
   lock: 'Kunci Keputusan',
   archive: 'Arsipkan',
 }
+
+export interface ReadinessRequirement {
+  key: string
+  label: string
+  satisfied: boolean
+  detail: string
+  mandatory: boolean
+}
+
+export interface CaseReadiness {
+  is_ready: boolean
+  requirements: ReadinessRequirement[]
+  missing: string[]
+}

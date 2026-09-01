@@ -132,6 +132,12 @@ def transition(
             code="reason_required",
         )
 
+    # Phase V3: approve/lock require a complete decision dossier
+    # (all 9 EtD domains, CEA, BIA, recommendation).
+    from .completeness import assert_ready_for
+
+    assert_ready_for(case, action)
+
     case.status = t.target
     case.save(update_fields=["status", "updated_at"])
 
@@ -203,6 +209,10 @@ def _snapshot_locked_case(case: Case, user: AbstractBaseUser) -> CaseVersion:
         .first()
     )
 
+    # Phase V2: capture the full value snapshot, not just pointers, so every
+    # module renders the same figures for this version forever.
+    from .decision_snapshot import build_decision_snapshot
+
     return CaseVersion.objects.create(
         case=case,
         version_number=version_number,
@@ -216,5 +226,6 @@ def _snapshot_locked_case(case: Case, user: AbstractBaseUser) -> CaseVersion:
         recommendation_id=rec_id,
         approval_id=approval_id,
         policy_brief_document_id=brief_id,
+        snapshot=build_decision_snapshot(case),
         created_by=user,
     )

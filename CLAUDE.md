@@ -63,6 +63,19 @@ After the first lecturer demo we received a substantial revision request turning
 
 **🎉 All post-demo revision items (R0–R6) complete.** The lecturer's 12 feedback points are addressed. See `docs/revision-plan.md`.
 
+## Round 2 — acceptance testing + real validation workbook (V1–V3)
+
+Source: Pak Anom's acceptance test of `HF_ARNI_ACEI_004` + the real
+`DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx` (tracked at `backend/apps/econ/tests/fixtures/`).
+
+- **V1 ✅** — adopted his REAL parameters (prob 0.45/0.7077, drug 15,399,360/324,000, admission 6,889,093, utility 0.7, QALY loss 0.1, discounts 0.03, PSA seed **20260724**). The engine formula was already correct — only my decomposition was invented. **BIA aligned**: `market_share` defaults to 1.0 (his model = `eligible × uptake` alone — the double-count he flagged) + low/medium/high scenario table. Clinical outputs (ARR/RR/RRR/NNT/LOS). `annual_budget_baseline` now **optional** → severity `not_assessed`, `budget_score` null. **`lecturer_workbook.py` parses his file as-is** → QC01–QC11 report. All QC values match exactly.
+- **V2 ✅** — **`CaseVersion.snapshot`** JSON stores the full immutable VALUE snapshot on lock (econ model+params, deterministic, BIA, PSA, EtD per-domain, CBA, recommendation, approval, **+ legacy CEA/BIA**). Built by `apps/cases/decision_snapshot.py`; backfill: `python manage.py backfill_decision_snapshots`.
+- **V3 ✅** — `apps/cases/completeness.py` gates approve/lock: **all 9 EtD domains mandatory** (user decision), + CEA + BIA + recommendation. CBA advisory. Blocked → **HTTP 422 + missing list**; `GET /cases/{id}/readiness/` drives the "Kelengkapan Dossier" checklist on Sign-Off.
+
+**Root cause of his report (own-goal to remember):** R2/R4 migrated the compute tabs to `apps/econ` but left **Sign-Off, Brief, Versi, Archive and the lock snapshot** on the legacy `apps/cea`/`apps/bia` tables. Sign-Off dossier is now migrated to econ; **Brief, Versi reconstruction and Archive manifest still read legacy** — migrate them to the snapshot next.
+
+**Never delete `HF_ARNI_ACEI_004`** — it is his regression case for locked-snapshot + cross-module consistency.
+
 **Key revision facts:**
 - **No workbook.** Lecturer's `DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx` was never provided. We build engines correct-by-formula and seed our own verified default params (`apps/econ/validation_fixtures.py`) that reproduce the acceptance numbers. `python manage.py seed_econ_validation_case` populates HF_ARNI_ACEI_001.
 - The traffic-light recommendation now consumes the econ deterministic result (`apps/econ/scoring.py::ce_score_from_result`) — done in R3.

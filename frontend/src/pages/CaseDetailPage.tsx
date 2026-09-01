@@ -183,11 +183,14 @@ export function CaseDetailPage(): JSX.Element {
       setPendingTransition(null)
       setReason('')
     },
-    onError: (err: { response?: { data?: { detail?: string } } }) => {
+    onError: (err: { response?: { data?: { detail?: string; missing?: string[] } } }) => {
+      const data = err.response?.data
+      // Phase V3: an incomplete dossier returns 422 + the checklist gaps.
+      const missing = data?.missing?.length ? `\nKurang: ${data.missing.join('; ')}` : ''
       notifications.show({
-        color: 'red',
-        title: 'Gagal mengubah status',
-        message: err.response?.data?.detail ?? 'Terjadi kesalahan.',
+        color: data?.missing?.length ? 'orange' : 'red',
+        title: data?.missing?.length ? 'Dossier belum lengkap' : 'Gagal mengubah status',
+        message: `${data?.detail ?? 'Terjadi kesalahan.'}${missing}`,
       })
     },
   })

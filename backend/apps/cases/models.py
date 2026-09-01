@@ -191,6 +191,17 @@ class CaseVersion(models.Model):
     approval_id = models.PositiveIntegerField(null=True, blank=True)
     policy_brief_document_id = models.PositiveIntegerField(null=True, blank=True)
 
+    # Phase V2: full immutable VALUE snapshot of every input/output behind the
+    # decision (econ model + parameters, deterministic, BIA, PSA, EtD, CBA,
+    # recommendation, approval, plus legacy CEA/BIA for pre-migration cases).
+    # Pointers above are kept for backwards compatibility; this is the source of
+    # truth for rendering a locked version consistently across all tabs.
+    snapshot = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=_("Immutable value snapshot of the decision at lock time"),
+    )
+
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

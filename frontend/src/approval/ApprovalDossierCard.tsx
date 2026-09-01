@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Badge, Card, Center, Grid, Group, Loader, Stack, Text, Title } from '@mantine/core'
 
-import { getLatestCEAResult } from '../api/cea'
-import { listCEAResults } from '../api/cea'
-import { listBIAResults } from '../api/bia'
+import { getLatestEconBIA, getLatestEconResult } from '../api/econ'
 import { getSummary as getEtDSummary } from '../api/etd'
 import { getLatestRecommendation } from '../api/recommendation'
-import { DOMINANCE_LABEL_ID, formatIDR as formatCEA } from '../cea/types'
-import { SEVERITY_LABEL_ID, formatIDR as formatBIA } from '../bia/types'
+import {
+  BIA_SEVERITY_COLOR,
+  BIA_SEVERITY_LABEL,
+  DECISION_COLOR,
+  DECISION_LABEL,
+} from '../econ/types'
 import { TRAFFIC_LIGHT_COLOR, TRAFFIC_LIGHT_LABEL_ID } from '../recommendation/types'
 import { CERTAINTY_COLOR } from '../etd/types'
 
@@ -16,9 +18,17 @@ interface Props {
 }
 
 export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
-  const ceaQuery = useQuery({ queryKey: ['cea', caseId, 'latest'], queryFn: () => getLatestCEAResult(caseId) })
-  const ceaListQuery = useQuery({ queryKey: ['cea', caseId, 'results'], queryFn: () => listCEAResults(caseId) })
-  const biaQuery = useQuery({ queryKey: ['bia', caseId, 'results'], queryFn: () => listBIAResults(caseId) })
+  // Same query keys as the Analisis Ekonomi / BIA tabs, so Sign-Off can never
+  // disagree with them (the cross-module inconsistency reported in acceptance
+  // testing came from this card reading the legacy CEA/BIA tables instead).
+  const econQuery = useQuery({
+    queryKey: ['econ', caseId, 'result'],
+    queryFn: () => getLatestEconResult(caseId),
+  })
+  const biaQuery = useQuery({
+    queryKey: ['econ', caseId, 'bia'],
+    queryFn: () => getLatestEconBIA(caseId),
+  })
   const etdQuery = useQuery({ queryKey: ['etd', caseId, 'summary'], queryFn: () => getEtDSummary(caseId) })
   const recoQuery = useQuery({
     queryKey: ['recommendation', caseId, 'latest'],
@@ -26,7 +36,7 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
   })
 
   const isLoading =
-    ceaQuery.isLoading || ceaListQuery.isLoading || biaQuery.isLoading || etdQuery.isLoading || recoQuery.isLoading
+    econQuery.isLoading || biaQuery.isLoading || etdQuery.isLoading || recoQuery.isLoading
 
   if (isLoading) {
     return (
@@ -36,10 +46,13 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
     )
   }
 
-  const cea = ceaQuery.data
-  const bia = biaQuery.data?.[0] ?? null
+  const econ = econQuery.data
+  const bia = biaQuery.data
   const etd = etdQuery.data
   const reco = recoQuery.data
+
+  const idr = (value: string): string =>
+    Number(value).toLocaleString('id-ID', { maximumFractionDigits: 0 })
 
   return (
     <Card withBorder padding="lg" radius="md">
@@ -62,27 +75,31 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
         <Grid.Col span={{ base: 12, md: 6 }}>
           <Card withBorder padding="md" radius="sm">
             <Text size="xs" c="dimmed">
-              CEA (Cost-Effectiveness)
+              Analisis Ekonomi (Cost-Utility)
             </Text>
-            {cea ? (
+            {econ ? (
               <Stack gap={4} mt={4}>
                 <Group justify="space-between">
                   <Text size="sm">ICER</Text>
                   <Text size="sm" fw={600}>
-                    {cea.icer_value ? `${formatCEA(cea.icer_value)} / unit` : '—'}
+                    {econ.icer ? `Rp ${idr(econ.icer)} / QALY` : 'N/A'}
                   </Text>
                 </Group>
                 <Group justify="space-between">
-                  <Text size="sm">Dominance</Text>
-                  <Badge variant="light" size="sm">
-                    {DOMINANCE_LABEL_ID[cea.dominance]}
-                  </Badge>
-                </Group>
-                <Group justify="space-between">
-                  <Text size="sm">Skor CE</Text>
+                  <Text size="sm">INB</Text>
                   <Text size="sm" fw={600}>
-                    {cea.ce_score} / 100
+                    Rp {idr(econ.inb)}
                   </Text>
+                </Group>
+                <Group justify="space-between">
+                  <Text size="sm">Keputusan</Text>
+                  <Badge
+                    variant="light"
+                    size="sm"
+                    color={DECISION_COLOR[econ.decision_code] ?? 'gray'}
+                  >
+                    {DECISION_LABEL[econ.decision_code] ?? econ.decision_code}
+                  </Badge>
                 </Group>
               </Stack>
             ) : (
@@ -101,21 +118,27 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
             {bia ? (
               <Stack gap={4} mt={4}>
                 <Group justify="space-between">
-                  <Text size="sm">Kumulatif</Text>
+                  <Text size="sm">Dampak bersih</Text>
                   <Text size="sm" fw={600}>
-                    {formatBIA(bia.cumulative_impact)}
+                    Rp {idr(bia.cumulative_net_impact)}
                   </Text>
                 </Group>
                 <Group justify="space-between">
                   <Text size="sm">% Anggaran</Text>
                   <Text size="sm" fw={600}>
-                    {bia.pct_of_annual_budget}%
+                    {bia.annual_budget_baseline
+                      ? `${Number(bia.pct_of_total_baseline).toFixed(2)}%`
+                      : 'Belum dinilai'}
                   </Text>
                 </Group>
                 <Group justify="space-between">
                   <Text size="sm">Severity</Text>
-                  <Badge variant="light" size="sm">
-                    {SEVERITY_LABEL_ID[bia.severity]}
+                  <Badge
+                    variant="light"
+                    size="sm"
+                    color={BIA_SEVERITY_COLOR[bia.severity] ?? 'gray'}
+                  >
+                    {BIA_SEVERITY_LABEL[bia.severity] ?? bia.severity}
                   </Badge>
                 </Group>
               </Stack>

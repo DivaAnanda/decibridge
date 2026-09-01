@@ -75,7 +75,14 @@ class CaseViewSet(viewsets.ModelViewSet):
         except KeyError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as exc:
-            return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
+            payload: dict = {"detail": exc.message}
+            # Phase V3: an incomplete dossier returns the checklist gaps so the
+            # Sign-Off UI can list exactly what is still required.
+            missing = (getattr(exc, "params", None) or {}).get("missing")
+            if missing:
+                payload["missing"] = missing
+                return Response(payload, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return Response(payload, status=status.HTTP_400_BAD_REQUEST)
         except PermissionDenied as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
 
@@ -92,6 +99,17 @@ class CaseViewSet(viewsets.ModelViewSet):
         return Response(
             CaseDetailSerializer(case, context=self.get_serializer_context()).data
         )
+
+    @action(detail=True, methods=["get"], url_path="readiness")
+    def readiness(self, request: Request, case_id: str | None = None) -> Response:
+        """Decision-readiness checklist shown on Sign-Off (Phase V3).
+
+        Returns the same requirement list the approve/lock gate enforces, so the
+        rule is explicit in the UI rather than only surfacing as a rejection.
+        """
+        from .completeness import evaluate_readiness
+
+        return Response(evaluate_readiness(self.get_object()))
 
     @action(detail=True, methods=["post"], url_path="questions")
     def add_question(self, request: Request, case_id: str | None = None) -> Response:

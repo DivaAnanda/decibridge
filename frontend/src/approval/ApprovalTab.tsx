@@ -18,6 +18,7 @@ import { listApprovals, signApproval } from '../api/approval'
 import { getLatestRecommendation } from '../api/recommendation'
 import { useAuth } from '../auth/useAuth'
 import { ApprovalDossierCard } from './ApprovalDossierCard'
+import { ReadinessChecklistCard } from './ReadinessChecklistCard'
 import { SignatureModal } from './SignatureModal'
 import {
   DECISION_COLOR,
@@ -77,6 +78,7 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
 
   return (
     <Stack gap="lg">
+      <ReadinessChecklistCard caseId={caseId} />
       <ApprovalDossierCard caseId={caseId} />
 
       {isKetua && (
