@@ -31,7 +31,8 @@ PARAM_HEADER = [
     "data_status", "distribution", "dist_param1", "dist_param2",
 ]
 
-# Deterministic expected results for HF_ARNI_ACEI_001 (lecturer acceptance table).
+# Expected results for HF_ARNI_ACEI_001, mirroring the lecturer's workbook
+# sheet 09_DATA_MAP_QC (QC01-QC11) including his tolerances.
 EXPECTED_DETERMINISTIC = [
     ("total_cost_intervention", "18499451.85", "1"),
     ("total_cost_comparator", "5199411.1161", "1"),
@@ -39,12 +40,15 @@ EXPECTED_DETERMINISTIC = [
     ("total_qaly_comparator", "0.62923", "0.000001"),
     ("incremental_cost", "13300040.7339", "1"),
     ("incremental_qaly", "0.02577", "0.000001"),
-    ("icer", "516105577.5669", "100"),
-    ("inb", "-11109590.7339", "1"),
+    ("icer", "516105577.5669392", "10"),
+    ("inb", "-11109590.7339", "10"),
+    ("bia_net_low", "133000407.339", "1"),
+    ("bia_net_medium", "399001222.017", "1"),
+    ("bia_net_high", "665002036.695", "1"),
 ]
 
-# PSA expected (deterministic given fixed seed + n).
-EXPECTED_PSA = [("prob_cost_effective", "0.048", "0.005", "2000", "42")]
+# PSA expected (reproducible given the workbook's fixed seed + iteration count).
+EXPECTED_PSA = [("psa_prob_cost_effective", "0.008", "0.001", "1000", "20260724")]
 
 
 def build_workbook() -> Workbook:

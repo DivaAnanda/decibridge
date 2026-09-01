@@ -64,6 +64,28 @@ class AlternativeInputs:
     other_cost: Decimal
     baseline_utility: Decimal
     event_disutility: Decimal
+    # Secondary clinical validation field (workbook sheet 02_DETERMINISTIC).
+    median_los: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class ClinicalOutputs:
+    """Secondary clinical validation metrics (workbook sheet 02_DETERMINISTIC).
+
+        absolute_risk_reduction = p_comparator - p_intervention
+        relative_risk           = p_intervention / p_comparator
+        relative_risk_reduction = 1 - relative_risk
+        nnt                     = 1 / absolute_risk_reduction
+        admission_cost_saving   = absolute_risk_reduction x event_cost
+        los_difference          = los_intervention - los_comparator
+    """
+
+    absolute_risk_reduction: Decimal
+    relative_risk: Decimal | None
+    relative_risk_reduction: Decimal | None
+    nnt: Decimal | None
+    admission_cost_saving_per_patient_year: Decimal
+    los_difference: Decimal | None
 
 
 @dataclass(frozen=True)
@@ -122,6 +144,7 @@ class DeterministicResult:
     is_dominant: bool
     is_dominated: bool
     interpretation_text: str
+    clinical: ClinicalOutputs | None = None
     algorithm_version: str = ALGORITHM_VERSION
 
 
@@ -210,6 +233,27 @@ def compute_deterministic(inp: DeterministicInput) -> DeterministicResult:
         interpretation_text=_narrative(
             incremental_cost, incremental_qaly, icer, inb, inp.wtp_threshold, decision_code
         ),
+        clinical=_clinical_outputs(inp.intervention, inp.comparator),
+    )
+
+
+def _clinical_outputs(iv: AlternativeInputs, comp: AlternativeInputs) -> ClinicalOutputs:
+    arr = comp.event_probability - iv.event_probability
+    rr = (iv.event_probability / comp.event_probability) if comp.event_probability != ZERO else None
+    rrr = (ONE - rr) if rr is not None else None
+    nnt = (ONE / arr) if arr != ZERO else None
+    los_diff = (
+        iv.median_los - comp.median_los
+        if iv.median_los is not None and comp.median_los is not None
+        else None
+    )
+    return ClinicalOutputs(
+        absolute_risk_reduction=arr,
+        relative_risk=rr,
+        relative_risk_reduction=rrr,
+        nnt=nnt,
+        admission_cost_saving_per_patient_year=arr * comp.event_cost,
+        los_difference=los_diff,
     )
 
 

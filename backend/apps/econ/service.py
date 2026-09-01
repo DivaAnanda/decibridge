@@ -18,6 +18,7 @@ from django.contrib.auth import get_user_model
 from .engine_bia import (
     BIAAlternativeParams,
     BIAInput,
+    BIAScenario,
     BIAYearParams,
     compute_bia,
 )
@@ -40,6 +41,7 @@ from .models import (
     EconPSAResult,
     ParamKey,
 )
+from .validation_fixtures import PSA_SEED, PSA_SIMULATIONS
 
 User = get_user_model()
 
@@ -87,6 +89,7 @@ def _resolve_alternative(model: EconomicModel, alt: str, missing: list[str]) -> 
         other_cost=other_cost,
         baseline_utility=baseline_utility,
         event_disutility=event_disutility,
+        median_los=model.value_of(ParamKey.MEDIAN_LOS, alt),
     )
 
 
@@ -160,19 +163,37 @@ def run_deterministic(model: EconomicModel, computed_by: User | None = None) -> 
                 "other": str(result.comparator.other_cost_total),
             },
         },
+        clinical=(
+            {
+                "absolute_risk_reduction": str(result.clinical.absolute_risk_reduction),
+                "relative_risk": _s(result.clinical.relative_risk),
+                "relative_risk_reduction": _s(result.clinical.relative_risk_reduction),
+                "nnt": _s(result.clinical.nnt),
+                "admission_cost_saving_per_patient_year": str(
+                    result.clinical.admission_cost_saving_per_patient_year
+                ),
+                "los_difference": _s(result.clinical.los_difference),
+            }
+            if result.clinical
+            else {}
+        ),
         interpretation_text=result.interpretation_text,
         algorithm_version=result.algorithm_version,
         computed_by=computed_by,
     )
 
 
+def _s(value) -> str | None:
+    return None if value is None else str(value)
+
+
 # ── Budget Impact Analysis (R4) ─────────────────────────────────────────────
 
-# Shared scenario parameters required by the cost-offset BIA, resolved per year.
+# Mandatory shared scenario parameters for the cost-offset BIA (per year).
+# MARKET_SHARE is deliberately NOT required — it defaults to 1.0.
 _BIA_SCENARIO_KEYS = [
     ParamKey.ELIGIBLE_POPULATION,
     ParamKey.UPTAKE,
-    ParamKey.MARKET_SHARE,
 ]
 
 
@@ -196,9 +217,9 @@ def build_bia_input(model: EconomicModel) -> BIAInput:
     """Resolve stored parameters into a pure BIA engine input. Raises IncompleteModelError."""
     missing: list[str] = []
 
-    if model.annual_budget_baseline is None:
-        missing.append("Anggaran farmasi tahunan baseline")
-
+    # annual_budget_baseline is OPTIONAL: without it the net impact is still
+    # computed, but severity/budget-score come back "not assessed" rather than
+    # being fabricated. (The lecturer's workbook has no budget baseline.)
     event_cost = model.value_of(ParamKey.EVENT_COST, Alternative.SHARED)
     if event_cost is None:
         missing.append(f"{ParamKey(ParamKey.EVENT_COST).label} (shared)")
@@ -207,25 +228,42 @@ def build_bia_input(model: EconomicModel) -> BIAInput:
     comparator = _bia_alternative(model, Alternative.COMPARATOR, missing)
 
     years: list[BIAYearParams] = []
+    eligible_y1 = Decimal("0")
     for t in range(1, model.horizon_years + 1):
-        resolved = {}
-        for key in _BIA_SCENARIO_KEYS:
-            val = model.value_of(key, Alternative.SHARED, year_index=t)
-            if val is None:
-                missing.append(f"{ParamKey(key).label} (tahun {t})")
-            resolved[key] = val or Decimal("0")
+        eligible = model.value_of(ParamKey.ELIGIBLE_POPULATION, Alternative.SHARED, year_index=t)
+        uptake = model.value_of(ParamKey.UPTAKE, Alternative.SHARED, year_index=t)
+        if eligible is None:
+            missing.append(f"{ParamKey(ParamKey.ELIGIBLE_POPULATION).label} (tahun {t})")
+        if uptake is None:
+            missing.append(f"{ParamKey(ParamKey.UPTAKE).label} (tahun {t})")
+        # Optional second multiplier — the lecturer's model omits it (=> 1.0).
+        share = model.value_of(ParamKey.MARKET_SHARE, Alternative.SHARED, year_index=t)
+        if t == 1:
+            eligible_y1 = eligible or Decimal("0")
         years.append(
             BIAYearParams(
                 year=t,
-                eligible_population=resolved[ParamKey.ELIGIBLE_POPULATION],
-                uptake=resolved[ParamKey.UPTAKE],
-                market_share=resolved[ParamKey.MARKET_SHARE],
+                eligible_population=eligible or Decimal("0"),
+                uptake=uptake or Decimal("0"),
+                market_share=Decimal("1") if share is None else share,
             )
         )
 
     if missing:
         raise IncompleteModelError(missing)
 
+    # One-year uptake scenarios (sheet 03_BIA). Only those defined are reported.
+    scenarios: list[BIAScenario] = []
+    for label, key in (
+        ("low", ParamKey.UPTAKE_LOW),
+        ("medium", ParamKey.UPTAKE_MEDIUM),
+        ("high", ParamKey.UPTAKE_HIGH),
+    ):
+        val = model.value_of(key, Alternative.SHARED)
+        if val is not None:
+            scenarios.append(BIAScenario(label=label, uptake=val))
+
+    base_share = model.value_of(ParamKey.MARKET_SHARE, Alternative.SHARED)
     return BIAInput(
         horizon_years=model.horizon_years,
         annual_budget_baseline=model.annual_budget_baseline,
@@ -233,6 +271,9 @@ def build_bia_input(model: EconomicModel) -> BIAInput:
         intervention=intervention,
         comparator=comparator,
         years=years,
+        scenarios=scenarios,
+        scenario_eligible_population=eligible_y1,
+        scenario_market_share=Decimal("1") if base_share is None else base_share,
     )
 
 
@@ -274,6 +315,18 @@ def run_bia(model: EconomicModel, computed_by: User | None = None) -> EconBIARes
         severity=result.severity,
         budget_score=result.budget_score,
         per_year=_bia_year_rows_json(result.year_rows),
+        scenarios=[
+            {
+                "label": s.label,
+                "uptake": str(s.uptake),
+                "eligible_population": str(s.eligible_population),
+                "patients_intervention": str(s.patients_intervention),
+                "incremental_drug_cost": str(s.incremental_drug_cost),
+                "event_cost_offset": str(s.event_cost_offset),
+                "net_budget_impact": str(s.net_budget_impact),
+            }
+            for s in result.scenario_rows
+        ],
         interpretation_text=result.interpretation_text,
         algorithm_version=result.algorithm_version,
         computed_by=computed_by,
@@ -319,8 +372,8 @@ def run_psa(
     model: EconomicModel,
     computed_by: User | None = None,
     *,
-    n_simulations: int = 1000,
-    seed: int = 42,
+    n_simulations: int = PSA_SIMULATIONS,
+    seed: int = PSA_SEED,
     wtp_min: float | None = None,
     wtp_max: float | None = None,
     wtp_step: float | None = None,

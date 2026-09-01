@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 
+from apps.econ.lecturer_workbook import parse_lecturer_workbook
+from apps.econ.validation_fixtures import VALIDATION_PARAMETERS
 from apps.econ.validation_service import import_and_validate
 from apps.econ.validation_workbook import build_workbook, parse_workbook
 
@@ -24,8 +28,9 @@ class TestWorkbookRoundtrip:
         parsed = parse_workbook(_workbook_bytes())
         assert parsed["missing_sheets"] == []
         assert parsed["case_meta"]["case_id"] == "HF_ARNI_ACEI_001"
-        assert len(parsed["params"]) == 10
-        assert len(parsed["expected_deterministic"]) == 8
+        assert len(parsed["params"]) == len(VALIDATION_PARAMETERS)
+        # QC01-QC08 deterministic + QC09-QC11 BIA scenarios
+        assert len(parsed["expected_deterministic"]) == 11
 
 
 @pytest.mark.django_db
@@ -62,6 +67,55 @@ class TestImportAndValidate:
         report = import_and_validate(pilot_case, buf, hta_user)
         assert report["status"] == "FAIL"
         assert any("0–1" in issue for issue in report["issues"])
+
+
+LECTURER_WORKBOOK = (
+    Path(__file__).parent / "fixtures" / "DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx"
+)
+
+
+class TestLecturerWorkbookParsing:
+    """The lecturer's own file must be accepted as-is (no reformatting)."""
+
+    def test_detected_and_parsed(self):
+        parsed = parse_lecturer_workbook(str(LECTURER_WORKBOOK))
+        assert parsed["format"] == "lecturer"
+        assert parsed["case_meta"]["case_id"] == "HF_ARNI_ACEI_001"
+        assert parsed["model_scalars"]["horizon_years"] == "1"
+        assert parsed["model_scalars"]["wtp_threshold"] == "85000000"
+        assert parsed["psa_config"] == {"n_simulations": 1000, "seed": 20260724}
+        # QC01-QC11 (QC12's expected cell is an uncomputed formula in his file).
+        assert len(parsed["expected_deterministic"]) == 11
+
+    def test_psa_distributions_extracted(self):
+        params = {
+            (p["key"], p["alternative"]): p
+            for p in parse_lecturer_workbook(str(LECTURER_WORKBOOK))["params"]
+        }
+        arni_prob = params[("event_probability", "intervention")]
+        assert arni_prob["distribution"] == "beta"
+        assert arni_prob["value"] == Decimal("0.45")
+        arni_drug = params[("drug_cost", "intervention")]
+        assert arni_drug["distribution"] == "gamma"
+        assert arni_drug["value"] == Decimal("15399360")
+
+
+@pytest.mark.django_db
+class TestLecturerWorkbookValidation:
+    """End-to-end: import his real workbook and reproduce every QC check."""
+
+    def test_all_qc_checks_pass(self, pilot_case, hta_user):
+        report = import_and_validate(pilot_case, str(LECTURER_WORKBOOK), hta_user)
+        failed = [c for c in report["checks"] if not c["pass"]]
+        assert failed == [], failed
+        assert report["issues"] == []
+        assert report["status"] == "PASS"
+
+    def test_covers_deterministic_and_bia(self, pilot_case, hta_user):
+        report = import_and_validate(pilot_case, str(LECTURER_WORKBOOK), hta_user)
+        metrics = {c["metric"] for c in report["checks"]}
+        assert {"total_cost_intervention", "icer", "inb"} <= metrics
+        assert {"bia_net_low", "bia_net_medium", "bia_net_high"} <= metrics
 
 
 @pytest.mark.django_db

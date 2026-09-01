@@ -60,7 +60,7 @@ class TestRunDeterministic:
         result = run_deterministic(seeded_model, computed_by=hta_user)
         assert result.input_snapshot["wtp_threshold"] == "85000000.0000"
         assert "intervention" in result.per_year
-        assert Decimal(result.cost_breakdown["intervention"]["drug"]) == Decimal("14699451.85")
+        assert Decimal(result.cost_breakdown["intervention"]["drug"]) == Decimal("15399360")
 
     def test_result_is_append_only(self, seeded_model, hta_user):
         result = run_deterministic(seeded_model, computed_by=hta_user)

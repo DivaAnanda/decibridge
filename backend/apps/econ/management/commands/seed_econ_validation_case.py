@@ -78,7 +78,18 @@ class Command(BaseCommand):
             )
             count += 1
 
+        # Prune parameters that are no longer part of the validation set.
+        # Without this a stale row (e.g. an old market_share=0.5) silently keeps
+        # feeding the engines and halves the budget-impact scenarios.
+        keep = {(str(s["key"]), str(s["alternative"]), None) for s in VALIDATION_PARAMETERS}
+        removed = 0
+        for param in list(model.parameters.all()):
+            if (param.key, param.alternative, param.year_index) not in keep:
+                param.delete()
+                removed += 1
+
         verb = "Created" if created else "Updated"
+        suffix = f" ({removed} parameter usang dihapus)" if removed else ""
         self.stdout.write(self.style.SUCCESS(
-            f"{verb} economic model for {VALIDATION_CASE_ID} with {count} parameters."
+            f"{verb} economic model for {VALIDATION_CASE_ID} with {count} parameters{suffix}."
         ))

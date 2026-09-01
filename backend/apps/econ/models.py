@@ -111,7 +111,14 @@ class ParamKey(models.TextChoices):
     EVENT_DISUTILITY = "event_disutility", _("Disutility kejadian")
     ELIGIBLE_POPULATION = "eligible_population", _("Jumlah populasi eligible")
     UPTAKE = "uptake", _("Uptake (proporsi eligible yang diobati)")
-    MARKET_SHARE = "market_share", _("Market share (proporsi diobati yang memakai alternatif ini)")
+    # Optional. The lecturer's validation model uses uptake ALONE
+    # (patients = eligible x uptake); this defaults to 1.0 when absent so the
+    # two multipliers never double-count.
+    MARKET_SHARE = "market_share", _("Market share (opsional; default 1,0)")
+    UPTAKE_LOW = "uptake_low", _("Uptake skenario rendah")
+    UPTAKE_MEDIUM = "uptake_medium", _("Uptake skenario menengah")
+    UPTAKE_HIGH = "uptake_high", _("Uptake skenario tinggi")
+    MEDIAN_LOS = "median_los", _("Median length of stay (hari/admisi)")
 
 
 # Parameter types that must stay within [0, 1].
@@ -406,6 +413,8 @@ class EconDeterministicResult(models.Model):
     # Per-year breakdown + cost breakdown for the UI (before/after discounting).
     per_year = models.JSONField(default=dict)
     cost_breakdown = models.JSONField(default=dict)
+    # Secondary clinical validation metrics (ARR, RR, RRR, NNT, LOS diff).
+    clinical = models.JSONField(default=dict, blank=True)
 
     interpretation_text = models.TextField(blank=True, default="")
     algorithm_version = models.CharField(max_length=16, default="2.0.0")
@@ -448,15 +457,23 @@ class EconBIAResult(models.Model):
 
     cumulative_net_impact = models.DecimalField(max_digits=30, decimal_places=10)
     pct_of_total_baseline = models.DecimalField(max_digits=12, decimal_places=4)
-    annual_budget_baseline = models.DecimalField(max_digits=COST_MAX_DIGITS, decimal_places=COST_DECIMAL_PLACES)
+    annual_budget_baseline = models.DecimalField(
+        max_digits=COST_MAX_DIGITS, decimal_places=COST_DECIMAL_PLACES, null=True, blank=True
+    )
     severity = models.CharField(max_length=16)
+    # Null = "not assessed" (no annual budget baseline supplied). Never 0 — a
+    # missing component must not be scored (Phase R3 missing-data rule).
     budget_score = models.PositiveSmallIntegerField(
-        help_text=_("0-100 contribution to the traffic-light synthesis (20% weight)")
+        null=True,
+        blank=True,
+        help_text=_("0-100 contribution to the traffic-light synthesis (20% weight)"),
     )
 
     # Per-year breakdown (eligible, uptake, patients, incremental drug cost,
     # event cost offset, net impact, cumulative, % baseline).
     per_year = models.JSONField(default=list)
+    # One-year uptake scenarios (low / medium / high) — workbook sheet 03_BIA.
+    scenarios = models.JSONField(default=list, blank=True)
 
     interpretation_text = models.TextField(blank=True, default="")
     algorithm_version = models.CharField(max_length=16, default="1.0.0")

@@ -199,6 +199,7 @@ export const BIA_SEVERITY_LABEL: Record<string, string> = {
   manageable: 'Dapat dikelola',
   significant: 'Signifikan',
   prohibitive: 'Prohibitif',
+  not_assessed: 'Belum dinilai',
 }
 
 export const BIA_SEVERITY_COLOR: Record<string, string> = {
@@ -206,6 +207,7 @@ export const BIA_SEVERITY_COLOR: Record<string, string> = {
   manageable: 'green',
   significant: 'yellow',
   prohibitive: 'red',
+  not_assessed: 'gray',
 }
 
 export interface CEACPoint {

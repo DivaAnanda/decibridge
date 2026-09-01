@@ -15,28 +15,49 @@ def _approx(actual: Decimal, expected: Decimal, tol: Decimal) -> bool:
     return abs(actual - expected) <= tol
 
 
-# Lecturer's acceptance tolerances (Hasil Checking DeciBridge.docx).
+# Tolerances from the lecturer's workbook sheet 09_DATA_MAP_QC (QC01-QC08).
 TOL_COST = Decimal("1")
 TOL_QALY = Decimal("0.000001")
-TOL_ICER = Decimal("100")
+TOL_ICER = Decimal("10")
 
 
 def _arni_acei_case() -> DeterministicInput:
-    """Parameter decomposition that reproduces the acceptance table exactly."""
-    shared = dict(event_cost=Decimal("20000000"), baseline_utility=Decimal("0.75"),
-                  event_disutility=Decimal("0.5"), other_cost=Decimal("0"))
+    """The lecturer's REAL parameters (workbook sheet 01_INPUTS).
+
+    Supersedes the reverse-engineered placeholders used before the workbook
+    arrived. Reproduces sheet 02_DETERMINISTIC exactly.
+    """
+    shared = dict(event_cost=Decimal("6889093"), baseline_utility=Decimal("0.7"),
+                  event_disutility=Decimal("0.1"), other_cost=Decimal("0"))
     return DeterministicInput(
         horizon_years=1,
-        cost_discount_rate=Decimal("0"),
-        outcome_discount_rate=Decimal("0"),
+        cost_discount_rate=Decimal("0.03"),
+        outcome_discount_rate=Decimal("0.03"),
         wtp_threshold=Decimal("85000000"),
         intervention=AlternativeInputs(
-            drug_cost=Decimal("14699451.85"), event_probability=Decimal("0.19"), **shared
+            drug_cost=Decimal("15399360"), event_probability=Decimal("0.45"),
+            median_los=Decimal("4"), **shared
         ),
         comparator=AlternativeInputs(
-            drug_cost=Decimal("368611.1161"), event_probability=Decimal("0.24154"), **shared
+            drug_cost=Decimal("324000"), event_probability=Decimal("0.7077"),
+            median_los=Decimal("5"), **shared
         ),
     )
+
+
+class TestClinicalOutputs:
+    """Secondary clinical validation metrics (workbook sheet 02_DETERMINISTIC)."""
+
+    def test_matches_workbook(self):
+        c = compute_deterministic(_arni_acei_case()).clinical
+        assert _approx(c.absolute_risk_reduction, Decimal("0.2577"), Decimal("1e-9"))
+        assert _approx(c.relative_risk, Decimal("0.6358626536668079"), Decimal("1e-12"))
+        assert _approx(c.relative_risk_reduction, Decimal("0.36413734633319206"), Decimal("1e-12"))
+        assert _approx(c.nnt, Decimal("3.880481179666279"), Decimal("1e-9"))
+        assert c.los_difference == Decimal("-1")
+        assert _approx(
+            c.admission_cost_saving_per_patient_year, Decimal("1775319.2661"), Decimal("0.0001")
+        )
 
 
 class TestAcceptanceCase:
@@ -54,7 +75,7 @@ class TestAcceptanceCase:
         assert _approx(r.incremental_cost, Decimal("13300040.7339"), TOL_COST)
         assert _approx(r.incremental_qaly, Decimal("0.02577"), TOL_QALY)
         assert r.icer is not None
-        assert _approx(r.icer, Decimal("516105577.5669"), TOL_ICER)
+        assert _approx(r.icer, Decimal("516105577.5669392"), TOL_ICER)
 
     def test_nmb_inb_and_decision(self):
         r = compute_deterministic(_arni_acei_case())

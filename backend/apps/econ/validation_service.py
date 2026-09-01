@@ -12,8 +12,11 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
+from openpyxl import load_workbook
+
+from .lecturer_workbook import is_lecturer_workbook, parse_lecturer_workbook
 from .models import Alternative, EconomicModel, EconomicParameter
-from .service import IncompleteModelError, run_deterministic, run_psa
+from .service import IncompleteModelError, run_bia, run_deterministic, run_psa
 from .validation_workbook import parse_workbook
 
 _UNIT_INTERVAL = {"probability", "utility", "disutility"}
@@ -120,9 +123,23 @@ def _check(metric: str, expected, tolerance, actual) -> dict:
             "diff": str(diff), "tolerance": str(tol), "pass": diff <= tol}
 
 
+def _parse_any_format(file) -> dict:
+    """Accept either the lecturer's workbook or DeciBridge's own template."""
+    try:
+        probe = load_workbook(file, read_only=True, data_only=True)
+        sheetnames = probe.sheetnames
+    except Exception:
+        sheetnames = []
+    if hasattr(file, "seek"):
+        file.seek(0)
+    if is_lecturer_workbook(sheetnames):
+        return parse_lecturer_workbook(file)
+    return parse_workbook(file)
+
+
 @transaction.atomic
 def import_and_validate(case, file, user) -> dict:
-    parsed = parse_workbook(file)
+    parsed = _parse_any_format(file)
     if parsed.get("missing_sheets"):
         return {"status": "FAIL", "issues": [f"Sheet wajib hilang: {', '.join(parsed['missing_sheets'])}"],
                 "checks": []}
@@ -152,6 +169,15 @@ def import_and_validate(case, file, user) -> dict:
         "icer": det.icer,
         "inb": det.inb,
     }
+    # BIA scenario metrics (QC09-QC11) — only run the BIA if they're expected.
+    if any(str(e["metric"]).startswith("bia_net_") for e in parsed["expected_deterministic"]):
+        try:
+            bia = run_bia(model, computed_by=user)
+            for row in bia.scenarios:
+                actual[f"bia_net_{row['label']}"] = Decimal(row["net_budget_impact"])
+        except IncompleteModelError as exc:
+            issues.append(f"BIA tidak dapat dihitung: {exc}")
+
     for e in parsed["expected_deterministic"]:
         checks.append(_check(e["metric"], e["expected"], e["tolerance"], actual.get(e["metric"])))
 

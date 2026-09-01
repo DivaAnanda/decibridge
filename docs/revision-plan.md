@@ -1,5 +1,57 @@
 # DeciBridge — Rencana Revisi Pasca-Demo (Lecturer Review)
 
+---
+
+## Round 2 — Acceptance testing (HF_ARNI_ACEI_004) + real validation workbook
+
+Two inputs arrived together after the first revision shipped:
+1. Pak Anom's acceptance-test report on `HF_ARNI_ACEI_004`.
+2. The long-awaited `DeciBridge_Economic_Validation_Model_ACEI_Dual.xlsx`
+   (now tracked at `backend/apps/econ/tests/fixtures/`).
+
+### V1 — Adopt the real economic model ✅
+The workbook confirmed the **engine formula was already exactly right**; only the
+parameter decomposition was invented. Replaced with his real values:
+
+| | placeholder | real (sheet 01_INPUTS) |
+|---|---|---|
+| event prob ARNI/ACEI | 0.19 / 0.24154 | **0.45 / 0.7077** |
+| drug cost | 14,699,451 / 368,611 | **15,399,360 / 324,000** |
+| admission cost | 20,000,000 | **6,889,093** |
+| utility / QALY loss | 0.75 / 0.5 | **0.7 / 0.1** |
+| discount rates | 0 / 0 | **0.03 / 0.03** |
+| PSA seed / n | 42 / 1000 | **20260724 / 1000** |
+
+Also: **BIA aligned to his model** — `market_share` now defaults to 1.0 (his BIA uses
+`patients = eligible × uptake` alone; the second multiplier was the double-counting he
+flagged in round 1) plus his low/medium/high uptake scenario table; **clinical outputs**
+added (ARR, RR, RRR, NNT, LOS diff, admission cost saving); **`annual_budget_baseline`
+made optional** (his workbook has none → severity "not assessed", score `null`, never
+fabricated); **parser for his workbook format** (`lecturer_workbook.py`) so his file
+uploads as-is and emits the QC01–QC11 report. Verified: every QC value matches exactly.
+
+### V2 — Immutable decision snapshot ✅
+`CaseVersion.snapshot` (JSON) now stores the full **value** snapshot at lock:
+econ model + parameters, deterministic, BIA, PSA summary + CEAC, EtD per-domain +
+overall, CBA criteria, recommendation, approval, **and legacy CEA/BIA** so
+pre-migration cases stay reconstructable. Built by `apps/cases/decision_snapshot.py`;
+backfill via `python manage.py backfill_decision_snapshots`.
+Root cause of his report: the R2/R4 migration moved the compute tabs to `apps/econ`
+but left Sign-Off, Brief, Versi, Archive and the lock snapshot reading the legacy
+tables — so `_004` showed CEA/BIA on Sign-Off and "no data" on the econ tabs.
+
+### V3 — Completion gate ✅
+`apps/cases/completeness.py` gates `approve` and `lock`: **all 9 EtD domains**
+(decision taken — GRADE EtD is designed to be completed in full), plus deterministic
+CEA, BIA, and a computed recommendation. CBA stays advisory. Blocked transitions
+return **HTTP 422 + the missing list**; `GET /cases/{id}/readiness/` feeds an explicit
+**Kelengkapan Dossier** checklist on Sign-Off, so the rule is visible rather than only
+appearing as a rejection.
+
+`HF_ARNI_ACEI_004` is preserved (never deleted) for his regression test.
+
+---
+
 Source: `../Brief/Hasil Checking DeciBridge.docx` (lecturer feedback, 2026-08-22).
 Turns the "CEA Quick" MVP into a full HTA-grade cost-utility engine (deterministic +
 probabilistic) with discounting, NMB/INB, PSA/CEAC/CE-plane, cost-offset BIA, safe

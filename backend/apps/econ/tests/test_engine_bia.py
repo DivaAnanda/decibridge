@@ -7,9 +7,59 @@ from decimal import Decimal
 from apps.econ.engine_bia import (
     BIAAlternativeParams,
     BIAInput,
+    BIAScenario,
     BIAYearParams,
     compute_bia,
 )
+
+
+class TestWorkbookScenarios:
+    """Reproduce the lecturer's workbook sheet 03_BIA (QC09-QC11) exactly.
+
+    His model uses patients = eligible x uptake only — no market share.
+    """
+
+    def _workbook_input(self) -> BIAInput:
+        return BIAInput(
+            horizon_years=1,
+            annual_budget_baseline=Decimal("50000000000"),
+            event_cost=Decimal("6889093"),
+            intervention=BIAAlternativeParams(
+                drug_cost=Decimal("15399360"), event_probability=Decimal("0.45")
+            ),
+            comparator=BIAAlternativeParams(
+                drug_cost=Decimal("324000"), event_probability=Decimal("0.7077")
+            ),
+            years=[BIAYearParams(year=1, eligible_population=Decimal("100"), uptake=Decimal("0.3"))],
+            scenarios=[
+                BIAScenario("low", Decimal("0.1")),
+                BIAScenario("medium", Decimal("0.3")),
+                BIAScenario("high", Decimal("0.5")),
+            ],
+            scenario_eligible_population=Decimal("100"),
+        )
+
+    def test_net_budget_impact_per_scenario(self):
+        rows = compute_bia(self._workbook_input()).scenario_rows
+        expected = {
+            "low": Decimal("133000407.339"),
+            "medium": Decimal("399001222.017"),
+            "high": Decimal("665002036.695"),
+        }
+        assert len(rows) == 3
+        for row in rows:
+            assert abs(row.net_budget_impact - expected[row.label]) <= Decimal("1")
+
+    def test_components_match_workbook_low_scenario(self):
+        low = compute_bia(self._workbook_input()).scenario_rows[0]
+        assert low.patients_intervention == Decimal("10.0")
+        assert low.incremental_drug_cost == Decimal("150753600.0")
+        assert abs(low.event_cost_offset - Decimal("17753192.661")) <= Decimal("0.001")
+
+    def test_market_share_defaults_to_one(self):
+        # Omitting market_share must NOT halve the patient count (double-count guard).
+        y = BIAYearParams(year=1, eligible_population=Decimal("100"), uptake=Decimal("0.3"))
+        assert y.market_share == Decimal("1")
 
 
 def _input(*, drug_int, drug_comp, prob_int, prob_comp, event_cost, uptake, share,

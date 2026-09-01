@@ -33,22 +33,36 @@ def seeded_full_model(pilot_case, hta_user) -> EconomicModel:
 @pytest.mark.django_db
 class TestRunBIA:
     def test_cost_offset_result(self, seeded_full_model, hta_user):
-        # patients_int = 1000*0.5*0.5 = 250
-        # incremental_drug = 250*(14,699,451.85 - 368,611.1161) = 3,582,710,183.4750
-        # offset = 250*(0.24154-0.19)*20,000,000 = 257,700,000
-        # net = 3,325,010,183.4750
+        # Lecturer's model: patients = eligible x uptake = 100 x 0.3 = 30
+        # incremental_drug = 30 x (15,399,360 - 324,000)   = 452,260,800
+        # offset = 30 x (0.7077 - 0.45) x 6,889,093        =  53,259,577.983
+        # net = 399,001,222.017  (workbook sheet 03_BIA, medium scenario / QC10)
         result = run_bia(seeded_full_model, computed_by=hta_user)
-        assert result.cumulative_net_impact == Decimal("3325010183.4750000000")
+        assert result.cumulative_net_impact == Decimal("399001222.0170000000000000000")
         assert result.severity == "manageable"
         assert result.budget_score == 80
         assert len(result.per_year) == 1
 
-    def test_missing_baseline_raises_incomplete(self, seeded_full_model, hta_user):
+    def test_scenarios_match_workbook(self, seeded_full_model, hta_user):
+        """QC09-QC11: low / medium / high uptake net budget impact."""
+        result = run_bia(seeded_full_model, computed_by=hta_user)
+        by_label = {s["label"]: Decimal(s["net_budget_impact"]) for s in result.scenarios}
+        assert abs(by_label["low"] - Decimal("133000407.339")) <= Decimal("1")
+        assert abs(by_label["medium"] - Decimal("399001222.017")) <= Decimal("1")
+        assert abs(by_label["high"] - Decimal("665002036.695")) <= Decimal("1")
+
+    def test_missing_baseline_marks_not_assessed(self, seeded_full_model, hta_user):
+        """Without a budget baseline the impact is still computed, but never scored.
+
+        The lecturer's own workbook carries no annual budget baseline, so this
+        must not be a hard failure — and the sub-score must be null, not 0.
+        """
         seeded_full_model.annual_budget_baseline = None
         seeded_full_model.save()
-        with pytest.raises(IncompleteModelError) as exc:
-            run_bia(seeded_full_model)
-        assert any("baseline" in m.lower() for m in exc.value.missing)
+        result = run_bia(seeded_full_model, computed_by=hta_user)
+        assert result.severity == "not_assessed"
+        assert result.budget_score is None
+        assert result.cumulative_net_impact == Decimal("399001222.0170000000000000000")
 
     def test_result_is_append_only(self, seeded_full_model, hta_user):
         result = run_bia(seeded_full_model, computed_by=hta_user)

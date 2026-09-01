@@ -4,8 +4,7 @@ import type {
   CaseDetail,
   CaseListItem,
   CaseStatus,
-  DecisionQuestion,
-} from '../cases/types'
+  DecisionQuestion, CaseReadiness } from '../cases/types'
 
 interface Paginated<T> {
   count: number
@@ -58,5 +57,10 @@ export async function addDecisionQuestion(
   payload: Omit<DecisionQuestion, 'id' | 'order' | 'created_at'>,
 ): Promise<DecisionQuestion> {
   const { data } = await apiClient.post<DecisionQuestion>(`/cases/${caseId}/questions/`, payload)
+  return data
+}
+
+export async function getCaseReadiness(caseId: string): Promise<CaseReadiness> {
+  const { data } = await apiClient.get<CaseReadiness>(`/cases/${caseId}/readiness/`)
   return data
 }
