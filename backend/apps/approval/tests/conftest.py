@@ -37,8 +37,59 @@ def _build_green_recommendation(case, user):
     )
 
 
+def _make_dossier_complete(case, user):
+    """Satisfy the Phase V3 sign-off gate: CEA + BIA + all 9 EtD domains.
+
+    Sign-off is blocked on an incomplete dossier, so any fixture that is about
+    to approve a case must supply one. Values are placeholders — these tests
+    cover signature mechanics, not the economics.
+    """
+    from apps.econ.models import EconBIAResult, EconDeterministicResult
+    from apps.etd.models import EtDAppraisal, EtDDomain
+
+    EconDeterministicResult.objects.create(
+        case=case,
+        input_snapshot={"dummy": True},
+        total_cost_intervention=Decimal("18499451.85"),
+        total_cost_comparator=Decimal("5199411.1161"),
+        total_qaly_intervention=Decimal("0.655"),
+        total_qaly_comparator=Decimal("0.62923"),
+        incremental_cost=Decimal("13300040.7339"),
+        incremental_qaly=Decimal("0.02577"),
+        icer=Decimal("516105577.5669"),
+        nmb_intervention=Decimal("1"),
+        nmb_comparator=Decimal("0"),
+        inb=Decimal("-11109590.7339"),
+        wtp_threshold_used=Decimal("85000000"),
+        decision_code="not_cost_effective",
+        is_cost_effective=False,
+        is_dominant=False,
+        is_dominated=False,
+        interpretation_text="fixture",
+        computed_by=user,
+    )
+    EconBIAResult.objects.create(
+        case=case,
+        input_snapshot={"dummy": True},
+        cumulative_net_impact=Decimal("399001222.017"),
+        pct_of_total_baseline=Decimal("0.798"),
+        annual_budget_baseline=Decimal("50000000000"),
+        severity="manageable",
+        budget_score=80,
+        per_year=[],
+        scenarios=[],
+        interpretation_text="fixture",
+        computed_by=user,
+    )
+    for domain in EtDDomain.objects.all():
+        EtDAppraisal.objects.create(
+            case=case, domain=domain, member=user, judgement=75, certainty="high"
+        )
+
+
 @pytest.fixture
 def green_recommendation(case_in_review, hta_user):
+    _make_dossier_complete(case_in_review, hta_user)
     return _build_green_recommendation(case_in_review, hta_user)
 
 

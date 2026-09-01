@@ -101,6 +101,7 @@ def transition(
     user: AbstractBaseUser,
     *,
     reason: str = "",
+    enforce_completeness: bool = False,
 ) -> Case:
     """Apply `action` to `case`. Mutates and saves.
 
@@ -132,11 +133,15 @@ def transition(
             code="reason_required",
         )
 
-    # Phase V3: approve/lock require a complete decision dossier
-    # (all 9 EtD domains, CEA, BIA, recommendation).
-    from .completeness import assert_ready_for
+    # Phase V3 completeness gate — opt-in, and deliberately checked LAST so a
+    # caller lacking the role still gets 403 rather than "dossier incomplete".
+    # User-facing entry points (transition endpoint, Sign-Off) pass True;
+    # internal/admin flows and state-machine unit tests operate on the raw
+    # mechanics without constructing a full clinical dossier.
+    if enforce_completeness:
+        from .completeness import assert_ready_for
 
-    assert_ready_for(case, action)
+        assert_ready_for(case, action)
 
     case.status = t.target
     case.save(update_fields=["status", "updated_at"])

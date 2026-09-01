@@ -89,15 +89,17 @@ class TestDecisionSnapshot:
 
 @pytest.mark.django_db
 class TestCompletionGate:
+    """The gate is a business rule enforced at the API boundary, not inside the
+    state-machine primitive — so `transition()` stays usable for mechanics."""
+
     def test_incomplete_case_lists_gaps(self, pilot_case):
         readiness = evaluate_readiness(pilot_case)
         assert readiness["is_ready"] is False
         assert "Analisis ekonomi deterministik (CEA)" in readiness["missing"]
 
-    def test_partial_etd_blocks_approval(self, econ_ready_case, ketua_user, kft_member_user):
+    def test_partial_etd_blocks_approval(self, econ_ready_case, ketua_client, kft_member_user):
         """The HF_ARNI_ACEI_004 scenario: 4/9 domains must NOT be approvable."""
-        domains = list(EtDDomain.objects.all()[:4])
-        for domain in domains:
+        for domain in list(EtDDomain.objects.all()[:4]):
             EtDAppraisal.objects.create(
                 case=econ_ready_case, domain=domain, member=kft_member_user,
                 judgement=75, certainty="high",
@@ -105,17 +107,20 @@ class TestCompletionGate:
         econ_ready_case.status = CaseStatus.IN_REVIEW
         econ_ready_case.save()
 
-        from django.core.exceptions import ValidationError
+        response = ketua_client.post(
+            f"/api/v1/cases/{econ_ready_case.case_id}/transition/",
+            {"action": "approve"},
+            format="json",
+        )
+        assert response.status_code == 422, response.data
+        assert any("EtD" in m for m in response.data["missing"])
+        econ_ready_case.refresh_from_db()
+        assert econ_ready_case.status == CaseStatus.IN_REVIEW
 
-        with pytest.raises(ValidationError) as exc:
-            transition(econ_ready_case, "approve", ketua_user)
-        assert "EtD" in str(exc.value)
-
-    def test_full_dossier_allows_approval(self, econ_ready_case, ketua_user, kft_member_user):
-        _fill_all_etd(econ_ready_case, kft_member_user)
+    def test_state_machine_primitive_is_not_gated(self, econ_ready_case, ketua_user):
+        """Mechanics stay usable without a full dossier (admin/internal paths)."""
         econ_ready_case.status = CaseStatus.IN_REVIEW
         econ_ready_case.save()
-
         transition(econ_ready_case, "approve", ketua_user)
         econ_ready_case.refresh_from_db()
         assert econ_ready_case.status == CaseStatus.APPROVED

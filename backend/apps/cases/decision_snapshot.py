@@ -26,14 +26,22 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from django.utils.functional import Promise
+
 SNAPSHOT_VERSION = "1.0"
 
 
 def _s(value: Any) -> Any:
-    """JSON-safe: Decimals become strings so full precision survives."""
+    """JSON-safe: Decimals become strings so full precision survives.
+
+    Also coerces Django lazy translation proxies (``gettext_lazy``) — e.g.
+    ``ParamKey(...).label`` — which are not JSON serializable.
+    """
     if value is None:
         return None
     if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, Promise):
         return str(value)
     return value
 
@@ -62,7 +70,7 @@ def _econ_block(case) -> dict:
         block["parameters"] = [
             {
                 "key": p.key,
-                "label": p.display_label,
+                "label": _s(p.display_label),
                 "alternative": p.alternative,
                 "year_index": p.year_index,
                 "value": _s(p.value),

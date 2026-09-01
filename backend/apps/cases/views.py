@@ -71,7 +71,10 @@ class CaseViewSet(viewsets.ModelViewSet):
 
         previous_status = case.status
         try:
-            run_transition(case, action_name, request.user, reason=reason)
+            # Phase V3: approve/lock require a complete decision dossier.
+            run_transition(
+                case, action_name, request.user, reason=reason, enforce_completeness=True
+            )
         except KeyError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except ValidationError as exc:

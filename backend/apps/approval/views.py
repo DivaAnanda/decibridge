@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
 from apps.cases.models import Case, CaseStatus
+from apps.cases.completeness import evaluate_readiness
 from apps.cases.state_machine import transition as case_transition
 from apps.recommendation.models import Recommendation
 
@@ -81,6 +82,20 @@ class ApprovalSignView(APIView):
 
         decision = data["decision"]
         reason = data.get("reason", "").strip()
+
+        # Phase V3: block sign-off approval until the dossier is complete
+        # (all 9 EtD domains, CEA, BIA, recommendation). Rejection and
+        # revision requests are always allowed — they don't finalise anything.
+        if decision == ApprovalDecision.APPROVED.value:
+            readiness = evaluate_readiness(case)
+            if not readiness["is_ready"]:
+                return Response(
+                    {
+                        "detail": "Dossier belum lengkap: " + "; ".join(readiness["missing"]),
+                        "missing": readiness["missing"],
+                    },
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
 
         # State machine transition. Rejection/revision both send the case back to draft.
         try:

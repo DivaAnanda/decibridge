@@ -4,7 +4,7 @@ import pytest
 from rest_framework import status
 
 from apps.audit.models import AuditLog
-from apps.cases.models import Case
+from apps.cases.models import Case, CaseStatus
 
 PILOT_PAYLOAD = {
     "case_id": "HF_ARNI_ACEI_001",
@@ -123,22 +123,13 @@ class TestCaseTransitionEndpoint:
 
 @pytest.mark.django_db
 class TestLockedCaseImmutable:
-    def test_locked_case_cannot_be_patched(self, hta_client, ketua_client, pilot_case):
-        hta_client.post(
-            f"/api/v1/cases/{pilot_case.case_id}/transition/",
-            {"action": "submit"},
-            format="json",
-        )
-        ketua_client.post(
-            f"/api/v1/cases/{pilot_case.case_id}/transition/",
-            {"action": "approve"},
-            format="json",
-        )
-        ketua_client.post(
-            f"/api/v1/cases/{pilot_case.case_id}/transition/",
-            {"action": "lock"},
-            format="json",
-        )
+    def test_locked_case_cannot_be_patched(self, hta_client, pilot_case):
+        # Reaching "locked" is not what's under test here, and the Phase V3
+        # completeness gate rightly blocks locking an empty dossier via the API
+        # — so put the case into the locked state directly.
+        pilot_case.status = CaseStatus.LOCKED
+        pilot_case.save(update_fields=["status"])
+
         response = hta_client.patch(
             f"/api/v1/cases/{pilot_case.case_id}/",
             {"case_title": "Tampered"},
