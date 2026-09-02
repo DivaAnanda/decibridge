@@ -125,7 +125,7 @@ Deploy guide: `docs/railway-deploy.md` (covers GH push, Postgres add-on, env var
 
 - Force a redeploy: push any commit, or in Railway UI: Deployments → Redeploy this version
 - Roll back: Deployments → pick previous successful → Redeploy this version
-- Shell into the running container: Railway service → Settings → Open Shell
+- Shell into the running container: **`railway ssh`** (CLI). There is no "Open Shell" button in the dashboard — that note was wrong. Full flow: `railway login` (interactive browser) → `railway link` → `railway ssh bash -lc "cd /app/backend && <cmd>"`. `railway ssh` also accepts a command directly instead of an interactive shell.
 - View live logs: Deployments → latest → Runtime Logs tab
 - Add an env var: Variables tab → Raw Editor for bulk paste
 

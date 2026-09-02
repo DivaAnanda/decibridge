@@ -154,7 +154,9 @@ Smoke tests:
 
 To access `/admin/`:
 
-1. Web service → **Settings** → scroll to bottom → click **Open Shell**.
+1. Use the Railway CLI: `railway login`, then `railway link`, then
+   `railway ssh bash -lc "cd /app/backend && <command>"`.
+   (There is no "Open Shell" button in the dashboard.)
 2. In the Railway shell:
    ```bash
    cd /app/backend
