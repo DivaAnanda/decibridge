@@ -2,6 +2,59 @@
 
 Auto-loaded into every Claude Code session in this repo. Keep short, keep current.
 
+## CURRENT STATE - read this first (2026-09-07)
+
+**Everything through Round 2 (V1-V4) is shipped, tested, deployed, and verified on production.**
+Nothing is half-finished. Working tree clean; `main` pushed at `7f48a07`.
+
+- **332 tests passing, ~86.3% coverage.**
+- **Live:** https://decibridge-production.up.railway.app - **11/11 of the lecturer's QC01-QC11
+  checks verified passing on production**, using his own `09_DATA_MAP_QC` expected values.
+- `HF_ARNI_ACEI_001` (draft) is fully seeded with his REAL parameters and has deterministic +
+  BIA + PSA results computed. Use it for any demo or verification.
+- `HF_ARNI_ACEI_004` (locked) is his **regression case - NEVER DELETE**. It has a backfilled
+  immutable snapshot and is correctly blocked by the completeness gate at EtD 4/9.
+
+**Next up:** the lecturer received the Round 2 fixes and **more revisions are expected**.
+Read the newest document in `../Brief/` before assuming scope.
+
+### Operational quick-reference
+
+| Need | Command |
+|---|---|
+| Run tests | `cd backend && ./.venv/Scripts/python.exe -m pytest -q` (~8 min full suite) |
+| Start DB | `docker compose up -d db redis` (Postgres on **5433**; Docker Desktop must be running) |
+| Prod shell | `railway ssh bash -lc "cd /app/backend && <cmd>"` (CLI is logged in + linked from the Windows home dir) |
+| Re-seed prod | `railway ssh bash -lc "cd /app/backend && python manage.py seed_econ_validation_case"` |
+| Deploy | `git push origin main` - Railway auto-builds (~2 min); entrypoint runs `migrate` + `backfill_decision_snapshots` |
+
+### Hard-won gotchas (each one cost real time - do not relearn these)
+
+1. **The SPA catch-all returns HTTP 200 + `index.html` for unmatched API paths.** A missing route
+   looks identical to a working one if you check only the status code. **Always assert on the
+   response body** (JSON vs `<!doctype html>`) when verifying a deploy.
+2. **The version state endpoint takes the version *id*, not the version number:**
+   `/cases/{case_id}/versions/{version_id}/state/`.
+3. **`seed_econ_validation_case` prunes stale parameters.** Before that fix a leftover
+   `market_share=0.5` row silently **halved every BIA scenario**. If BIA numbers look exactly
+   half, suspect a stale parameter row. Also: never add this command to the entrypoint - it
+   overwrites economic parameters and would wipe the lecturer's edits on every deploy.
+4. **Never put business gates inside `state_machine.transition()`** - doing so broke 18 tests and
+   43 errors. Gates belong at the API entry points (`enforce_completeness=True`), evaluated
+   **after** the role check so an unauthorised caller still gets 403, not 422.
+5. **Lazy translation proxies are not JSON-serializable.** `decision_snapshot._s()` coerces
+   `django.utils.functional.Promise`; without it every case lock crashed.
+6. **Railway has no "Open Shell" button in the dashboard.** Use the CLI (`railway ssh`).
+7. **Railway subscription showed PAST DUE (2026-09-02).** If the live URL 5xx's or the domain is
+   dark, check billing before debugging code.
+
+### Standing constraints from the lecturer
+
+- "mohon jangan hapus HF_ARNI_ACEI_004, karena kasus ini akan digunakan kembali sebagai
+  regression test" - **never delete that case**.
+- "seluruh parameter wajib editable dan tidak boleh ditanam permanen di source code" - every
+  economic parameter must be editable through the UI, never hardcoded.
+
 ## What this is
 
 **DeciBridge** is a hospital formulary committee (KFT — *Komite Farmasi dan Terapi*) decision-support web app for Indonesian hospitals. It guides KFT teams through an evidence-based, auditable workflow for deciding whether to admit a drug to the formulary. Pilot case throughout: **ARNI vs ACEI** for HFrEF patients.
@@ -45,7 +98,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 287 tests, all passing.** Coverage target 80% (currently ~86%).
+**Test suite: 332 tests, all passing.** Coverage target 80% (currently ~86.3%).
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 
