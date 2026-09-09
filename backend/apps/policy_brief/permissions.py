@@ -1,8 +1,10 @@
 """Policy-brief permissions.
 
-- Generate: HTA Analyst, Sekretaris KFT, Ketua KFT — case must be in
-  `approved` or `locked` status (no point generating a brief before the
-  decision has been signed off).
+- Generate: Ketua KFT, Admin IT, HTA Analyst — case must be in `approved` or
+  `locked` status (no point generating a brief before the decision has been
+  signed off). The brief's section P ("UI tombol dan hak akses") assigns
+  "Create New Version" to "Approver/Admin/HTA sesuai SOP"; Sekretaris KFT is
+  deliberately not on that list.
 - List + download: all 5 roles.
 """
 
@@ -26,15 +28,15 @@ VIEWER_ROLES = frozenset(
 
 GENERATOR_ROLES = frozenset(
     {
-        RoleSlug.HTA_ANALYST,
-        RoleSlug.FARMASI_SEKRETARIS,
         RoleSlug.KETUA_KFT,
+        RoleSlug.ADMIN_IT,
+        RoleSlug.HTA_ANALYST,
     }
 )
 
 
 class PolicyBriefPermission(BasePermission):
-    """All viewers can list+download; only HTA/Sekretaris/Ketua generate."""
+    """All viewers can list+download; only Ketua/Admin IT/HTA generate."""
 
     message = "Anda tidak memiliki izin untuk operasi ini pada dokumen kebijakan."
 

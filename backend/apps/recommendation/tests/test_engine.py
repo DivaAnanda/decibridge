@@ -30,9 +30,13 @@ def _inp(
     budget: int | None = 80,
     cba_count: int = 0,
     cba_sat: int = 0,
+    domains_completed: int = 9,
+    domains_total: int = 9,
 ) -> SynthesisInput:
     return SynthesisInput(
         evidence_strength_score=Decimal(evidence) if evidence is not None else None,
+        evidence_domains_completed=domains_completed,
+        evidence_domains_total=domains_total,
         ce_score=Decimal(ce) if ce is not None else None,
         budget_score=Decimal(budget) if budget is not None else None,
         cba_criteria_count=cba_count,
@@ -129,3 +133,48 @@ class TestNarrativeAndBoundaries:
         r = compute_recommendation(_inp(50, 70, 70))
         assert YELLOW_THRESHOLD <= r.composite_score < GREEN_THRESHOLD
         assert r.traffic_light == "yellow"
+
+
+# ── Round 3: partial EtD must not count as evidence ──────────────────────────
+
+
+def test_partial_etd_is_reported_incomplete_with_the_actual_ratio():
+    """4 of 9 domains yields a non-null 87.50 that must not reach the composite."""
+    result = compute_recommendation(
+        _inp(evidence=87, domains_completed=4, domains_total=9)
+    )
+
+    assert result.status == STATUS_INCOMPLETE
+    assert result.traffic_light is None
+    assert result.composite_score is None
+    assert any("4/9" in m for m in result.missing_components)
+
+
+def test_partial_etd_cannot_produce_green_even_with_strong_other_components():
+    """The exact _004 shape: high partial evidence + good CE + good budget."""
+    result = compute_recommendation(
+        _inp(evidence=100, ce=100, budget=100, domains_completed=8, domains_total=9)
+    )
+
+    assert result.status == STATUS_INCOMPLETE
+    assert result.traffic_light != "green"
+    assert result.traffic_light is None
+
+
+def test_all_nine_domains_completed_is_usable_evidence():
+    result = compute_recommendation(
+        _inp(evidence=87, domains_completed=9, domains_total=9)
+    )
+
+    assert result.status == STATUS_COMPLETE
+    assert result.traffic_light is not None
+
+
+def test_zero_total_domains_is_treated_as_missing_not_complete():
+    """Guards against a seeding bug wiping EtDDomain and silently passing the gate."""
+    result = compute_recommendation(
+        _inp(evidence=90, domains_completed=0, domains_total=0)
+    )
+
+    assert result.status == STATUS_INCOMPLETE
+    assert LABEL_EVIDENCE in result.missing_components

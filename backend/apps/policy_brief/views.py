@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
+from apps.cases.completeness import evaluate_readiness
 from apps.cases.models import Case, CaseStatus
 from apps.recommendation.models import Recommendation
 
@@ -67,6 +68,19 @@ class PolicyBriefListGenerateView(APIView):
             return Response(
                 {"detail": "Belum ada rekomendasi untuk kasus ini. Hitung rekomendasi terlebih dahulu."},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Gate: dossier must be complete. A case locked before this rule existed
+        # still fails here, which is the point — its brief would otherwise
+        # present a verdict built on missing CEA/BIA/EtD components.
+        readiness = evaluate_readiness(case)
+        if not readiness["is_ready"]:
+            return Response(
+                {
+                    "detail": "Dossier belum lengkap: " + "; ".join(readiness["missing"]),
+                    "missing": readiness["missing"],
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         # Refuse to start a new run while another is still mid-generation.

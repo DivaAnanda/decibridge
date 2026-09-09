@@ -27,7 +27,63 @@ def fake_docx2pdf(monkeypatch):
 
 
 @pytest.fixture
-def approved_case_with_rec(case_in_review, hta_user, ketua_user):
+def complete_dossier(case_in_review, hta_user, kft_member_user):
+    """Satisfy `evaluate_readiness`: deterministic econ + BIA + all 9 EtD domains.
+
+    Brief generation is gated on dossier completeness (Round 3 H1), so every
+    generation fixture has to build a case that would genuinely pass sign-off.
+    """
+    from apps.econ.models import EconBIAResult, EconDeterministicResult
+    from apps.etd.models import EtDAppraisal, EtDDomain
+
+    EconDeterministicResult.objects.create(
+        case=case_in_review,
+        input_snapshot={"dummy": True},
+        total_cost_intervention=Decimal("18499451.85"),
+        total_cost_comparator=Decimal("5199411.1161"),
+        total_qaly_intervention=Decimal("0.655"),
+        total_qaly_comparator=Decimal("0.62923"),
+        incremental_cost=Decimal("13300040.7339"),
+        incremental_qaly=Decimal("0.5000"),
+        icer=Decimal("10000000"),
+        nmb_intervention=Decimal("1"),
+        nmb_comparator=Decimal("0"),
+        inb=Decimal("1"),
+        wtp_threshold_used=Decimal("250000000"),
+        decision_code="cost_effective",
+        is_cost_effective=True,
+        is_dominant=False,
+        is_dominated=False,
+        interpretation_text="seed",
+        algorithm_version="2.0.0",
+        computed_by=hta_user,
+    )
+    EconBIAResult.objects.create(
+        case=case_in_review,
+        input_snapshot={"dummy": True},
+        cumulative_net_impact=Decimal("1500000000"),
+        pct_of_total_baseline=Decimal("3.0000"),
+        annual_budget_baseline=Decimal("50000000000"),
+        severity="manageable",
+        budget_score=80,
+        per_year=[],
+        interpretation_text="seed",
+        algorithm_version="2.0.0",
+        computed_by=hta_user,
+    )
+    for domain in EtDDomain.objects.all():
+        EtDAppraisal.objects.create(
+            case=case_in_review,
+            domain=domain,
+            member=kft_member_user,
+            judgement=75,
+            certainty="high",
+        )
+    return case_in_review
+
+
+@pytest.fixture
+def approved_case_with_rec(complete_dossier, case_in_review, hta_user, ketua_user):
     """A case in `approved` status, with one Recommendation already computed."""
     from apps.cases.state_machine import transition as case_transition
 

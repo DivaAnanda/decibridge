@@ -17,6 +17,13 @@ Phase R3 (post-demo lecturer revision — safe missing-data handling):
     * An empty CBA is treated as **not assessed** (`cba_score = None`), NOT an
       automatic 100. The composite is re-normalised over the components that are
       actually present, so a missing component is never silently scored 0 or 100.
+
+Round 3 (five-role acceptance testing):
+    * A **partially appraised** EtD no longer counts as evidence. `aggregate_overall`
+      returns the mean of *completed* domains, so 4 of 9 domains yields a non-null
+      87.50 that looks final. The engine now requires `completed == total` before
+      evidence is usable; anything less is reported as missing with the actual
+      ratio, and no traffic light is produced.
 """
 
 from __future__ import annotations
@@ -45,9 +52,15 @@ LABEL_CE = "Analisis ekonomi (cost-effectiveness)"
 LABEL_BUDGET = "Analisis dampak anggaran (BIA)"
 
 
+def evidence_partial_label(completed: int, total: int) -> str:
+    return f"{LABEL_EVIDENCE} — baru {completed}/{total} domain dinilai"
+
+
 @dataclass(frozen=True)
 class SynthesisInput:
     evidence_strength_score: Decimal | None  # from EtD aggregate (0-100)
+    evidence_domains_completed: int  # EtD domains with at least one appraisal
+    evidence_domains_total: int  # EtD domains that exist (9)
     ce_score: Decimal | None  # from latest deterministic econ result (0-100)
     budget_score: Decimal | None  # from latest BIA result (0-100)
     cba_criteria_count: int
@@ -92,8 +105,12 @@ def _cba_score(criteria_count: int, satisfied_count: int) -> Decimal:
 def compute_recommendation(inp: SynthesisInput) -> SynthesisResult:
     # ── Mandatory-component gate (R3) ────────────────────────────────────
     missing: list[str] = []
-    if inp.evidence_strength_score is None:
+    if inp.evidence_strength_score is None or inp.evidence_domains_total <= 0:
         missing.append(LABEL_EVIDENCE)
+    elif inp.evidence_domains_completed < inp.evidence_domains_total:
+        missing.append(
+            evidence_partial_label(inp.evidence_domains_completed, inp.evidence_domains_total)
+        )
     if inp.ce_score is None:
         missing.append(LABEL_CE)
     if inp.budget_score is None:

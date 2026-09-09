@@ -15,6 +15,7 @@ from apps.audit.models import AuditLog
 from apps.cases.models import Case
 from apps.econ.models import EconBIAResult, EconDeterministicResult
 from apps.econ.scoring import ce_score_from_result
+from apps.recommendation.staleness import evaluate_staleness
 from apps.etd.aggregation import aggregate_domain, aggregate_overall
 from apps.etd.models import EtDAppraisal, EtDDomain
 
@@ -203,10 +204,20 @@ class RecommendationComputeView(APIView):
         if method not in {"mean", "median"}:
             method = "mean"
 
+        # A BIA with no budget baseline scores `not_assessed` (budget_score is None);
+        # treating that as a number would fabricate a budget verdict.
+        budget_score = (
+            Decimal(latest_bia.budget_score)
+            if latest_bia is not None and latest_bia.budget_score is not None
+            else None
+        )
+
         synth_input = SynthesisInput(
             evidence_strength_score=overall.evidence_strength_score,
+            evidence_domains_completed=overall.domains_completed,
+            evidence_domains_total=overall.domains_total,
             ce_score=(ce_score_from_result(latest_econ) if latest_econ else None),
-            budget_score=(Decimal(latest_bia.budget_score) if latest_bia else None),
+            budget_score=budget_score,
             cba_criteria_count=len(cba_criteria),
             cba_satisfied_count=cba_satisfied,
         )
@@ -297,4 +308,6 @@ class RecommendationLatestView(APIView):
         latest = case.recommendations.order_by("-computed_at").first()
         if latest is None:
             return Response(None, status=status.HTTP_204_NO_CONTENT)
-        return Response(RecommendationSerializer(latest).data)
+        payload = dict(RecommendationSerializer(latest).data)
+        payload.update(evaluate_staleness(case, latest).as_dict())
+        return Response(payload)

@@ -46,10 +46,16 @@ class TestGenerationGate:
         assert response.data["version"] == 1
         assert response.data["status"] == GenerationStatus.COMPLETED.value
 
-    def test_sekretaris_can_generate(self, sekretaris_client, approved_case_with_rec):
+    def test_sekretaris_cannot_generate(self, sekretaris_client, approved_case_with_rec):
+        """Section P of the brief assigns Create New Version to Approver/Admin/HTA."""
         case, _ = approved_case_with_rec
         response = sekretaris_client.post(_list_url(case.case_id))
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_admin_it_can_generate(self, admin_it_client, approved_case_with_rec):
+        case, _ = approved_case_with_rec
+        response = admin_it_client.post(_list_url(case.case_id))
+        assert response.status_code == status.HTTP_201_CREATED, response.data
 
     def test_ketua_can_generate(self, ketua_client, approved_case_with_rec):
         case, _ = approved_case_with_rec
@@ -60,6 +66,33 @@ class TestGenerationGate:
         case, _ = approved_case_with_rec
         response = kft_member_client.post(_list_url(case.case_id))
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_incomplete_dossier_cannot_generate(
+        self, hta_client, case_in_review, hta_user, ketua_user
+    ):
+        """The HF_ARNI_ACEI_004 shape: approved with a recommendation, but no
+        CEA/BIA and a partial EtD. Status and recommendation gates both pass, so
+        only the completeness gate stands between it and a published brief."""
+        from decimal import Decimal
+
+        from apps.cases.state_machine import transition as case_transition
+        from apps.recommendation.models import Recommendation
+
+        Recommendation.objects.create(
+            case=case_in_review,
+            input_snapshot={},
+            composite_score=Decimal("85.00"),
+            traffic_light="green",
+            justification_text="legacy",
+            algorithm_version="1.0.0",
+            computed_by=hta_user,
+        )
+        case_transition(case_in_review, "approve", ketua_user)
+
+        response = hta_client.post(_list_url(case_in_review.case_id))
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert "Analisis ekonomi deterministik (CEA)" in response.data["missing"]
 
 
 @pytest.mark.django_db
