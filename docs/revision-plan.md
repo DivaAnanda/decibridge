@@ -315,3 +315,100 @@ Original plan (for reference) — revives deferred Sprint 3, now concrete.
 
 ## Suggested order of execution
 R0 (now) → R1 → R2 → R3 → R4 → R5 → R6. R1+R2 are the bulk of the value and unblock everything.
+
+---
+
+# Round 3 — Acceptance testing lima peran (2026-09-09)
+
+Sumber: lima laporan WhatsApp Pak Anom (HTA/Sekretariat/Anggota KFT/Ketua KFT/Admin IT),
+diuji pada deploy produksi. Jawaban RACI diambil dari
+`../Brief/11052026_Workflow and Steps kerja untuk IT.docx` (ekstraksi:
+`docs/brief_extraction_id.md`).
+
+## Akar masalah
+
+Gejala paling mengkhawatirkan yang dilaporkan berulang kali — `_004` terkunci, tertanda
+tangan, dua policy brief, GREEN/85, padahal CEA/BIA kosong dan EtD 4/9 — bukan satu bug
+besar melainkan tiga hal bertumpuk:
+
+1. `_004` dikunci **sebelum** gate kelengkapan (V3) ada. Gate-nya sendiri sudah bekerja
+   (laporan Ketua mengonfirmasi Sign-Off menolak dengan benar).
+2. Substitusi CEA=100 / BIA=50 **sudah diperbaiki** di `recommendation/engine.py` (R3
+   sebelumnya). Yang tampil di `_004` adalah baris tersimpan dari engine lama.
+3. **Dua bug nyata tersisa** yang bisa mereproduksi gejala itu pada kasus baru — G1 dan G2
+   di bawah. Ini yang wajib diperbaiki.
+
+## G — Integritas skor (paling serius)
+
+| ID | Temuan | Lokasi | Status |
+|---|---|---|---|
+| G1 | EtD parsial menghasilkan skor bukti yang tampak final. 4/9 domain → 87.50, non-null, lolos gate R3 | `etd/aggregation.py:aggregate_overall` | bug nyata |
+| G2 | Rekomendasi tidak pernah basi/dihitung ulang. `_001` punya BIA tetapi justifikasi masih "BIA belum dijalankan" | tidak ada deteksi staleness di mana pun | bug nyata |
+| G3 | `Decimal(latest_bia.budget_score)` crash saat `budget_score is None` (severity `not_assessed`) | `recommendation/views.py:209` | latent 500, tidak dilaporkan |
+
+Dukungan brief (Step 9): CEA/BIA yang belum lengkap harus "diberi status **belum final**",
+bukan diberi angka pengganti.
+
+## H — Gate belum diterapkan merata
+
+| ID | Temuan | Lokasi | Status |
+|---|---|---|---|
+| H1 | Pembuatan versi policy brief tanpa gate kelengkapan | `policy_brief/views.py` POST | bug nyata |
+| H2 | Arsip tanpa integrity check | `archive/views.py` | bug nyata |
+| H3 | `_004` perlu ditandai `legacy_invalid` / `requires_remediation`, bukan dihapus | data | migrasi |
+
+Gate lock/approve sendiri sudah benar (`cases/views.py:76`, `approval/views.py:90`).
+
+## I — Validasi input EtD
+
+| ID | Temuan | Lokasi |
+|---|---|---|
+| I1 | Judgement default `50` ("Tidak pasti"), certainty default `moderate` ("Sedang") — tersimpan sebagai penilaian sah | `frontend/src/etd/DomainCard.tsx:64-65` |
+| I2 | Slider bobot mulai 0 dengan tombol simpan aktif | `frontend/src/recommendation/WeightsCard.tsx:126` |
+| I3 | Appraisal dapat disimpan tanpa referensi bukti | `etd` |
+
+Dukungan brief (Step 9): "Save draft" dan "Submit domain" adalah **aksi terpisah**, dengan
+status domain `open / submitted / consensus / locked`. Dan: "anggota KFT tidak mengisi EtD
+dalam keadaan kosong. Sistem harus menampilkan bahan keputusan terlebih dahulu."
+
+## J — RBAC (dijawab oleh brief)
+
+| ID | Pertanyaan Pak Anom | Jawaban brief | Aksi |
+|---|---|---|---|
+| J1 | Siapa boleh Create New Version? | Bagian P: "Approver/Admin/HTA sesuai SOP" — Sekretariat **tidak** termasuk | batasi ke `ketua_kft`, `admin_it`, `hta_analyst` |
+| J2 | Boleh Sekretariat menjalankan CEA/BIA? | Step 7: "if role is Farmasi RS, Sekretariat KFT, or HTA Analyst: allow local input edit" lalu "Enable Run CEA/BIA" | **bukan bug** — sesuai spesifikasi, tidak diubah |
+| J3 | Admin IT boleh mengarsipkan? | `archived` adalah status kasus sah; Admin IT "hanya mengelola sistem" | pertahankan, tambah integrity check (H2) |
+| J4 | Admin IT = admin sistem atau auditor arsip? | "hanya mengelola sistem"; brief menyebut tabel `users, roles, audit_logs` + audit login gagal | admin sistem — modul manajemen user memang belum ada |
+
+## K — Keamanan & privasi
+
+| ID | Temuan | Lokasi |
+|---|---|---|
+| K1 | Kata sandi demo tampil di halaman login dan landing | `LoginPage.tsx:117`, `LandingPage.tsx:137` |
+| K2 | IP penuh terlihat oleh Sekretariat | `audit`, `approval`, `versioning` serializers |
+
+Brief (Step 1) menyebut IP dicatat "**bila diperlukan**" — kondisional, mendukung masking.
+
+## L — UI/UX
+
+| ID | Temuan | Lokasi |
+|---|---|---|
+| L1 | `?status=archived` diabaikan — `useSearchParams` tidak dipakai di mana pun | `frontend/src/pages/CasesPage.tsx` |
+| L2 | Field model ekonomi tampak editable bagi role read-only (aman secara DB — `fieldset disabled` — tetapi tanpa styling disabled) | `EconTab.tsx:226` |
+| L3 | Istilah "EtD (9 domain)" vs "4/9 EtD" belum seragam | frontend |
+| L4 | Modul manajemen user untuk Admin IT belum ada (J4) | baru |
+
+## Keputusan yang masih perlu jawaban Pak Anom
+
+**Penanda "Validated".** Beliau meminta empat penanda input: Assumption / Proxy / Observed /
+Validated. Tetapi brief menempatkan `validated` pada sumbu berbeda — ia satu dari tujuh
+status **versi** local input: `draft / incomplete / valid_with_warning / validated / active /
+archived / locked_with_decision`. `data_status` kita (observed/proxy/assumption) memetakan ke
+`source_type` brief. Perlu konfirmasi: flag per-parameter, atau status versi seperti di brief?
+Rekomendasi kami: status versi — sudah terspesifikasi, dan membuat "data proxy tidak boleh
+tampak sebagai data final RS" dapat ditegakkan pada tingkat versi.
+
+## Urutan eksekusi
+
+G → H → I → J → K → L. G memblokir semuanya: selama skor parsial masih lolos, setiap gate di
+hilir menjaga data yang salah.
