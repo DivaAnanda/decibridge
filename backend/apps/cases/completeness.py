@@ -24,6 +24,10 @@ from dataclasses import asdict, dataclass
 # Transitions that require a complete dossier.
 GATED_TRANSITIONS = frozenset({"approve", "lock"})
 
+# Transitions gated on the stricter archival integrity check (Round 3), which
+# additionally requires an immutable snapshot and a recorded sign-off.
+INTEGRITY_GATED_TRANSITIONS = frozenset({"archive"})
+
 
 @dataclass(frozen=True)
 class Requirement:
@@ -126,9 +130,22 @@ def evaluate_readiness(case) -> dict:
 
 def assert_ready_for(case, action: str) -> None:
     """Raise ValidationError if `action` is gated and the dossier is incomplete."""
+    from django.core.exceptions import ValidationError
+
+    if action in INTEGRITY_GATED_TRANSITIONS:
+        from .integrity import evaluate_integrity
+
+        report = evaluate_integrity(case)
+        if not report["is_valid"]:
+            raise ValidationError(
+                "Integritas kasus gagal diverifikasi: " + "; ".join(report["failures"]),
+                code="integrity_check_failed",
+                params={"missing": report["failures"]},
+            )
+        return
+
     if action not in GATED_TRANSITIONS:
         return
-    from django.core.exceptions import ValidationError
 
     readiness = evaluate_readiness(case)
     if not readiness["is_ready"]:
