@@ -33,6 +33,13 @@ export interface AllowedTransition {
   requires_reason: boolean
 }
 
+export type IntegrityFlag = '' | 'requires_remediation' | 'legacy_invalid'
+
+export const INTEGRITY_FLAG_LABEL: Record<Exclude<IntegrityFlag, ''>, string> = {
+  requires_remediation: 'Perlu perbaikan',
+  legacy_invalid: 'Warisan tidak valid',
+}
+
 export interface CaseListItem {
   id: number
   case_id: string
@@ -41,6 +48,7 @@ export interface CaseListItem {
   comparator: string
   indication: string
   status: CaseStatus
+  integrity_flag: IntegrityFlag
   perspective: CasePerspective
   created_by_email: string
   created_at: string
@@ -58,6 +66,9 @@ export interface CaseDetail {
   setting: string
   perspective: CasePerspective
   status: CaseStatus
+  integrity_flag: IntegrityFlag
+  integrity_notes: string
+  integrity_checked_at: string | null
   is_editable: boolean
   is_locked: boolean
   decision_questions: DecisionQuestion[]

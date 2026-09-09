@@ -34,6 +34,20 @@ class CaseStatus(models.TextChoices):
     ARCHIVED = "archived", _("Diarsipkan")
 
 
+class IntegrityFlag(models.TextChoices):
+    """Result of the archival integrity check (Round 3).
+
+    Cases locked before the completeness gate existed carry verdicts built on
+    missing components. They are kept — HF_ARNI_ACEI_004 is the lecturer's
+    regression fixture and must never be deleted — but flagged so no one mistakes
+    them for sound decision records.
+    """
+
+    OK = "", _("Terverifikasi")
+    REQUIRES_REMEDIATION = "requires_remediation", _("Perlu perbaikan")
+    LEGACY_INVALID = "legacy_invalid", _("Warisan tidak valid")
+
+
 class CasePerspective(models.TextChoices):
     HOSPITAL = "hospital", _("Rumah Sakit")
     PAYER_BPJS = "payer_bpjs", _("BPJS / Pembayar")
@@ -78,6 +92,15 @@ class Case(models.Model):
         on_delete=models.PROTECT,
         related_name="cases_created",
     )
+    integrity_flag = models.CharField(
+        max_length=24,
+        choices=IntegrityFlag.choices,
+        blank=True,
+        default=IntegrityFlag.OK,
+        help_text="Hasil integrity check arsip. Kosong berarti lolos.",
+    )
+    integrity_checked_at = models.DateTimeField(null=True, blank=True)
+    integrity_notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -7,7 +7,7 @@ Auto-loaded into every Claude Code session in this repo. Keep short, keep curren
 **Everything through Round 2 (V1-V4) is shipped, tested, deployed, and verified on production.**
 Nothing is half-finished. Working tree clean; `main` pushed at `7f48a07`.
 
-- **349 tests passing, ~86% coverage.**
+- **355 tests passing, ~86% coverage.**
 - **Live:** https://decibridge-production.up.railway.app - **11/11 of the lecturer's QC01-QC11
   checks verified passing on production**, using his own `09_DATA_MAP_QC` expected values.
 - `HF_ARNI_ACEI_001` (draft) is fully seeded with his REAL parameters and has deterministic +
@@ -98,7 +98,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 349 tests, all passing.** Coverage target 80% (currently ~86.3%).
+**Test suite: 355 tests, all passing.** Coverage target 80% (currently ~86.3%).
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 

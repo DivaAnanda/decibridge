@@ -1,4 +1,6 @@
 import { useState } from 'react'
+
+import { SHOW_DEMO_CREDENTIALS } from '../config/demoMode'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Alert,
@@ -109,22 +111,26 @@ export function LoginPage() {
               </Stack>
             </form>
 
-            <Divider label="Akun demo" labelPosition="center" />
+            {SHOW_DEMO_CREDENTIALS && (
+              <>
+                <Divider label="Akun demo" labelPosition="center" />
 
-            <Stack gap={4}>
-              <Text size="xs" c="dimmed">
-                Password untuk semua akun:{' '}
-                <Code fz="xs">TestPass123!</Code>
-              </Text>
-              <Text size="xs" c="dimmed">
-                Email:{' '}
-                <Code fz="xs">hta@test.local</Code>,{' '}
-                <Code fz="xs">sekre@test.local</Code>,{' '}
-                <Code fz="xs">kft1@test.local</Code>,{' '}
-                <Code fz="xs">ketua@test.local</Code>,{' '}
-                <Code fz="xs">adminit@test.local</Code>
-              </Text>
-            </Stack>
+                <Stack gap={4}>
+                  <Text size="xs" c="dimmed">
+                    Password untuk semua akun:{' '}
+                    <Code fz="xs">TestPass123!</Code>
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    Email:{' '}
+                    <Code fz="xs">hta@test.local</Code>,{' '}
+                    <Code fz="xs">sekre@test.local</Code>,{' '}
+                    <Code fz="xs">kft1@test.local</Code>,{' '}
+                    <Code fz="xs">ketua@test.local</Code>,{' '}
+                    <Code fz="xs">adminit@test.local</Code>
+                  </Text>
+                </Stack>
+              </>
+            )}
           </Stack>
         </Card>
       </Stack>

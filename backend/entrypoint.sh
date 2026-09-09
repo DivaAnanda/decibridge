@@ -6,7 +6,8 @@
 #   1. Apply any pending Django migrations against the managed Postgres.
 #   2. Ensure the 6 demo test users exist (idempotent — safe to re-run).
 #   3. Backfill decision snapshots for versions locked before Phase V2.
-#   4. Launch gunicorn bound to the port Railway gave us.
+#   4. Re-run the archival integrity audit over locked/archived cases.
+#   5. Launch gunicorn bound to the port Railway gave us.
 #
 # If migrate fails, we bail before gunicorn — better to crash visibly than to
 # serve a half-migrated DB.
@@ -31,6 +32,12 @@ echo "==> Backfilling decision snapshots (idempotent)"
 # existed (e.g. HF_ARNI_ACEI_004) get one built from whatever data they hold,
 # marked `backfilled: true`.
 python manage.py backfill_decision_snapshots ||     echo "    (skipped — non-fatal; re-run manually if needed)"
+
+echo "==> Auditing case integrity (idempotent)"
+# Recomputes integrity_flag from current data on every boot, so a case that gets
+# remediated clears itself. Only ever writes the three integrity_* columns, so
+# unlike seed_econ_validation_case it can never overwrite the lecturer's edits.
+python manage.py audit_case_integrity ||     echo "    (skipped — non-fatal; re-run manually if needed)"
 
 echo "==> Starting gunicorn on port ${PORT:-8000}"
 exec gunicorn decibridge.wsgi:application \

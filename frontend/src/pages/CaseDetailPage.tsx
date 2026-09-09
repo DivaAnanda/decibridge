@@ -35,6 +35,7 @@ import {
 } from '@tabler/icons-react'
 
 import { getCase, transitionCase } from '../api/cases'
+import { IntegrityAlert } from '../cases/IntegrityAlert'
 import {
   STATUS_COLOR,
   STATUS_LABEL_ID,
@@ -255,6 +256,8 @@ export function CaseDetailPage(): JSX.Element {
           </Menu>
         )}
       </Group>
+
+      <IntegrityAlert caseDetail={data} />
 
       <Tabs defaultValue="overview" keepMounted={false}>
         <Tabs.List>

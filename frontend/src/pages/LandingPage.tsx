@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+
+import { SHOW_DEMO_CREDENTIALS } from '../config/demoMode'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import {
   Anchor,
@@ -131,12 +133,14 @@ export function LandingPage(): JSX.Element {
               </Button>
             </Group>
 
-            <Text size="xs" c="dimmed" mt="xs">
-              Akun demo siap pakai · password{' '}
-              <Text component="span" ff="monospace" fz="xs">
-                TestPass123!
+            {SHOW_DEMO_CREDENTIALS && (
+              <Text size="xs" c="dimmed" mt="xs">
+                Akun demo siap pakai · password{' '}
+                <Text component="span" ff="monospace" fz="xs">
+                  TestPass123!
+                </Text>
               </Text>
-            </Text>
+            )}
           </Stack>
 
           {/* Hero preview card — fake "Rekomendasi" snapshot to show the product */}

@@ -61,8 +61,11 @@ export function DomainCard({
     (a) => a.domain_slug === domain.slug && a.member.id !== user?.id,
   )
 
-  const [judgement, setJudgement] = useState<Judgement>(myAppraisal?.judgement ?? 50)
-  const [certainty, setCertainty] = useState<Certainty>(myAppraisal?.certainty ?? 'moderate')
+  // Round 3: an unappraised domain starts blank. Defaulting to 50 ("Tidak
+  // pasti") and "moderate" meant a member could save an unread domain and have
+  // the system record those defaults as a genuine KFT judgement.
+  const [judgement, setJudgement] = useState<Judgement | null>(myAppraisal?.judgement ?? null)
+  const [certainty, setCertainty] = useState<Certainty | null>(myAppraisal?.certainty ?? null)
   const [narrative, setNarrative] = useState(myAppraisal?.narrative ?? '')
   const [refIds, setRefIds] = useState<string[]>(
     myAppraisal?.references.map((r) => String(r.id)) ?? [],
@@ -77,15 +80,21 @@ export function DomainCard({
     }
   }, [myAppraisal])
 
+  const isAppraised = judgement !== null && certainty !== null
+
   const saveMutation = useMutation({
-    mutationFn: () =>
-      upsertAppraisal(caseId, {
+    mutationFn: () => {
+      if (judgement === null || certainty === null) {
+        return Promise.reject(new Error('Penilaian belum dipilih.'))
+      }
+      return upsertAppraisal(caseId, {
         domain_slug: domain.slug,
         judgement,
         certainty,
         narrative,
         reference_ids: refIds.map((s) => Number(s)),
-      }),
+      })
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['etd', caseId, 'appraisals'] })
       void queryClient.invalidateQueries({ queryKey: ['etd', caseId, 'summary'] })
@@ -142,7 +151,7 @@ export function DomainCard({
             <Stack gap="md">
               <Radio.Group
                 label="Penilaian Anda"
-                value={String(judgement)}
+                value={judgement === null ? null : String(judgement)}
                 onChange={(v) => setJudgement(Number(v) as Judgement)}
               >
                 <Group gap="md" mt="xs">
@@ -158,7 +167,9 @@ export function DomainCard({
                     label="Kepastian bukti (GRADE)"
                     data={CERTAINTY_OPTIONS}
                     value={certainty}
-                    onChange={(v) => setCertainty((v ?? 'moderate') as Certainty)}
+                    placeholder="Pilih tingkat kepastian..."
+                    data-testid="certainty-select"
+                    onChange={(v) => setCertainty(v as Certainty | null)}
                     allowDeselect={false}
                   />
                 </Grid.Col>
@@ -184,10 +195,16 @@ export function DomainCard({
                 onChange={(e) => setNarrative(e.currentTarget.value)}
               />
 
-              <Group justify="flex-end">
+              <Group justify="flex-end" align="center">
+                {!isAppraised && (
+                  <Text size="xs" c="dimmed">
+                    Pilih penilaian dan tingkat kepastian terlebih dahulu.
+                  </Text>
+                )}
                 <Button
                   leftSection={<IconDeviceFloppy size={16} />}
                   loading={saveMutation.isPending}
+                  disabled={!isAppraised}
                   onClick={() => saveMutation.mutate()}
                 >
                   Simpan Penilaian Saya

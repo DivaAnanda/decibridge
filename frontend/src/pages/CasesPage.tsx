@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { Link as RouterLink, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Anchor,
@@ -39,7 +39,24 @@ export function CasesPage() {
   const { hasRole } = useAuth()
   const canCreate = hasRole('hta_analyst', 'farmasi_sekretaris')
 
-  const [status, setStatus] = useState<CaseStatus | ''>('')
+  // The status filter lives in the URL so links like /cases?status=archived
+  // (the Admin IT dashboard's archive shortcut) actually select that filter.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusParam = searchParams.get('status') ?? ''
+  const status: CaseStatus | '' = STATUS_OPTIONS.some((o) => o.value === statusParam)
+    ? (statusParam as CaseStatus | '')
+    : ''
+
+  const setStatus = useCallback(
+    (next: CaseStatus | '') => {
+      const params = new URLSearchParams(searchParams)
+      if (next) params.set('status', next)
+      else params.delete('status')
+      setSearchParams(params, { replace: true })
+    },
+    [searchParams, setSearchParams],
+  )
+
   const [search, setSearch] = useState('')
 
   const { data, isLoading, isError } = useQuery({

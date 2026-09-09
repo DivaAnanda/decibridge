@@ -75,6 +75,11 @@ export function WeightsCard({ caseId, caseIsLocked }: Props): JSX.Element {
   }
 
   const domains = domainsQuery.data ?? []
+
+  // Round 3: a slider resting at 0 looked identical to one never touched, so an
+  // accidental save recorded nine zero weights as a deliberate vote.
+  const weightedCount = domains.filter((d) => myWeights[d.slug] !== undefined).length
+  const allDomainsWeighted = domains.length > 0 && weightedCount === domains.length
   const aggregateBySlug = new Map(
     (summaryQuery.data?.aggregates ?? []).map((a) => [a.domain_slug, a]),
   )
@@ -129,7 +134,7 @@ export function WeightsCard({ caseId, caseIsLocked }: Props): JSX.Element {
                         style={{ flex: 1 }}
                       />
                       <Text size="sm" w={32} ta="right" ff="monospace">
-                        {myWeights[d.slug] ?? 0}
+                        {myWeights[d.slug] === undefined ? 'belum diisi' : myWeights[d.slug]}
                       </Text>
                     </Group>
                   ) : (
@@ -162,11 +167,18 @@ export function WeightsCard({ caseId, caseIsLocked }: Props): JSX.Element {
       </Table>
 
       {canVote && (
-        <Group justify="flex-end" mt="md">
+        <Group justify="flex-end" mt="md" align="center">
+          {!allDomainsWeighted && (
+            <Text size="xs" c="dimmed">
+              {weightedCount}/{domains.length} domain diisi — geser setiap slider untuk
+              menetapkan bobot Anda.
+            </Text>
+          )}
           <Button
             leftSection={<IconDeviceFloppy size={16} />}
             onClick={() => saveMutation.mutate()}
             loading={saveMutation.isPending}
+            disabled={!allDomainsWeighted}
           >
             Simpan Bobot Saya
           </Button>
