@@ -1,0 +1,16 @@
+# compose builds this service with `context: ./backend`, so the repo-root
+# .dockerignore does not apply here and has to be mirrored.
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+**/.coverage
+**/htmlcov
+**/*.log
+**/.env
+media/
+staticfiles/

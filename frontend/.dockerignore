@@ -1,0 +1,7 @@
+# compose builds this service with `context: ./frontend`, so the repo-root
+# .dockerignore does not apply here and has to be mirrored.
+
+node_modules/
+dist/
+**/*.log
+**/.env

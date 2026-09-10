@@ -30,9 +30,16 @@ class UserSerializer(serializers.ModelSerializer):
             "is_superuser",
             "date_joined",
             "last_login",
+            "must_change_password",
             "roles",
         ]
-        read_only_fields = ["id", "date_joined", "last_login", "is_superuser"]
+        read_only_fields = [
+            "id",
+            "date_joined",
+            "last_login",
+            "is_superuser",
+            "must_change_password",
+        ]
 
     def get_roles(self, obj: User) -> list[dict]:
         roles = Role.objects.filter(group__user=obj)
@@ -56,7 +63,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     def save(self, **kwargs) -> User:
         user: User = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
-        user.save(update_fields=["password"])
+        user.must_change_password = False
+        user.save(update_fields=["password", "must_change_password"])
         return user
 
 

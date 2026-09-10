@@ -64,6 +64,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False, help_text=_("Can access Django admin"))
     date_joined = models.DateTimeField(default=timezone.now)
     last_login_ip = models.GenericIPAddressField(blank=True, null=True)
+    must_change_password = models.BooleanField(
+        default=False,
+        help_text=_(
+            "Set by Admin IT to force a password change at next sign-in. Admin IT "
+            "never sets or sees a password itself."
+        ),
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["full_name"]
