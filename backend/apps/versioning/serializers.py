@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.audit.models import AuditLog
 from apps.cases.models import CaseVersion
+from apps.core.privacy import MaskedIPField
 
 
 class CaseVersionListSerializer(serializers.ModelSerializer):
@@ -47,6 +48,7 @@ class CaseVersionListSerializer(serializers.ModelSerializer):
 
 
 class AuditLogEntrySerializer(serializers.ModelSerializer):
+    ip_address = MaskedIPField()
     actor_name = serializers.SerializerMethodField()
     actor_email = serializers.CharField(source="actor.email", read_only=True, default="")
     action_label = serializers.CharField(source="get_action_display", read_only=True)

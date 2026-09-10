@@ -34,7 +34,11 @@ class ApprovalListView(APIView):
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)
         approvals = case.approvals.select_related("approver", "recommendation")
-        return Response(ApprovalReadSerializer(approvals, many=True).data)
+        return Response(
+            ApprovalReadSerializer(
+                approvals, many=True, context={"request": request}
+            ).data
+        )
 
 
 class ApprovalSignView(APIView):
@@ -142,5 +146,6 @@ class ApprovalSignView(APIView):
         )
 
         return Response(
-            ApprovalReadSerializer(approval).data, status=status.HTTP_201_CREATED
+            ApprovalReadSerializer(approval, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
         )

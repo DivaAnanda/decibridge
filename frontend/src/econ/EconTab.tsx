@@ -226,26 +226,26 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
           <fieldset disabled={!canEdit} style={{ border: 'none', padding: 0, margin: 0 }}>
             <Grid>
               <Grid.Col span={{ base: 6, sm: 3 }}>
-                <NumberInput label="Horizon (tahun)" min={1} {...form.getInputProps('horizon_years')} />
+                <NumberInput label="Horizon (tahun)" min={1} disabled={!canEdit} {...form.getInputProps('horizon_years')} />
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
-                <TextInput label="Discount rate biaya" description="mis. 0.03" {...form.getInputProps('cost_discount_rate')} />
+                <TextInput label="Discount rate biaya" description="mis. 0.03" disabled={!canEdit} {...form.getInputProps('cost_discount_rate')} />
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
-                <TextInput label="Discount rate QALY" description="mis. 0.03" {...form.getInputProps('outcome_discount_rate')} />
+                <TextInput label="Discount rate QALY" description="mis. 0.03" disabled={!canEdit} {...form.getInputProps('outcome_discount_rate')} />
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
-                <TextInput label="WTP threshold (IDR/QALY)" {...form.getInputProps('wtp_threshold')} />
+                <TextInput label="WTP threshold (IDR/QALY)" disabled={!canEdit} {...form.getInputProps('wtp_threshold')} />
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
                 <TextInput
                   label="Anggaran tahunan baseline (BIA)"
                   description="Dasar % dampak anggaran"
-                  {...form.getInputProps('annual_budget_baseline')}
+                  disabled={!canEdit} {...form.getInputProps('annual_budget_baseline')}
                 />
               </Grid.Col>
               <Grid.Col span={12}>
-                <Textarea label="Catatan" autosize minRows={1} {...form.getInputProps('notes')} />
+                <Textarea label="Catatan" autosize minRows={1} disabled={!canEdit} {...form.getInputProps('notes')} />
               </Grid.Col>
             </Grid>
             {canEdit && (

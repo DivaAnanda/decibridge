@@ -74,12 +74,22 @@ class TestAppraisalUpsert:
         api_client.force_authenticate(member)
         api_client.post(
             _appraisal_url(pilot_case.case_id),
-            {"domain_slug": "problem", "judgement": 50, "certainty": "low"},
+            {
+                "domain_slug": "problem",
+                "judgement": 50,
+                "certainty": "low",
+                "narrative": "Penilaian awal.",
+            },
             format="json",
         )
         response = api_client.post(
             _appraisal_url(pilot_case.case_id),
-            {"domain_slug": "problem", "judgement": 100, "certainty": "high"},
+            {
+                "domain_slug": "problem",
+                "judgement": 100,
+                "certainty": "high",
+                "narrative": "Direvisi setelah diskusi.",
+            },
             format="json",
         )
         assert response.status_code == status.HTTP_200_OK  # update path, not create
@@ -152,3 +162,53 @@ class TestOwnershipGuard:
         response = api_client.delete(url)
         # Member 1 has no appraisal for that domain → 404 (object lookup is scoped to caller)
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestAppraisalMustBeJustified:
+    """Round 3: an appraisal must rest on a citation or a written rationale."""
+
+    def test_bare_appraisal_is_rejected(self, api_client, kft_three, pilot_case):
+        api_client.force_authenticate(kft_three[0])
+
+        response = api_client.post(
+            _appraisal_url(pilot_case.case_id),
+            {"domain_slug": "problem", "judgement": 75, "certainty": "high"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "narrative" in response.data
+
+    def test_narrative_alone_is_accepted(self, api_client, kft_three, pilot_case):
+        """Domains like Feasibility legitimately carry no citation."""
+        api_client.force_authenticate(kft_three[0])
+
+        response = api_client.post(
+            _appraisal_url(pilot_case.case_id),
+            {
+                "domain_slug": "problem",
+                "judgement": 75,
+                "certainty": "high",
+                "narrative": "Tidak ada literatur; penilaian berdasarkan kapasitas RS.",
+            },
+            format="json",
+        )
+
+        assert response.status_code in {status.HTTP_200_OK, status.HTTP_201_CREATED}
+
+    def test_whitespace_narrative_does_not_count(self, api_client, kft_three, pilot_case):
+        api_client.force_authenticate(kft_three[0])
+
+        response = api_client.post(
+            _appraisal_url(pilot_case.case_id),
+            {
+                "domain_slug": "problem",
+                "judgement": 75,
+                "certainty": "high",
+                "narrative": "   ",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST

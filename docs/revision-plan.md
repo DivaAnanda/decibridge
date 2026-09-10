@@ -412,3 +412,27 @@ tampak sebagai data final RS" dapat ditegakkan pada tingkat versi.
 
 G → H → I → J → K → L. G memblokir semuanya: selama skor parsial masih lolos, setiap gate di
 hilir menjaga data yang salah.
+
+## Status Round 3 (2026-09-10)
+
+| ID | Perbaikan | Status |
+|---|---|---|
+| G1 | EtD parsial tidak lagi menghasilkan skor yang dapat dipakai; engine menuntut `completed == total` dan melaporkan rasio sebenarnya | selesai |
+| G2 | Staleness rekomendasi dihitung saat baca dari timestamp setiap input; `is_stale` + `stale_reasons` di endpoint terbaru | selesai |
+| G3 | `Decimal(budget_score)` tidak lagi crash saat BIA `not_assessed` | selesai |
+| H1 | Pembuatan policy brief kini melewati gate kelengkapan dossier | selesai |
+| H2 | Integrity check sebelum arsip: readiness + snapshot + sign-off | selesai |
+| H3 | `integrity_flag` pada Case + perintah `audit_case_integrity` (jalan tiap deploy) + banner di halaman kasus | selesai |
+| I1 | Penilaian EtD mulai kosong; simpan nonaktif sampai anggota memilih | selesai |
+| I2 | Bobot domain: "belum diisi" hingga digeser; simpan menuntut 9/9 | selesai |
+| I3 | Appraisal wajib punya referensi **atau** narasi justifikasi | selesai |
+| J1 | Create New Version dibatasi ke Ketua/Admin IT/HTA (bagian P brief) | selesai |
+| J2 | Sekretariat menjalankan CEA/BIA — sesuai Step 7, tidak diubah | tidak berlaku |
+| K1 | Kredensial demo di balik `VITE_SHOW_DEMO_CREDENTIALS` | selesai |
+| K2 | IP disamarkan kecuali untuk Admin IT (`apps/core/privacy.py`) | selesai |
+| L1 | Filter status dibaca dari URL (`/cases?status=archived`) | selesai |
+| L2 | Field model ekonomi tampil disabled bagi role read-only | selesai |
+| L3 | Skor bukti parsial diberi badge "Sementara" + penjelasan | selesai |
+| L4 | Modul manajemen user Admin IT | **belum** |
+| — | Pemisahan draft/submit EtD sesuai Step 9 brief | **belum** (peningkatan, bukan bug) |
+| — | Penanda "Validated" | **menunggu jawaban Pak Anom** |

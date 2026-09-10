@@ -81,6 +81,10 @@ export function DomainCard({
   }, [myAppraisal])
 
   const isAppraised = judgement !== null && certainty !== null
+  // The backend requires a citation or a written rationale, so surface that
+  // here rather than letting the member discover it as a 400.
+  const isJustified = refIds.length > 0 || narrative.trim().length > 0
+  const canSave = isAppraised && isJustified
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -201,10 +205,16 @@ export function DomainCard({
                     Pilih penilaian dan tingkat kepastian terlebih dahulu.
                   </Text>
                 )}
+                {isAppraised && !isJustified && (
+                  <Text size="xs" c="dimmed">
+                    Pilih minimal satu referensi, atau tuliskan pertimbangan sebagai
+                    justifikasi.
+                  </Text>
+                )}
                 <Button
                   leftSection={<IconDeviceFloppy size={16} />}
                   loading={saveMutation.isPending}
-                  disabled={!isAppraised}
+                  disabled={!canSave}
                   onClick={() => saveMutation.mutate()}
                 >
                   Simpan Penilaian Saya

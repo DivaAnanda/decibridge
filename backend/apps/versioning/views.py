@@ -103,7 +103,11 @@ class VersionTimelineView(APIView):
 
         combined = (case_entries | meta_tagged).distinct().order_by("created_at")
 
-        return Response(AuditLogEntrySerializer(combined, many=True).data)
+        return Response(
+            AuditLogEntrySerializer(
+                combined, many=True, context={"request": request}
+            ).data
+        )
 
 
 # ----------------------------------------------------------------------------

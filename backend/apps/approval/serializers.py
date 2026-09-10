@@ -5,9 +5,11 @@ from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 
 from .models import Approval, ApprovalDecision
+from apps.core.privacy import MaskedIPField
 
 
 class ApprovalReadSerializer(serializers.ModelSerializer):
+    ip_address = MaskedIPField()
     approver = UserSerializer(read_only=True)
     decision_label = serializers.SerializerMethodField()
 

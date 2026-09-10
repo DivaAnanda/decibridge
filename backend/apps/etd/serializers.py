@@ -106,6 +106,22 @@ class EtDAppraisalWriteSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"reference_ids": f"Referensi #{ref.pk} bukan milik kasus ini."}
                 )
+
+        # Round 3: an appraisal must rest on something a reader can check. The
+        # brief is explicit that members do not appraise an empty case
+        # ("anggota KFT tidak mengisi EtD dalam keadaan kosong"). Domains like
+        # Feasibility legitimately have no citation, so a written justification
+        # is accepted in place of one -- but silence is not.
+        if not references and not (attrs.get("narrative") or "").strip():
+            raise serializers.ValidationError(
+                {
+                    "narrative": (
+                        "Sertakan minimal satu referensi bukti, atau tuliskan "
+                        "pertimbangan sebagai justifikasi bila domain ini memang "
+                        "tidak memiliki referensi."
+                    )
+                }
+            )
         return attrs
 
 

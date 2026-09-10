@@ -62,6 +62,12 @@ export function EtDTab({ caseId, caseIsLocked }: Props): JSX.Element {
   const completionPct = overall
     ? Math.round((overall.domains_completed / Math.max(overall.domains_total, 1)) * 100)
     : 0
+  // A partial appraisal still produces a number (the mean of completed domains),
+  // so it has to be labelled or it reads as a final evidence score.
+  const isPartialAppraisal =
+    overall !== undefined &&
+    overall.domains_completed > 0 &&
+    overall.domains_completed < overall.domains_total
 
   return (
     <Stack gap="lg">
@@ -78,14 +84,23 @@ export function EtDTab({ caseId, caseIsLocked }: Props): JSX.Element {
           <Grid>
             <Grid.Col span={{ base: 12, sm: 4 }}>
               <Card withBorder padding="md" radius="sm" bg="gray.0">
-                <Text size="xs" c="dimmed">
-                  Skor Kekuatan Bukti
-                </Text>
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                  <Text size="xs" c="dimmed">
+                    Skor Kekuatan Bukti
+                  </Text>
+                  {isPartialAppraisal && (
+                    <Badge color="orange" variant="light" size="sm">
+                      Sementara
+                    </Badge>
+                  )}
+                </Group>
                 <Text size="xl" fw={700}>
                   {overall.evidence_strength_score ?? '—'} / 100
                 </Text>
-                <Text size="xs" c="dimmed" mt={4}>
-                  Bobot 40% pada sintesis traffic-light
+                <Text size="xs" c={isPartialAppraisal ? 'orange' : 'dimmed'} mt={4}>
+                  {isPartialAppraisal
+                    ? `Skor sementara — baru ${overall.domains_completed}/${overall.domains_total} domain. Belum dapat dipakai untuk rekomendasi.`
+                    : 'Bobot 40% pada sintesis traffic-light'}
                 </Text>
               </Card>
             </Grid.Col>
