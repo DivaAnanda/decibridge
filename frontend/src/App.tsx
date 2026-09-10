@@ -14,12 +14,20 @@ import {
   NavLink,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
-import { IconLogout, IconUser, IconHome, IconFolders, IconActivity } from '@tabler/icons-react'
+import {
+  IconLogout,
+  IconUser,
+  IconHome,
+  IconFolders,
+  IconActivity,
+  IconUsersGroup,
+} from '@tabler/icons-react'
 
 import { LoginPage } from './pages/LoginPage'
 import { LandingPage } from './pages/LandingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CasesPage } from './pages/CasesPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { CaseDetailPage } from './pages/CaseDetailPage'
 import { CaseCreatePage } from './pages/CaseCreatePage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
@@ -81,6 +89,7 @@ function UserMenu() {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const [opened, { toggle, close }] = useDisclosure()
+  const { hasRole } = useAuth()
 
   return (
     <AppShell
@@ -117,6 +126,15 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             leftSection={<IconFolders size={16} />}
             onClick={close}
           />
+          {hasRole('admin_it') && (
+            <NavLink
+              component={Link}
+              to="/admin/users"
+              label="Administrasi Pengguna"
+              leftSection={<IconUsersGroup size={16} />}
+              onClick={close}
+            />
+          )}
           <NavLink
             component={Link}
             to="/"
@@ -150,6 +168,7 @@ export default function App() {
                 <Route path="/cases" element={<CasesPage />} />
                 <Route path="/cases/new" element={<CaseCreatePage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />
+                <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </AppLayout>

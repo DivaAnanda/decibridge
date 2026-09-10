@@ -15,15 +15,15 @@ User = get_user_model()
 
 
 def _list_url() -> str:
-    return reverse("accounts:admin_user_list")
+    return reverse("user_admin:user_list")
 
 
 def _detail_url(user_id: int) -> str:
-    return reverse("accounts:admin_user_detail", args=[user_id])
+    return reverse("user_admin:user_detail", args=[user_id])
 
 
 def _reset_url(user_id: int) -> str:
-    return reverse("accounts:admin_user_force_password_reset", args=[user_id])
+    return reverse("user_admin:user_force_password_reset", args=[user_id])
 
 
 class TestAccessControl:
@@ -155,12 +155,12 @@ class TestForcedPasswordReset:
 
 class TestLoginHistory:
     def test_admin_can_read_login_history(self, admin_it_client):
-        response = admin_it_client.get(reverse("accounts:admin_login_history"))
+        response = admin_it_client.get(reverse("user_admin:login_history"))
 
         assert response.status_code == 200
 
     def test_other_roles_cannot(self, sekretaris_client):
-        response = sekretaris_client.get(reverse("accounts:admin_login_history"))
+        response = sekretaris_client.get(reverse("user_admin:login_history"))
 
         assert response.status_code == 403
 
@@ -169,7 +169,7 @@ class TestLoginHistory:
         AuditLog.record(action=AuditLog.Action.LOGIN_FAILED, metadata={"email": "x@y.z"})
 
         response = admin_it_client.get(
-            reverse("accounts:admin_login_history"), {"only_failed": "true"}
+            reverse("user_admin:login_history"), {"only_failed": "true"}
         )
 
         assert response.data

@@ -433,6 +433,6 @@ hilir menjaga data yang salah.
 | L1 | Filter status dibaca dari URL (`/cases?status=archived`) | selesai |
 | L2 | Field model ekonomi tampil disabled bagi role read-only | selesai |
 | L3 | Skor bukti parsial diberi badge "Sementara" + penjelasan | selesai |
-| L4 | Modul manajemen user Admin IT | **belum** |
+| L4 | Modul manajemen user Admin IT (daftar, aktif/nonaktif, peran, paksa ganti sandi, riwayat & kegagalan masuk) | selesai |
 | — | Pemisahan draft/submit EtD sesuai Step 9 brief | **belum** (peningkatan, bukan bug) |
 | — | Penanda "Validated" | **menunggu jawaban Pak Anom** |

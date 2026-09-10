@@ -15,6 +15,7 @@ from apps.core.views import SPAFallbackView
 api_v1_patterns = [
     path("", include("apps.core.urls")),
     path("auth/", include("apps.accounts.urls")),
+    path("admin/", include("apps.accounts.admin_urls")),
     path("", include("apps.cases.urls")),
     path("", include("apps.cea.urls")),
     path("", include("apps.econ.urls")),
