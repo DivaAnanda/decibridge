@@ -1,17 +1,18 @@
 import { Routes, Route, Link, useNavigate } from 'react-router-dom'
 import {
+  Anchor,
   AppShell,
+  Avatar,
+  Badge,
   Burger,
   Group,
-  Title,
-  Text,
-  Stack,
-  Anchor,
-  Badge,
   Menu,
-  Avatar,
-  UnstyledButton,
   NavLink,
+  Stack,
+  Text,
+  Title,
+  Tooltip,
+  UnstyledButton,
 } from '@mantine/core'
 import { useDisclosure } from '@mantine/hooks'
 import {
@@ -104,7 +105,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <Title order={4}>DeciBridge</Title>
           </Group>
           <Group>
-            <Badge variant="light">v1.0.0</Badge>
+            <Tooltip
+              label={`Build ${__BUILD_COMMIT__} - ${new Date(__BUILD_TIME__).toLocaleString('id-ID')}`}
+            >
+              <Badge variant="light" style={{ cursor: 'help' }}>
+                v1.0.0 - {__BUILD_COMMIT__}
+              </Badge>
+            </Tooltip>
             <UserMenu />
           </Group>
         </Group>

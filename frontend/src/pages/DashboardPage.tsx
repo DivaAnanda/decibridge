@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link as RouterLink } from 'react-router-dom'
 import {
+  Alert,
   Anchor,
   Badge,
   Card,
@@ -17,6 +18,7 @@ import {
   Title,
 } from '@mantine/core'
 import {
+  IconAlertTriangle,
   IconArchive,
   IconArrowRight,
   IconBulb,
@@ -148,11 +150,17 @@ function countByStatus(cases: CaseListItem[]): Record<string, number> {
     locked: 0,
     archived: 0,
   }
-  for (const c of cases) {
+  // Round 4 item 1: cases that failed the integrity check are excluded from the
+  // tallies, so "Terkunci" only ever counts decisions that are actually valid.
+  for (const c of cases.filter((c) => !c.integrity_flag)) {
     const current = counts[c.status]
     if (current !== undefined) counts[c.status] = current + 1
   }
   return counts
+}
+
+function countFlagged(cases: CaseListItem[]): number {
+  return cases.filter((c) => c.integrity_flag).length
 }
 
 export function DashboardPage(): JSX.Element {
@@ -168,6 +176,7 @@ export function DashboardPage(): JSX.Element {
     [casesQuery.data],
   )
   const counts = useMemo(() => countByStatus(cases), [cases])
+  const flaggedCount = useMemo(() => countFlagged(cases), [cases])
   const recent = useMemo(() => cases.slice(0, 5), [cases])
 
   const userRoles = (user?.roles ?? []).map((r) => r.slug as RoleSlug)
@@ -239,6 +248,20 @@ export function DashboardPage(): JSX.Element {
           )
         })}
       </SimpleGrid>
+
+      {flaggedCount > 0 && (
+        <Alert color="red" variant="light" icon={<IconAlertTriangle size={18} />}>
+          <Text size="sm">
+            <strong>
+              {flaggedCount} kasus uji lama — tidak valid untuk keputusan final.
+            </strong>{' '}
+            Kasus ini dikunci sebelum aturan kelengkapan diberlakukan dan tidak
+            dihitung dalam angka di atas. Data dan riwayatnya sengaja dipertahankan
+            sebagai bahan pengujian, tetapi tidak dapat diarsipkan maupun diterbitkan
+            sebagai policy brief final.
+          </Text>
+        </Alert>
+      )}
 
       <Grid gutter="md">
         {/* Quick links per role */}

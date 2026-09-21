@@ -3,6 +3,16 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
+// Round 4 item 8: the reviewer needs to say which build a finding came from.
+// The timestamp is always available; the commit is whatever the build host
+// supplies (Railway sets RAILWAY_GIT_COMMIT_SHA), else "lokal".
+const BUILD_TIME = new Date().toISOString()
+const BUILD_COMMIT = (
+  process.env.VITE_BUILD_COMMIT ??
+  process.env.RAILWAY_GIT_COMMIT_SHA ??
+  'lokal'
+).slice(0, 7)
+
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   // Production build is served by Django + WhiteNoise from STATIC_URL
@@ -10,6 +20,10 @@ export default defineConfig(({ command }) => ({
   // (`command === 'serve'`) must stay at "/" so client-side deep links and
   // refreshes resolve locally — otherwise every /cases/:id refresh 404s.
   base: command === 'build' ? '/static/' : '/',
+  define: {
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+    __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

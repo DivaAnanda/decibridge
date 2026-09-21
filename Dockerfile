@@ -28,6 +28,10 @@ COPY frontend/ ./
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+# Stamps the build so a reviewer can tie a finding to a specific deploy.
+ARG RAILWAY_GIT_COMMIT_SHA=
+ENV RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA
+
 RUN npm run build
 
 

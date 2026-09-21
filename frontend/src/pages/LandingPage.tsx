@@ -491,10 +491,21 @@ function HeroPreview(): JSX.Element {
               Pratinjau Dashboard
             </Text>
           </Group>
-          <Badge color="blue" variant="light" size="sm">
-            HF_ARNI_ACEI_006
-          </Badge>
+          <Group gap="xs">
+            {/* Round 4 item 8: these figures are illustrative, not real results. */}
+            <Badge color="orange" variant="filled" size="sm">
+              Ilustrasi - bukan data nyata
+            </Badge>
+            <Badge color="blue" variant="light" size="sm">
+              HF_ARNI_ACEI_006
+            </Badge>
+          </Group>
         </Group>
+
+        <Text size="xs" c="dimmed" mb="md">
+          Seluruh angka pada pratinjau ini adalah contoh tampilan antarmuka, bukan hasil
+          perhitungan kasus nyata dan bukan keputusan KFT.
+        </Text>
 
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mb="lg">
           <PreviewStat label="Kasus aktif" value="12" color="blue" />

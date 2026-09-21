@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core'
 import { IconPlus, IconSearch } from '@tabler/icons-react'
 
@@ -153,9 +154,22 @@ export function CasesPage() {
                   <Table.Td>{c.technology}</Table.Td>
                   <Table.Td>{c.comparator}</Table.Td>
                   <Table.Td>
-                    <Badge color={STATUS_COLOR[c.status]} variant="light">
-                      {STATUS_LABEL_ID[c.status]}
-                    </Badge>
+                    <Group gap={6} wrap="nowrap">
+                      <Badge color={STATUS_COLOR[c.status]} variant="light">
+                        {STATUS_LABEL_ID[c.status]}
+                      </Badge>
+                      {c.integrity_flag && (
+                        <Tooltip
+                          multiline
+                          w={260}
+                          label="Kasus uji lama - tidak valid untuk keputusan final. Dikunci sebelum aturan kelengkapan diberlakukan."
+                        >
+                          <Badge color="red" variant="filled">
+                            Kasus uji lama
+                          </Badge>
+                        </Tooltip>
+                      )}
+                    </Group>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" c="dimmed">
