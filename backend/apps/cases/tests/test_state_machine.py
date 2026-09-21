@@ -57,13 +57,13 @@ class TestSendBackRequiresReason:
 
 @pytest.mark.django_db
 class TestLockAndArchive:
-    def test_full_lifecycle(self, pilot_case, hta_user, ketua_user, admin_it_user):
+    def test_full_lifecycle(self, pilot_case, hta_user, ketua_user):
         transition(pilot_case, "submit", hta_user)
         transition(pilot_case, "approve", ketua_user)
         transition(pilot_case, "lock", ketua_user)
         assert pilot_case.status == CaseStatus.LOCKED
         assert pilot_case.is_locked is True
-        transition(pilot_case, "archive", admin_it_user)
+        transition(pilot_case, "archive", ketua_user, reason="Digantikan versi baru")
         assert pilot_case.status == CaseStatus.ARCHIVED
 
 
@@ -78,12 +78,22 @@ class TestAllowedTransitions:
         names = {t.name for t in allowed_transitions_for(pilot_case, ketua_user)}
         assert names == {"approve", "send_back"}
 
-    def test_locked_admin_sees_archive(self, pilot_case, hta_user, ketua_user, admin_it_user):
+    def test_locked_ketua_sees_archive(self, pilot_case, hta_user, ketua_user):
+        transition(pilot_case, "submit", hta_user)
+        transition(pilot_case, "approve", ketua_user)
+        transition(pilot_case, "lock", ketua_user)
+        names = {t.name for t in allowed_transitions_for(pilot_case, ketua_user)}
+        assert "archive" in names
+
+    def test_locked_admin_it_no_longer_sees_archive(
+        self, pilot_case, hta_user, ketua_user, admin_it_user
+    ):
+        """Round 3: archiving retires a formal decision, so Ketua initiates it."""
         transition(pilot_case, "submit", hta_user)
         transition(pilot_case, "approve", ketua_user)
         transition(pilot_case, "lock", ketua_user)
         names = {t.name for t in allowed_transitions_for(pilot_case, admin_it_user)}
-        assert "archive" in names
+        assert "archive" not in names
 
     def test_unknown_transition_raises(self, pilot_case, hta_user):
         with pytest.raises(KeyError):

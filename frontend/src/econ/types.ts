@@ -1,6 +1,6 @@
 export type Alternative = 'intervention' | 'comparator' | 'shared'
 export type ParamType = 'cost' | 'probability' | 'utility' | 'disutility' | 'rate' | 'count'
-export type DataStatus = 'observed' | 'proxy' | 'assumption'
+export type DataStatus = 'observed' | 'proxy' | 'assumption' | 'validated'
 
 export const ALTERNATIVE_LABEL: Record<Alternative, string> = {
   intervention: 'Intervensi',
@@ -18,15 +18,20 @@ export const PARAM_TYPE_LABEL: Record<ParamType, string> = {
 }
 
 export const DATA_STATUS_LABEL: Record<DataStatus, string> = {
+  validated: 'Validated',
   observed: 'Observed',
   proxy: 'Proxy',
   assumption: 'Assumption',
 }
 
+// Proxy and assumption values must never read as settled hospital data.
+export const PROVISIONAL_DATA_STATUSES: DataStatus[] = ['proxy', 'assumption']
+
 export const DATA_STATUS_COLOR: Record<DataStatus, string> = {
+  validated: 'green',
   observed: 'teal',
-  proxy: 'yellow',
-  assumption: 'gray',
+  proxy: 'orange',
+  assumption: 'red',
 }
 
 // Canonical parameter keys the engine understands (mirrors backend ParamKey).

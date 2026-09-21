@@ -9,7 +9,7 @@ Transitions:
     in_review → approved     (ketua_kft only)
     approved → in_review     (revision requested: ketua_kft only — undo own approval before lock)
     approved → locked        (ketua_kft only — locks evidence for v1.x)
-    locked → archived        (admin_it, ketua_kft)
+    locked → archived        (ketua_kft only - Round 3 item D)
 """
 
 from __future__ import annotations
@@ -72,11 +72,17 @@ TRANSITIONS: dict[str, Transition] = {
         target=CaseStatus.LOCKED,
         allowed_roles=frozenset({RoleSlug.KETUA_KFT}),
     ),
+    # Archiving turns a case into the hospital's formal decision record, so it
+    # follows the lecturer's Round 3 recommendation: "Ketua KFT menginisiasi/
+    # menyetujui pengarsipan; Admin IT hanya menjalankan retensi teknis atau
+    # memverifikasi arsip." Admin IT keeps read, download and manifest-verify
+    # access through ArchivePermission; it just cannot retire a decision alone.
     "archive": Transition(
         name="archive",
         source=frozenset({CaseStatus.LOCKED}),
         target=CaseStatus.ARCHIVED,
-        allowed_roles=frozenset({RoleSlug.ADMIN_IT, RoleSlug.KETUA_KFT}),
+        allowed_roles=frozenset({RoleSlug.KETUA_KFT}),
+        requires_reason=True,
     ),
 }
 

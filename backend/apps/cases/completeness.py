@@ -87,6 +87,49 @@ def _etd_requirement(case) -> Requirement:
     )
 
 
+def _pico_requirement(case) -> Requirement:
+    """Round 3 item 1 names PICO as a lock precondition alongside CEA/BIA/EtD.
+
+    A decision question with an empty P, I, C or O is not a formulary question
+    anyone can audit later, so all four parts must be filled.
+    """
+    questions = list(case.decision_questions.all())
+    complete = [
+        q
+        for q in questions
+        if q.pico_population.strip()
+        and q.pico_intervention.strip()
+        and q.pico_comparator.strip()
+        and q.pico_outcome.strip()
+    ]
+    return Requirement(
+        key="pico",
+        label="Pertanyaan keputusan (PICO) lengkap",
+        satisfied=bool(complete),
+        detail=(
+            f"{len(complete)}/{len(questions)} pertanyaan lengkap" if questions
+            else "Belum ada pertanyaan keputusan"
+        ),
+    )
+
+
+def _signoff_requirement(case, *, mandatory: bool) -> Requirement:
+    """Round 3 item 1 also names sign-off as a lock precondition.
+
+    An Approval row is only written by the sign-off endpoint, so the raw
+    `approve` transition could otherwise reach `locked` with no signature on
+    file -- the "backend pernah memungkinkan penguncian tidak sah" case.
+    """
+    count = case.approvals.count()
+    return Requirement(
+        key="signoff",
+        label="Sign-off Ketua KFT tercatat",
+        satisfied=count > 0,
+        mandatory=mandatory,
+        detail=f"{count} tanda tangan tercatat" if count else "Belum ada tanda tangan",
+    )
+
+
 def _recommendation_requirement(case) -> Requirement:
     rec = case.recommendations.order_by("-computed_at").first()
     return Requirement(
@@ -112,12 +155,19 @@ def _cba_requirement(case) -> Requirement:
     )
 
 
-def evaluate_readiness(case) -> dict:
-    """Return the full checklist plus whether the case may be approved/locked."""
+def evaluate_readiness(case, *, action: str | None = None) -> dict:
+    """Return the full checklist plus whether the case may be approved/locked.
+
+    `action` tightens the rule for lock: a signature cannot exist before the
+    case is approved, so sign-off is advisory on the approve step and mandatory
+    on the lock step.
+    """
     requirements = [
+        _pico_requirement(case),
         *_econ_requirements(case),
         _etd_requirement(case),
         _recommendation_requirement(case),
+        _signoff_requirement(case, mandatory=action == "lock"),
         _cba_requirement(case),
     ]
     missing = [r for r in requirements if r.mandatory and not r.satisfied]
@@ -147,7 +197,7 @@ def assert_ready_for(case, action: str) -> None:
     if action not in GATED_TRANSITIONS:
         return
 
-    readiness = evaluate_readiness(case)
+    readiness = evaluate_readiness(case, action=action)
     if not readiness["is_ready"]:
         raise ValidationError(
             "Dossier belum lengkap: " + "; ".join(readiness["missing"]),

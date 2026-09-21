@@ -129,7 +129,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           {hasRole('admin_it') && (
             <NavLink
               component={Link}
-              to="/admin/users"
+              to="/administrasi/pengguna"
               label="Administrasi Pengguna"
               leftSection={<IconUsersGroup size={16} />}
               onClick={close}
@@ -168,7 +168,7 @@ export default function App() {
                 <Route path="/cases" element={<CasesPage />} />
                 <Route path="/cases/new" element={<CaseCreatePage />} />
                 <Route path="/cases/:caseId" element={<CaseDetailPage />} />
-                <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/administrasi/pengguna" element={<AdminUsersPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </AppLayout>

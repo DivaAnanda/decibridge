@@ -12,8 +12,9 @@ formal decision record. `HF_ARNI_ACEI_004` was locked before the completeness
 gate existed, so it carries a GREEN verdict with no CEA, no BIA and 4 of 9 EtD
 domains — exactly the kind of record that must not enter the archive unexamined.
 
-This extends `completeness.evaluate_readiness` with the artefacts that only a
-properly locked decision can have: an immutable snapshot, and a sign-off.
+This extends `completeness.evaluate_readiness` with the one artefact only a
+properly locked decision can have: an immutable snapshot. PICO, CEA, BIA, EtD,
+the recommendation and the recorded sign-off all come from the readiness gate.
 """
 
 from __future__ import annotations
@@ -45,20 +46,11 @@ def _snapshot_requirement(case) -> Requirement:
     )
 
 
-def _signoff_requirement(case) -> Requirement:
-    count = case.approvals.count()
-    return Requirement(
-        key="signoff",
-        label="Sign-off Ketua KFT tercatat",
-        satisfied=count > 0,
-        detail=f"{count} tanda tangan tercatat" if count else "Belum ada tanda tangan",
-    )
-
-
 def evaluate_integrity(case) -> dict:
     """Readiness plus the artefacts a locked decision must carry to be archived."""
-    readiness = evaluate_readiness(case)
-    extra = [_snapshot_requirement(case), _signoff_requirement(case)]
+    # action="lock" makes the recorded sign-off mandatory rather than advisory.
+    readiness = evaluate_readiness(case, action="lock")
+    extra = [_snapshot_requirement(case)]
 
     requirements = readiness["requirements"] + [r.as_dict() for r in extra]
     failures = list(readiness["missing"]) + [

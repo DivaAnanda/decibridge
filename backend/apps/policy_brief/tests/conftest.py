@@ -33,8 +33,21 @@ def complete_dossier(case_in_review, hta_user, kft_member_user):
     Brief generation is gated on dossier completeness (Round 3 H1), so every
     generation fixture has to build a case that would genuinely pass sign-off.
     """
+    from apps.cases.models import DecisionQuestion
     from apps.econ.models import EconBIAResult, EconDeterministicResult
     from apps.etd.models import EtDAppraisal, EtDDomain
+
+    DecisionQuestion.objects.get_or_create(
+        case=case_in_review,
+        order=1,
+        defaults={
+            "question_text": "Apakah ARNI perlu masuk formularium?",
+            "pico_population": "Pasien HFrEF dewasa",
+            "pico_intervention": "ARNI",
+            "pico_comparator": "ACEI",
+            "pico_outcome": "Rehospitalisasi 12 bulan",
+        },
+    )
 
     EconDeterministicResult.objects.create(
         case=case_in_review,

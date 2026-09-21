@@ -38,14 +38,27 @@ def _build_green_recommendation(case, user):
 
 
 def _make_dossier_complete(case, user):
-    """Satisfy the Phase V3 sign-off gate: CEA + BIA + all 9 EtD domains.
+    """Satisfy the sign-off gate: PICO + CEA + BIA + all 9 EtD domains.
 
     Sign-off is blocked on an incomplete dossier, so any fixture that is about
     to approve a case must supply one. Values are placeholders — these tests
     cover signature mechanics, not the economics.
     """
+    from apps.cases.models import DecisionQuestion
     from apps.econ.models import EconBIAResult, EconDeterministicResult
     from apps.etd.models import EtDAppraisal, EtDDomain
+
+    DecisionQuestion.objects.get_or_create(
+        case=case,
+        order=1,
+        defaults={
+            "question_text": "Apakah ARNI perlu masuk formularium?",
+            "pico_population": "Pasien HFrEF dewasa",
+            "pico_intervention": "ARNI",
+            "pico_comparator": "ACEI",
+            "pico_outcome": "Rehospitalisasi 12 bulan",
+        },
+    )
 
     EconDeterministicResult.objects.create(
         case=case,

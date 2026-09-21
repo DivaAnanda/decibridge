@@ -42,6 +42,6 @@ def locked_case(pilot_case, hta_user, ketua_user):
 @pytest.fixture
 def archived_case(locked_case, ketua_user):
     """Case driven all the way through to archived. Triggers manifest generation."""
-    case_transition(locked_case, "archive", ketua_user)
+    case_transition(locked_case, "archive", ketua_user, reason="Digantikan versi baru")
     locked_case.refresh_from_db()
     return locked_case

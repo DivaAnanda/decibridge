@@ -73,9 +73,18 @@ class ParamType(models.TextChoices):
 
 
 class DataStatus(models.TextChoices):
+    """Provenance of a parameter value.
+
+    Round 3 item 6: "Tambahkan penanda yang tegas untuk input Assumption, Proxy,
+    Observed, dan Validated; data proxy tidak boleh tampak sebagai data final RS."
+    VALIDATED means the value was checked against its cited source, which is a
+    stronger claim than merely having been observed.
+    """
+
     OBSERVED = "observed", _("Observed (data teramati)")
     PROXY = "proxy", _("Proxy (pendekatan)")
     ASSUMPTION = "assumption", _("Assumption (asumsi ilustratif)")
+    VALIDATED = "validated", _("Validated (terverifikasi terhadap sumber)")
 
 
 class Distribution(models.TextChoices):

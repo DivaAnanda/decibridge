@@ -13,7 +13,7 @@ DOMAINS = [
             "Mempertimbangkan prevalensi, beban penyakit, dan keparahan."
         ),
         "prompt_text_id": (
-            "Seberapa penting masalah klinis yang diatasi oleh intervensi ini bagi pasien "
+            "Apakah masalah klinis yang diatasi intervensi ini merupakan prioritas "
             "di rumah sakit Anda?"
         ),
     },
@@ -56,8 +56,8 @@ DOMAINS = [
         "display_name_en": "Values and Preferences",
         "description": "Variabilitas nilai pasien terhadap outcome utama.",
         "prompt_text_id": (
-            "Apakah ada ketidakpastian penting tentang bagaimana pasien menilai outcome "
-            "utama dari intervensi ini?"
+            "Apakah pasien menilai outcome utama intervensi ini secara konsisten, "
+            "tanpa ketidakpastian penting?"
         ),
     },
     {
@@ -78,8 +78,8 @@ DOMAINS = [
         "display_name_en": "Equity",
         "description": "Dampak terhadap kesetaraan akses dan outcome.",
         "prompt_text_id": (
-            "Apakah intervensi ini akan meningkatkan, mempertahankan, atau menurunkan "
-            "ekuitas kesehatan di RS Anda?"
+            "Apakah intervensi ini akan meningkatkan - atau setidaknya tidak "
+            "menurunkan - ekuitas kesehatan di rumah sakit Anda?"
         ),
     },
     {

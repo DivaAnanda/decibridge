@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ActionIcon,
   Alert,
+  Badge,
   Button,
   Card,
   Center,
@@ -16,8 +17,8 @@ import {
   Stack,
   Table,
   Text,
-  Textarea,
   TextInput,
+  Textarea,
   Title,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
@@ -35,7 +36,9 @@ import {
 import { useAuth } from '../auth/useAuth'
 import {
   ALTERNATIVE_LABEL,
+  DATA_STATUS_COLOR,
   DATA_STATUS_LABEL,
+  PROVISIONAL_DATA_STATUSES,
   PARAM_KEY_DEFAULT_TYPE,
   PARAM_KEY_LABEL,
   PARAM_TYPE_LABEL,
@@ -59,6 +62,49 @@ const STATUS_OPTIONS = Object.entries(DATA_STATUS_LABEL).map(([value, label]) =>
 function rowKey(p: EconParameterPayload): string {
   return `${p.key}:${p.alternative}:${p.year_index ?? ''}`
 }
+
+interface ProvenanceSummaryProps {
+  params: { data_status: DataStatus }[]
+}
+
+/** Round 3 item 6: proxy and assumption values must not read as final RS data. */
+function ProvenanceSummary({ params }: ProvenanceSummaryProps): JSX.Element | null {
+  if (params.length === 0) return null
+
+  const counts = params.reduce<Record<string, number>>((acc, p) => {
+    acc[p.data_status] = (acc[p.data_status] ?? 0) + 1
+    return acc
+  }, {})
+  const provisional = PROVISIONAL_DATA_STATUSES.reduce(
+    (sum, status) => sum + (counts[status] ?? 0),
+    0,
+  )
+
+  return (
+    <Stack gap="xs" mb="md">
+      <Group gap="xs">
+        {(Object.keys(DATA_STATUS_LABEL) as DataStatus[])
+          .filter((status) => counts[status])
+          .map((status) => (
+            <Badge key={status} color={DATA_STATUS_COLOR[status]} variant="light">
+              {DATA_STATUS_LABEL[status]}: {counts[status]}
+            </Badge>
+          ))}
+      </Group>
+      {provisional > 0 && (
+        <Alert color="orange" variant="light" p="xs">
+          <Text size="xs">
+            {provisional} dari {params.length} parameter masih berstatus proxy atau
+            asumsi, sehingga hasil ekonomi belum boleh diperlakukan sebagai data final
+            rumah sakit. Ganti ke Observed atau Validated setelah diverifikasi terhadap
+            sumbernya.
+          </Text>
+        </Alert>
+      )}
+    </Stack>
+  )
+}
+
 
 export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
   const { hasRole } = useAuth()
@@ -261,9 +307,11 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
 
       {/* ── Parameter registry ─────────────────────────────────────── */}
       <Card withBorder padding="lg" radius="md">
-        <Title order={4} mb="md">
+        <Title order={4} mb="xs">
           Registri Parameter
         </Title>
+
+        <ProvenanceSummary params={params} />
         <Table.ScrollContainer minWidth={860}>
           <Table verticalSpacing="xs">
             <Table.Thead>
