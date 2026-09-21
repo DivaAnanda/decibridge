@@ -212,3 +212,29 @@ class TestImmutability:
         brief.version = brief.version + 1
         with pytest.raises(PermissionError):
             brief.save()
+
+
+@pytest.mark.django_db
+class TestNullableSubScores:
+    """A case with no CBA criteria must still produce a document.
+
+    Sub-scores are nullable by design - an absent CBA is "not assessed", not
+    zero - and formatting None with :.2f crashed generation for every such case.
+    Found by the end-to-end walk, never by these tests, because the fixture
+    always supplied a CBA score.
+    """
+
+    def test_brief_generates_when_cba_was_never_assessed(
+        self, hta_client, approved_case_with_rec
+    ):
+        from apps.recommendation.models import Recommendation
+
+        case, rec = approved_case_with_rec
+        Recommendation.objects.filter(pk=rec.pk).update(
+            cba_score=None, budget_score=None
+        )
+
+        response = hta_client.post(_list_url(case.case_id))
+
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert response.data["status"] == GenerationStatus.COMPLETED.value

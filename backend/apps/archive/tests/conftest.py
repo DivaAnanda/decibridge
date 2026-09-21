@@ -45,3 +45,32 @@ def archived_case(locked_case, ketua_user):
     case_transition(locked_case, "archive", ketua_user, reason="Digantikan versi baru")
     locked_case.refresh_from_db()
     return locked_case
+
+
+@pytest.fixture
+def archived_case_with_brief(locked_case, hta_user, monkeypatch, tmp_path, settings):
+    """A locked case with a real generated policy brief on disk.
+
+    Files land under tmp_path so a tampering test can modify them without
+    touching the developer's media directory. The PDF converter is stubbed -
+    it needs LibreOffice or Word - while the DOCX is written for real, which is
+    what the hash check reads back.
+    """
+    from pathlib import Path
+
+    from apps.policy_brief import service
+
+    settings.MEDIA_ROOT = str(tmp_path)
+
+    def _fake_convert(docx_path: Path, pdf_path: Path) -> None:
+        Path(pdf_path).write_bytes(b"%PDF-1.4\n%fake-pdf-from-test\n%%EOF\n")
+
+    monkeypatch.setattr(service, "_convert_docx_to_pdf", _fake_convert)
+
+    latest_rec = locked_case.recommendations.order_by("-computed_at").first()
+    brief = service.generate_brief(
+        case=locked_case,
+        generated_by=hta_user,
+        source_recommendation=latest_rec,
+    )
+    return locked_case, brief

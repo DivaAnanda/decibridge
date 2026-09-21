@@ -436,3 +436,41 @@ hilir menjaga data yang salah.
 | L4 | Modul manajemen user Admin IT (daftar, aktif/nonaktif, peran, paksa ganti sandi, riwayat & kegagalan masuk) | selesai |
 | — | Pemisahan draft/submit EtD sesuai Step 9 brief | **belum** (peningkatan, bukan bug) |
 | — | Penanda "Validated" | **menunggu jawaban Pak Anom** |
+
+---
+
+# Round 4 — `revisi final.docx` (2026-09-21)
+
+Delapan butir. Beberapa di antaranya meminta **bukti**, bukan fitur baru.
+
+| # | Permintaan | Status |
+|---|---|---|
+| 1 | Perjelas status kasus lama tidak lengkap; pisahkan dari keputusan sah | selesai — badge di daftar kasus, dashboard mengecualikannya dari hitungan, banner penjelas |
+| 2 | Konfirmasi & rapikan akses Admin IT | **sebagian** — rute `/admin/users` bentrok dengan Django admin, sudah dipindah ke `/administrasi/pengguna`. Pertanyaan akses dossier klinis **menunggu Pak Anom** |
+| 3 | Kasus UAT dengan data sintetis | selesai — `seed_uat_cases`: 1 kasus lengkap + 4 varian tidak lengkap |
+| 4 | Buktikan aturan kelengkapan tiap tahap | selesai — `STAGE_REQUIREMENTS`, `docs/stage-requirements.md`, `test_stage_gates_api.py` |
+| 5 | Uji alur lengkap lima role + revisi + penolakan | selesai — `test_uat_end_to_end.py` |
+| 6 | Validasi angka & jelaskan rumus penilaian | **sebagian** — `docs/etd-scoring.md` + perbaikan arah 3 domain. Validasi PSA & keputusan bobot domain **menunggu Pak Anom** |
+| 7 | Konsistensi data setelah sign-off & lock | selesai — `apps/archive/verification.py` + `verify_archive_integrity` |
+| 8 | Rapikan info demo & identitas rilis | selesai — badge build + label "Ilustrasi" di landing page |
+
+## Temuan yang tidak diminta, ditemukan saat mengerjakan
+
+1. **Arah pertanyaan EtD terbalik pada 3 domain**, bukan hanya Nilai & Preferensi
+   yang beliau sebut. Ekuitas mengajukan pertanyaan tiga arah pada skala ya/tidak,
+   dan Masalah mengajukan pertanyaan besaran pada skala yang sama.
+2. **Bobot domain tidak berpengaruh sama sekali.** Anggota KFT menetapkannya,
+   sistem menampilkannya, tetapi rumus tidak pernah memakainya. Perlu keputusan —
+   lihat `docs/etd-scoring.md` bagian 7.1.
+3. **Tahap submit tidak punya gate kelengkapan** sebelum round ini.
+4. **Policy brief gagal total untuk kasus tanpa CBA.** Sub-skor bersifat nullable
+   sejak R3 ("belum dinilai"), tetapi dokumen memformatnya dengan `:.2f` sehingga
+   `TypeError`. Ditemukan oleh uji alur penuh, bukan oleh uji policy brief yang
+   fixture-nya selalu menyediakan skor CBA.
+
+## Masih menunggu jawaban Pak Anom
+
+1. **Bobot domain EtD** — diterapkan, dijadikan advisory, atau dihapus?
+2. **Akses Admin IT ke dossier klinis** — landing page menyebut "tanpa akses
+   klinis", tetapi ringkasan klinis terlihat. Yang mana yang benar?
+3. **Proporsi judgement vs certainty** pada `combined_domain_score` (kini 50/50).

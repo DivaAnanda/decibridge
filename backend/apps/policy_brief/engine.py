@@ -311,6 +311,18 @@ def _build_cover(doc, ctx: BriefContext) -> None:
     doc.add_paragraph()
 
 
+def _score(value, *, suffix: str = "") -> str:
+    """Render a sub-score, or say so when it was never assessed.
+
+    Sub-scores are nullable by design: an absent CBA is "not assessed" rather
+    than zero, and a BIA without a budget baseline scores null. Formatting those
+    with :.2f raised TypeError and failed the whole document.
+    """
+    if value is None:
+        return "Belum dinilai"
+    return f"{value:.2f}{suffix}"
+
+
 def _build_executive_summary(doc, ctx: BriefContext) -> None:
     _add_heading(doc, "1. Ringkasan Eksekutif", level=1)
     if not ctx.recommendation:
@@ -321,11 +333,11 @@ def _build_executive_summary(doc, ctx: BriefContext) -> None:
     doc.add_paragraph()
 
     summary_rows = [
-        ["Skor Komposit", f"{ctx.recommendation.composite_score:.2f} / 100"],
-        ["Bukti EtD (bobot 40%)", f"{ctx.recommendation.evidence_score:.2f}"],
-        ["Cost-effectiveness (bobot 30%)", f"{ctx.recommendation.ce_score:.2f}"],
-        ["Dampak Anggaran (bobot 20%)", f"{ctx.recommendation.budget_score:.2f}"],
-        ["Kriteria CBA (bobot 10%)", f"{ctx.recommendation.cba_score:.2f}"],
+        ["Skor Komposit", _score(ctx.recommendation.composite_score, suffix=" / 100")],
+        ["Bukti EtD (bobot 40%)", _score(ctx.recommendation.evidence_score)],
+        ["Cost-effectiveness (bobot 30%)", _score(ctx.recommendation.ce_score)],
+        ["Dampak Anggaran (bobot 20%)", _score(ctx.recommendation.budget_score)],
+        ["Kriteria CBA (bobot 10%)", _score(ctx.recommendation.cba_score)],
         ["Algoritma", ctx.recommendation.algorithm_version],
         ["Waktu komputasi", _datetime_id(ctx.recommendation.computed_at)],
     ]
