@@ -19,10 +19,34 @@ checklist render exactly the same list — no duplicated rules in the frontend.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 # Transitions that require a complete dossier.
-GATED_TRANSITIONS = frozenset({"approve", "lock"})
+GATED_TRANSITIONS = frozenset({"submit", "approve", "lock"})
+
+# Round 4 item 4: "Persyaratannya disesuaikan dengan fungsi masing-masing tahap."
+# Which requirements are mandatory depends on the stage. Submitting for review
+# only needs a real decision question -- the analysis is what the review is for.
+# Approval needs the full dossier. Locking additionally needs a recorded
+# signature, which cannot exist any earlier.
+STAGE_REQUIREMENTS: dict[str, frozenset[str]] = {
+    "submit": frozenset({"pico"}),
+    "approve": frozenset(
+        {"pico", "economic_analysis", "budget_impact", "etd_domains", "recommendation"}
+    ),
+    "lock": frozenset(
+        {
+            "pico",
+            "economic_analysis",
+            "budget_impact",
+            "etd_domains",
+            "recommendation",
+            "signoff",
+        }
+    ),
+}
+# The Sign-Off checklist renders without naming an action; show the approve set.
+DEFAULT_STAGE = "approve"
 
 # Transitions gated on the stricter archival integrity check (Round 3), which
 # additionally requires an immutable snapshot and a recorded sign-off.
@@ -156,19 +180,23 @@ def _cba_requirement(case) -> Requirement:
 
 
 def evaluate_readiness(case, *, action: str | None = None) -> dict:
-    """Return the full checklist plus whether the case may be approved/locked.
+    """Return the full checklist plus whether `action` may proceed.
 
-    `action` tightens the rule for lock: a signature cannot exist before the
-    case is approved, so sign-off is advisory on the approve step and mandatory
-    on the lock step.
+    Every requirement is always reported so the UI can show the whole picture;
+    `mandatory` says which ones actually block this particular stage.
     """
+    required = STAGE_REQUIREMENTS.get(action or DEFAULT_STAGE, STAGE_REQUIREMENTS[DEFAULT_STAGE])
+
     requirements = [
         _pico_requirement(case),
         *_econ_requirements(case),
         _etd_requirement(case),
         _recommendation_requirement(case),
-        _signoff_requirement(case, mandatory=action == "lock"),
+        _signoff_requirement(case, mandatory=True),
         _cba_requirement(case),
+    ]
+    requirements = [
+        replace(r, mandatory=r.mandatory and r.key in required) for r in requirements
     ]
     missing = [r for r in requirements if r.mandatory and not r.satisfied]
     return {

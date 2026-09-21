@@ -33,6 +33,13 @@ echo "==> Backfilling decision snapshots (idempotent)"
 # marked `backfilled: true`.
 python manage.py backfill_decision_snapshots ||     echo "    (skipped — non-fatal; re-run manually if needed)"
 
+echo "==> Seeding labelled UAT cases (idempotent)"
+# Round 4 item 3 asked for these to exist for acceptance testing. There is no
+# separate test environment, so they live on the deploy, clearly prefixed UAT_
+# and titled "bukan keputusan klinis". Only ever creates UAT_ cases; existing
+# cases are never read or modified.
+python manage.py seed_uat_cases ||     echo "    (skipped - non-fatal; re-run manually if needed)"
+
 echo "==> Auditing case integrity (idempotent)"
 # Recomputes integrity_flag from current data on every boot, so a case that gets
 # remediated clears itself. Only ever writes the three integrity_* columns, so

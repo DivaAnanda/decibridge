@@ -6,6 +6,25 @@ from rest_framework import status
 from apps.audit.models import AuditLog
 from apps.cases.models import Case, CaseStatus
 
+
+def _submittable(case):
+    """Submitting now requires a complete PICO (Round 4 item 4)."""
+    from apps.cases.models import DecisionQuestion
+
+    DecisionQuestion.objects.get_or_create(
+        case=case,
+        order=1,
+        defaults={
+            "question_text": "Apakah ARNI perlu masuk formularium?",
+            "pico_population": "Pasien HFrEF dewasa",
+            "pico_intervention": "ARNI",
+            "pico_comparator": "ACEI",
+            "pico_outcome": "Rehospitalisasi 12 bulan",
+        },
+    )
+    return case
+
+
 PILOT_PAYLOAD = {
     "case_id": "HF_ARNI_ACEI_001",
     "case_title": "ARNI vs ACEI pada pasien HFrEF",
@@ -73,6 +92,7 @@ class TestCaseList:
 @pytest.mark.django_db
 class TestCaseTransitionEndpoint:
     def test_submit_returns_updated_case(self, hta_client, pilot_case):
+        _submittable(pilot_case)
         response = hta_client.post(
             f"/api/v1/cases/{pilot_case.case_id}/transition/",
             {"action": "submit"},
@@ -82,6 +102,7 @@ class TestCaseTransitionEndpoint:
         assert response.data["status"] == "in_review"
 
     def test_hta_cannot_approve(self, hta_client, pilot_case):
+        _submittable(pilot_case)
         hta_client.post(
             f"/api/v1/cases/{pilot_case.case_id}/transition/",
             {"action": "submit"},
@@ -108,6 +129,7 @@ class TestCaseTransitionEndpoint:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_transition_writes_audit_entry(self, hta_client, pilot_case):
+        _submittable(pilot_case)
         before = AuditLog.objects.count()
         hta_client.post(
             f"/api/v1/cases/{pilot_case.case_id}/transition/",

@@ -20,6 +20,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 
 from apps.cases.completeness import evaluate_readiness
+from apps.cases.management.commands.seed_uat_cases import ALL_UAT_CASE_IDS
 from apps.cases.models import Case, CaseStatus, DecisionQuestion
 from apps.cases.state_machine import transition
 
@@ -149,35 +150,82 @@ class TestValidatedDataStatus:
         assert param.data_status == "validated"
 
 
-class TestSignoffFixtureCommand:
-    def test_command_creates_both_in_review_cases(self, hta_user, kft_member_user):
-        call_command("seed_signoff_test_cases", stdout=StringIO())
+class TestUATFixtures:
+    """Round 4 item 3: one complete case plus deliberately incomplete variants."""
 
-        incomplete = Case.objects.get(case_id="SIGNOFF_TEST_INCOMPLETE")
-        complete = Case.objects.get(case_id="SIGNOFF_TEST_COMPLETE")
-        assert incomplete.status == CaseStatus.IN_REVIEW
-        assert complete.status == CaseStatus.IN_REVIEW
+    def test_command_creates_every_labelled_case(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
 
-    def test_incomplete_fixture_is_refused_at_approval(self, hta_user, kft_member_user):
-        call_command("seed_signoff_test_cases", stdout=StringIO())
-        case = Case.objects.get(case_id="SIGNOFF_TEST_INCOMPLETE")
+        for case_id in ALL_UAT_CASE_IDS:
+            case = Case.objects.get(case_id=case_id)
+            assert "UAT - bukan keputusan klinis" in case.case_title
+
+    def test_complete_case_passes_the_approval_gate(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_LENGKAP")
+
+        readiness = evaluate_readiness(case, action="approve")
+
+        assert case.status == CaseStatus.IN_REVIEW
+        assert readiness["is_ready"] is True, readiness["missing"]
+
+    def test_complete_case_has_computed_economics(self, hta_user, kft_member_user):
+        """CEA/BIA/PSA are run by the engines, not written in by hand."""
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_LENGKAP")
+
+        assert case.econ_deterministic_results.exists()
+        assert case.econ_bia_results.exists()
+        assert case.econ_psa_results.exists()
+
+    def test_case_without_pico_cannot_submit(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_TANPA_PICO")
+
+        readiness = evaluate_readiness(case, action="submit")
+
+        assert case.status == CaseStatus.DRAFT
+        assert readiness["is_ready"] is False
+        assert _keys(readiness)["pico"] is False
+
+    def test_case_without_economics_cannot_be_approved(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_TANPA_EKONOMI")
 
         readiness = evaluate_readiness(case, action="approve")
 
         assert readiness["is_ready"] is False
-        assert _keys(readiness)["pico"] is True
         assert _keys(readiness)["economic_analysis"] is False
 
-    def test_complete_fixture_passes_the_approval_gate(self, hta_user, kft_member_user):
-        call_command("seed_signoff_test_cases", stdout=StringIO())
-        case = Case.objects.get(case_id="SIGNOFF_TEST_COMPLETE")
+    def test_partial_etd_case_cannot_be_approved(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_ETD_SEBAGIAN")
 
         readiness = evaluate_readiness(case, action="approve")
 
-        assert readiness["is_ready"] is True, readiness["missing"]
+        assert readiness["is_ready"] is False
+        assert _keys(readiness)["etd_domains"] is False
+
+    def test_unsigned_case_cannot_be_locked(self, hta_user, kft_member_user):
+        call_command("seed_uat_cases", stdout=StringIO())
+        case = Case.objects.get(case_id="UAT_TANPA_TANDA_TANGAN")
+
+        readiness = evaluate_readiness(case, action="lock")
+
+        assert case.status == CaseStatus.APPROVED
+        assert "Sign-off Ketua KFT tercatat" in readiness["missing"]
 
     def test_command_is_idempotent(self, hta_user, kft_member_user):
-        call_command("seed_signoff_test_cases", stdout=StringIO())
-        call_command("seed_signoff_test_cases", stdout=StringIO())
+        call_command("seed_uat_cases", stdout=StringIO())
+        call_command("seed_uat_cases", stdout=StringIO())
 
-        assert Case.objects.filter(case_id="SIGNOFF_TEST_COMPLETE").count() == 1
+        assert Case.objects.filter(case_id__startswith="UAT_").count() == len(ALL_UAT_CASE_IDS)
+
+    def test_existing_cases_are_untouched(self, hta_user, kft_member_user, pilot_case):
+        """'Data kasus lama tetap dipertahankan.'"""
+        before = pilot_case.case_title
+
+        call_command("seed_uat_cases", stdout=StringIO())
+
+        pilot_case.refresh_from_db()
+        assert pilot_case.case_title == before
