@@ -43,6 +43,24 @@ CASE_PAYLOAD = {
 }
 
 
+@pytest.fixture(autouse=True)
+def fake_pdf_converter(monkeypatch):
+    """Stub the PDF step, as the policy-brief tests do.
+
+    The real converter drives MS Word (or LibreOffice on Linux), so the brief
+    step failed whenever Word was busy and this walk was flaky on a full run.
+    The DOCX is still generated for real; only the PDF conversion is stubbed.
+    """
+    from pathlib import Path
+
+    from apps.policy_brief import service
+
+    def _fake_convert(docx_path: Path, pdf_path: Path) -> None:
+        Path(pdf_path).write_bytes(b"%PDF-1.4\n%fake-pdf-from-test\n%%EOF\n")
+
+    monkeypatch.setattr(service, "_convert_docx_to_pdf", _fake_convert)
+
+
 def _transition(client, action: str, reason: str = ""):
     payload = {"action": action}
     if reason:

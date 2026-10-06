@@ -15,7 +15,39 @@ from .models import (
     ParamType,
 )
 
-_UNIT_INTERVAL_TYPES = {ParamType.PROBABILITY, ParamType.UTILITY, ParamType.DISUTILITY}
+# Uptake and market share are stored as `rate` and are proportions too; they were
+# missing here, so a market share of 11 (1100%) saved without complaint.
+_UNIT_INTERVAL_TYPES = {
+    ParamType.PROBABILITY,
+    ParamType.UTILITY,
+    ParamType.DISUTILITY,
+    ParamType.RATE,
+}
+
+_UNIT_INTERVAL_NOUN = {
+    ParamType.PROBABILITY: "Probabilitas",
+    ParamType.UTILITY: "Utility",
+    ParamType.DISUTILITY: "Disutility",
+    ParamType.RATE: "Uptake/market share",
+}
+
+
+def _plain(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
+def unit_interval_message(param_type: str, value: Decimal) -> str:
+    """Say what to type, not only that the value is wrong.
+
+    The usual mistake is a percentage (70 for 70%), so name the conversion.
+    """
+    noun = _UNIT_INTERVAL_NOUN.get(param_type, "Nilai")
+    if Decimal("1") < value <= Decimal("100"):
+        return (
+            f"{noun} ditulis sebagai proporsi 0-1, bukan persen: "
+            f"untuk {_plain(value)}% isi {_plain(value / Decimal('100'))}."
+        )
+    return f"{noun} harus berada pada rentang 0-1 (diisi {_plain(value)})."
 
 
 class EconomicModelSerializer(serializers.ModelSerializer):
@@ -102,10 +134,12 @@ class EconomicParameterSerializer(serializers.ModelSerializer):
         if value is not None:
             if param_type in _UNIT_INTERVAL_TYPES and not (Decimal("0") <= value <= Decimal("1")):
                 raise serializers.ValidationError(
-                    {"value": "Probabilitas/utility harus berada pada rentang 0–1."}
+                    {"value": unit_interval_message(param_type, value)}
                 )
             if param_type == ParamType.COST and value < 0:
                 raise serializers.ValidationError({"value": "Biaya tidak boleh negatif."})
+            if param_type == ParamType.COUNT and value < 0:
+                raise serializers.ValidationError({"value": "Jumlah tidak boleh negatif."})
         return attrs
 
 

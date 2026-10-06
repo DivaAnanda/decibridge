@@ -62,6 +62,43 @@ class EconModelView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+def _row_errors(payload: list, errors) -> list[dict]:
+    """Flatten DRF's per-item errors into rows the UI can point at.
+
+    The frontend previously read only `.detail`, which a bulk error does not
+    have, so the user saw "Gagal menyimpan parameter." with no row and no reason
+    while the atomic save discarded every row, including the valid ones.
+
+    The shape depends on the DRF version: 3.17 returns a list aligned with the
+    payload, 3.18 a dict holding only the failing rows, keyed by index. The
+    Docker image resolved 3.18 while the local venv had 3.17, so both are handled.
+    """
+    if isinstance(errors, dict):
+        indexed = sorted((int(k), v) for k, v in errors.items())
+    else:
+        indexed = list(enumerate(errors))
+
+    rows: list[dict] = []
+    for index, item_errors in indexed:
+        if not item_errors:
+            continue
+        if not isinstance(item_errors, dict):
+            item_errors = {"non_field_errors": item_errors}
+        item = payload[index] if index < len(payload) and isinstance(payload[index], dict) else {}
+        for field, messages in item_errors.items():
+            for message in messages if isinstance(messages, list) else [messages]:
+                rows.append(
+                    {
+                        "index": index,
+                        "key": item.get("key", ""),
+                        "alternative": item.get("alternative", ""),
+                        "field": field,
+                        "message": str(message),
+                    }
+                )
+    return rows
+
+
 class EconParametersView(APIView):
     """GET list / PUT bulk-upsert the parameter set for a case.
 
@@ -101,7 +138,18 @@ class EconParametersView(APIView):
             )
 
         serializer = EconomicParameterSerializer(data=payload, many=True)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            row_errors = _row_errors(payload, serializer.errors)
+            return Response(
+                {
+                    "detail": (
+                        f"{len(row_errors)} baris parameter belum valid, sehingga tidak ada "
+                        "parameter yang disimpan. Perbaiki baris yang ditandai lalu simpan lagi."
+                    ),
+                    "row_errors": row_errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         for item in serializer.validated_data:
             EconomicParameter.objects.update_or_create(

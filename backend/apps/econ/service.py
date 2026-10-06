@@ -71,7 +71,12 @@ def _resolve_alternative(model: EconomicModel, alt: str, missing: list[str]) -> 
     def need(key: str) -> Decimal:
         val = model.value_of(key, alt)
         if val is None:
-            missing.append(f"{ParamKey(key).label} ({alt})")
+            # Shared keys resolve through a Bersama row, so naming only the arm
+            # led users to enter the same value twice.
+            where = Alternative(alt).label
+            if key in _REQUIRED_SHARED:
+                where = f"{where} atau Bersama"
+            missing.append(f"{ParamKey(key).label} ({where})")
             return Decimal("0")
         return val
 

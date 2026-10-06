@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ActionIcon,
@@ -45,6 +45,7 @@ import {
   type Alternative,
   type DataStatus,
   type EconModelPayload,
+  type EconParameter,
   type EconParameterPayload,
 } from './types'
 import { EconResultCard } from './EconResultCard'
@@ -106,6 +107,34 @@ function ProvenanceSummary({ params }: ProvenanceSummaryProps): JSX.Element | nu
 }
 
 
+interface RowError {
+  index: number
+  key: string
+  alternative: string
+  field: string
+  message: string
+}
+
+// Proportions: the backend rejects anything outside 0-1, so say so on the field.
+const UNIT_INTERVAL_TYPES = new Set<string>(['probability', 'utility', 'disutility', 'rate'])
+
+function toPayload(p: EconParameter): EconParameterPayload {
+  return {
+    key: p.key,
+    alternative: p.alternative,
+    year_index: p.year_index,
+    value: p.value,
+    unit: p.unit,
+    param_type: p.param_type,
+    data_status: p.data_status,
+    source_reference: p.source_reference,
+    source_year: p.source_year,
+    notes: p.notes,
+    label: p.label,
+  }
+}
+
+
 export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
   const { hasRole } = useAuth()
   const canEdit = !caseIsLocked && hasRole('hta_analyst', 'farmasi_sekretaris')
@@ -117,6 +146,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
 
   const [params, setParams] = useState<EconParameterPayload[]>([])
   const [missing, setMissing] = useState<string[]>([])
+  const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({})
   const [newKey, setNewKey] = useState<string>('drug_cost')
   const [newAlt, setNewAlt] = useState<Alternative>('intervention')
 
@@ -151,25 +181,18 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelQuery.data])
 
+  const savedParams = useMemo(() => (paramsQuery.data ?? []).map(toPayload), [paramsQuery.data])
+
   useEffect(() => {
     if (paramsQuery.data) {
-      setParams(
-        paramsQuery.data.map((p) => ({
-          key: p.key,
-          alternative: p.alternative,
-          year_index: p.year_index,
-          value: p.value,
-          unit: p.unit,
-          param_type: p.param_type,
-          data_status: p.data_status,
-          source_reference: p.source_reference,
-          source_year: p.source_year,
-          notes: p.notes,
-          label: p.label,
-        })),
-      )
+      setParams(savedParams)
+      setRowErrors({})
     }
-  }, [paramsQuery.data])
+  }, [paramsQuery.data, savedParams])
+
+  // "Hitung" computes from what the server holds, so unsaved edits were silently
+  // ignored. Tracking the difference lets Hitung save first.
+  const isDirty = JSON.stringify(params) !== JSON.stringify(savedParams)
 
   const saveModel = useMutation({
     mutationFn: (payload: EconModelPayload) => saveEconModel(caseId, payload),
@@ -186,8 +209,20 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
       queryClient.setQueryData(['econ', caseId, 'params'], saved)
       notifications.show({ color: 'teal', message: 'Parameter disimpan.' })
     },
-    onError: (err: { response?: { data?: { detail?: string } } }) =>
-      notifications.show({ color: 'red', message: err.response?.data?.detail ?? 'Gagal menyimpan parameter.' }),
+    onError: (err: { response?: { data?: { detail?: string; row_errors?: RowError[] } } }) => {
+      const data = err.response?.data
+      const byRow: Record<number, string[]> = {}
+      for (const e of data?.row_errors ?? []) {
+        byRow[e.index] = [...(byRow[e.index] ?? []), e.message]
+      }
+      setRowErrors(byRow)
+      notifications.show({
+        color: 'red',
+        title: 'Parameter belum tersimpan',
+        message: data?.detail ?? 'Gagal menyimpan parameter.',
+        autoClose: 10000,
+      })
+    },
   })
 
   const compute = useMutation({
@@ -215,10 +250,28 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
 
   const updateParam = (idx: number, patch: Partial<EconParameterPayload>): void => {
     setParams((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)))
+    setRowErrors((prev) => {
+      if (!(idx in prev)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
   }
 
   const removeParam = (idx: number): void => {
     setParams((prev) => prev.filter((_, i) => i !== idx))
+    setRowErrors({})
+  }
+
+  const handleCompute = (): void => {
+    if (!isDirty) {
+      compute.mutate()
+      return
+    }
+    saveParams
+      .mutateAsync(params)
+      .then(() => compute.mutate())
+      .catch(() => undefined)
   }
 
   const addParam = (): void => {
@@ -236,6 +289,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
       return
     }
     setParams((prev) => [...prev, candidate])
+    setRowErrors({})
   }
 
   const latestResult = resultQuery.data
@@ -342,6 +396,15 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
                       disabled={!canEdit}
                       value={p.value}
                       onChange={(e) => updateParam(idx, { value: e.currentTarget.value })}
+                      error={rowErrors[idx]?.join(' ')}
+                      rightSection={
+                        UNIT_INTERVAL_TYPES.has(p.param_type) ? (
+                          <Text size="xs" c="dimmed">
+                            0-1
+                          </Text>
+                        ) : undefined
+                      }
+                      rightSectionWidth={32}
                     />
                   </Table.Td>
                   <Table.Td>
@@ -421,14 +484,19 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
               </Button>
               <Button
                 leftSection={<IconCalculator size={16} />}
-                loading={compute.isPending}
+                loading={compute.isPending || saveParams.isPending}
                 color="teal"
-                onClick={() => compute.mutate()}
+                onClick={handleCompute}
                 disabled={!modelQuery.data}
               >
-                Hitung
+                {isDirty ? 'Simpan & Hitung' : 'Hitung'}
               </Button>
             </Group>
+            {isDirty && (
+              <Text size="xs" c="orange" ta="right" mt="xs">
+                Ada perubahan parameter yang belum disimpan.
+              </Text>
+            )}
             {!modelQuery.data && (
               <Text size="xs" c="dimmed" ta="right" mt="xs">
                 Simpan model terlebih dahulu sebelum menghitung.
