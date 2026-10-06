@@ -39,6 +39,9 @@ function idr(value: string, dp = 0): string {
 
 function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
   const color = BIA_SEVERITY_COLOR[result.severity] ?? 'gray'
+  // Per-year share of the annual budget; the headline figure is over the whole
+  // horizon, which is not what the training package's key reports.
+  const hasBaseline = result.annual_budget_baseline !== null
   const label = BIA_SEVERITY_LABEL[result.severity] ?? result.severity
   return (
     <Card withBorder padding="lg" radius="md">
@@ -55,7 +58,7 @@ function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
           <Text ff="monospace" fw={600}>Rp {idr(result.cumulative_net_impact)}</Text>
         </Grid.Col>
         <Grid.Col span={{ base: 6, sm: 4 }}>
-          <Text size="xs" c="dimmed">% dari anggaran (horizon)</Text>
+          <Text size="xs" c="dimmed">% dari anggaran (seluruh horizon)</Text>
           <Text ff="monospace" fw={600}>{Number(result.pct_of_total_baseline).toFixed(2)}%</Text>
         </Grid.Col>
         <Grid.Col span={{ base: 6, sm: 4 }}>
@@ -119,6 +122,7 @@ function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
               <Table.Th>Cost offset kejadian</Table.Th>
               <Table.Th>Dampak bersih</Table.Th>
               <Table.Th>Kumulatif</Table.Th>
+              {hasBaseline && <Table.Th>% anggaran tahunan</Table.Th>}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -130,6 +134,9 @@ function BIAResultCard({ result }: { result: EconBIAResult }): JSX.Element {
                 <Table.Td ff="monospace">{idr(r.event_cost_offset)}</Table.Td>
                 <Table.Td ff="monospace">{idr(r.net_budget_impact)}</Table.Td>
                 <Table.Td ff="monospace">{idr(r.cumulative_net_impact)}</Table.Td>
+                {hasBaseline && (
+                  <Table.Td ff="monospace">{Number(r.pct_of_annual_baseline).toFixed(2)}%</Table.Td>
+                )}
               </Table.Tr>
             ))}
           </Table.Tbody>

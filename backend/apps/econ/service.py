@@ -234,7 +234,7 @@ def build_bia_input(model: EconomicModel) -> BIAInput:
 
     years: list[BIAYearParams] = []
     eligible_y1 = Decimal("0")
-    for t in range(1, model.horizon_years + 1):
+    for t in range(1, model.effective_bia_horizon + 1):
         eligible = model.value_of(ParamKey.ELIGIBLE_POPULATION, Alternative.SHARED, year_index=t)
         uptake = model.value_of(ParamKey.UPTAKE, Alternative.SHARED, year_index=t)
         if eligible is None:
@@ -270,7 +270,7 @@ def build_bia_input(model: EconomicModel) -> BIAInput:
 
     base_share = model.value_of(ParamKey.MARKET_SHARE, Alternative.SHARED)
     return BIAInput(
-        horizon_years=model.horizon_years,
+        horizon_years=model.effective_bia_horizon,
         annual_budget_baseline=model.annual_budget_baseline,
         event_cost=event_cost,
         intervention=intervention,

@@ -61,6 +61,7 @@ def _econ_block(case) -> dict:
     if model is not None:
         block["model"] = {
             "horizon_years": model.horizon_years,
+            "bia_horizon_years": model.bia_horizon_years,
             "cost_discount_rate": _s(model.cost_discount_rate),
             "outcome_discount_rate": _s(model.outcome_discount_rate),
             "wtp_threshold": _s(model.wtp_threshold),

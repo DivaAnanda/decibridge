@@ -76,6 +76,7 @@ interface AuditUser {
 export interface EconModel {
   id: number
   horizon_years: number
+  bia_horizon_years: number | null
   cost_discount_rate: string
   outcome_discount_rate: string
   wtp_threshold: string
@@ -89,6 +90,7 @@ export interface EconModel {
 
 export interface EconModelPayload {
   horizon_years: number
+  bia_horizon_years?: number | '' | null
   cost_discount_rate: string
   outcome_discount_rate: string
   wtp_threshold: string
@@ -110,6 +112,9 @@ export interface EconParameter {
   source_reference: string
   source_year: number | null
   notes: string
+  distribution: string
+  dist_param1: string | null
+  dist_param2: string | null
   version: number
 }
 
@@ -125,6 +130,9 @@ export interface EconParameterPayload {
   source_year?: number | null
   notes?: string
   label?: string
+  distribution?: string
+  dist_param1?: string | null
+  dist_param2?: string | null
 }
 
 export interface YearRow {

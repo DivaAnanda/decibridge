@@ -59,6 +59,7 @@ class EconomicModelSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "horizon_years",
+            "bia_horizon_years",
             "cost_discount_rate",
             "outcome_discount_rate",
             "wtp_threshold",
@@ -70,6 +71,11 @@ class EconomicModelSerializer(serializers.ModelSerializer):
             "last_edited_by",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "created_by", "last_edited_by"]
+
+    def validate_bia_horizon_years(self, value: int | None) -> int | None:
+        if value is not None and value < 1:
+            raise serializers.ValidationError("Horizon BIA minimal 1 tahun.")
+        return value
 
     def validate_horizon_years(self, value: int) -> int:
         if value < 1:

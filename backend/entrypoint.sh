@@ -40,6 +40,12 @@ echo "==> Seeding labelled UAT cases (idempotent)"
 # cases are never read or modified.
 python manage.py seed_uat_cases ||     echo "    (skipped - non-fatal; re-run manually if needed)"
 
+echo "==> Loading training case DB_DEMO_HF_001 (create-only)"
+# Synthetic case from the lecturer's DeciBridge_Demo_Training_Package.xlsx.
+# Creates the case only when missing and never overwrites existing values, so
+# students' work on it (e.g. the price-revision exercise) survives a deploy.
+python manage.py seed_demo_training_case ||     echo "    (skipped - non-fatal; re-run manually if needed)"
+
 echo "==> Auditing case integrity (idempotent)"
 # Recomputes integrity_flag from current data on every boot, so a case that gets
 # remediated clears itself. Only ever writes the three integrity_* columns, so

@@ -118,12 +118,17 @@ interface RowError {
 // Proportions: the backend rejects anything outside 0-1, so say so on the field.
 const UNIT_INTERVAL_TYPES = new Set<string>(['probability', 'utility', 'disutility', 'rate'])
 
+// Stored decimals carry ten places ("200.0000000000"); show them as typed.
+function trimDecimal(value: string): string {
+  return value.includes('.') ? value.replace(/\.?0+$/, '') : value
+}
+
 function toPayload(p: EconParameter): EconParameterPayload {
   return {
     key: p.key,
     alternative: p.alternative,
     year_index: p.year_index,
-    value: p.value,
+    value: trimDecimal(p.value),
     unit: p.unit,
     param_type: p.param_type,
     data_status: p.data_status,
@@ -131,6 +136,10 @@ function toPayload(p: EconParameter): EconParameterPayload {
     source_year: p.source_year,
     notes: p.notes,
     label: p.label,
+    // Carried through untouched so saving the table never drops the PSA set-up.
+    distribution: p.distribution,
+    dist_param1: p.dist_param1,
+    dist_param2: p.dist_param2,
   }
 }
 
@@ -149,10 +158,14 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
   const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({})
   const [newKey, setNewKey] = useState<string>('drug_cost')
   const [newAlt, setNewAlt] = useState<Alternative>('intervention')
+  // '' = applies to every year; otherwise a specific year, e.g. BIA eligible
+  // population 200/220/240 in years 1-3 of the training package.
+  const [newYear, setNewYear] = useState<string>('')
 
   const form = useForm<EconModelPayload>({
     initialValues: {
       horizon_years: 1,
+      bia_horizon_years: '',
       cost_discount_rate: '0',
       outcome_discount_rate: '0',
       wtp_threshold: '85000000',
@@ -171,6 +184,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
     if (modelQuery.data) {
       form.setValues({
         horizon_years: modelQuery.data.horizon_years,
+        bia_horizon_years: modelQuery.data.bia_horizon_years ?? '',
         cost_discount_rate: modelQuery.data.cost_discount_rate,
         outcome_discount_rate: modelQuery.data.outcome_discount_rate,
         wtp_threshold: modelQuery.data.wtp_threshold,
@@ -193,6 +207,18 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
   // "Hitung" computes from what the server holds, so unsaved edits were silently
   // ignored. Tracking the difference lets Hitung save first.
   const isDirty = JSON.stringify(params) !== JSON.stringify(savedParams)
+
+  const maxYears = Math.max(
+    Number(form.values.horizon_years) || 1,
+    Number(form.values.bia_horizon_years) || 0,
+  )
+  const yearOptions = [
+    { value: '', label: 'Semua tahun' },
+    ...Array.from({ length: maxYears }, (_, i) => ({
+      value: String(i + 1),
+      label: `Tahun ${i + 1}`,
+    })),
+  ]
 
   const saveModel = useMutation({
     mutationFn: (payload: EconModelPayload) => saveEconModel(caseId, payload),
@@ -278,7 +304,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
     const candidate: EconParameterPayload = {
       key: newKey,
       alternative: newAlt,
-      year_index: null,
+      year_index: newYear ? Number(newYear) : null,
       value: '0',
       unit: '',
       param_type: PARAM_KEY_DEFAULT_TYPE[newKey] ?? 'cost',
@@ -320,13 +346,27 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
         </Group>
         <form
           onSubmit={form.onSubmit((values) =>
-            saveModel.mutate({ ...values, annual_budget_baseline: values.annual_budget_baseline || null }),
+            saveModel.mutate({
+              ...values,
+              annual_budget_baseline: values.annual_budget_baseline || null,
+              bia_horizon_years: values.bia_horizon_years ? Number(values.bia_horizon_years) : null,
+            }),
           )}
         >
           <fieldset disabled={!canEdit} style={{ border: 'none', padding: 0, margin: 0 }}>
             <Grid>
               <Grid.Col span={{ base: 6, sm: 3 }}>
-                <NumberInput label="Horizon (tahun)" min={1} disabled={!canEdit} {...form.getInputProps('horizon_years')} />
+                <NumberInput label="Horizon CEA (tahun)" min={1} disabled={!canEdit} {...form.getInputProps('horizon_years')} />
+              </Grid.Col>
+              <Grid.Col span={{ base: 6, sm: 3 }}>
+                <NumberInput
+                  label="Horizon BIA (tahun)"
+                  description="Kosong = sama dengan horizon CEA"
+                  min={1}
+                  allowDecimal={false}
+                  disabled={!canEdit}
+                  {...form.getInputProps('bia_horizon_years')}
+                />
               </Grid.Col>
               <Grid.Col span={{ base: 6, sm: 3 }}>
                 <TextInput label="Discount rate biaya" description="mis. 0.03" disabled={!canEdit} {...form.getInputProps('cost_discount_rate')} />
@@ -384,7 +424,14 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
               {params.map((p, idx) => (
                 <Table.Tr key={`${rowKey(p)}:${idx}`}>
                   <Table.Td>
-                    <Text size="sm">{PARAM_KEY_LABEL[p.key] ?? p.key}</Text>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm">{PARAM_KEY_LABEL[p.key] ?? p.key}</Text>
+                      {p.year_index != null && (
+                        <Badge size="xs" variant="outline" color="gray">
+                          Tahun {p.year_index}
+                        </Badge>
+                      )}
+                    </Group>
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm">{ALTERNATIVE_LABEL[p.alternative]}</Text>
@@ -469,6 +516,14 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
             <Group align="flex-end">
               <Select label="Parameter" data={KEY_OPTIONS} value={newKey} allowDeselect={false} onChange={(v) => setNewKey(v ?? 'drug_cost')} w={260} />
               <Select label="Alternatif" data={ALT_OPTIONS} value={newAlt} allowDeselect={false} onChange={(v) => setNewAlt((v ?? 'intervention') as Alternative)} w={160} />
+              <Select
+                label="Tahun"
+                data={yearOptions}
+                value={newYear}
+                allowDeselect={false}
+                onChange={(v) => setNewYear(v ?? '')}
+                w={150}
+              />
               <Button variant="light" leftSection={<IconPlus size={16} />} onClick={addParam}>
                 Tambah
               </Button>

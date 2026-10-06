@@ -62,6 +62,19 @@ class EconModelView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+# Fields a bulk save may omit; omitted means "leave as stored", not "reset".
+_OPTIONAL_PARAMETER_FIELDS = (
+    "label",
+    "unit",
+    "source_reference",
+    "source_year",
+    "notes",
+    "distribution",
+    "dist_param1",
+    "dist_param2",
+)
+
+
 def _row_errors(payload: list, errors) -> list[dict]:
     """Flatten DRF's per-item errors into rows the UI can point at.
 
@@ -151,28 +164,30 @@ class EconParametersView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        for item in serializer.validated_data:
-            EconomicParameter.objects.update_or_create(
+        for raw, item in zip(payload, serializer.validated_data):
+            # Only overwrite what the client actually sent. The table never sent
+            # the PSA distribution fields, and defaulting them here reset every
+            # distribution to "fixed" on each save - one click wiped the PSA set-up.
+            defaults = {
+                "value": item["value"],
+                "param_type": item.get("param_type"),
+                "data_status": item.get("data_status"),
+                "last_edited_by": request.user,
+            }
+            for field in _OPTIONAL_PARAMETER_FIELDS:
+                if field in raw:
+                    defaults[field] = item.get(field)
+            obj, created = EconomicParameter.objects.get_or_create(
                 economic_model=model,
                 key=item["key"],
                 alternative=item["alternative"],
                 year_index=item.get("year_index"),
-                defaults={
-                    "label": item.get("label", ""),
-                    "value": item["value"],
-                    "unit": item.get("unit", ""),
-                    "param_type": item.get("param_type"),
-                    "data_status": item.get("data_status"),
-                    "source_reference": item.get("source_reference", ""),
-                    "source_year": item.get("source_year"),
-                    "notes": item.get("notes", ""),
-                    "distribution": item.get("distribution", "fixed"),
-                    "dist_param1": item.get("dist_param1"),
-                    "dist_param2": item.get("dist_param2"),
-                    "created_by": request.user,
-                    "last_edited_by": request.user,
-                },
+                defaults={**defaults, "created_by": request.user},
             )
+            if not created:
+                for field, value in defaults.items():
+                    setattr(obj, field, value)
+                obj.save()
 
         params = model.parameters.all().select_related("created_by", "last_edited_by")
         return Response(EconomicParameterSerializer(params, many=True).data)

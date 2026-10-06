@@ -147,6 +147,16 @@ class EconomicModel(models.Model):
         validators=[MinValueValidator(1)],
         help_text=_("Jumlah tahun proyeksi. Discounting memakai eksponen (t-1)."),
     )
+    # CEA/CUA and BIA answer different questions and often need different
+    # horizons: the training package uses 1 year for CEA and 3 for BIA, and the
+    # 23092026 guide separates them too. Blank keeps the old behaviour.
+    bia_horizon_years = models.PositiveSmallIntegerField(
+        _("Horizon BIA (tahun)"),
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text=_("Kosong = sama dengan horizon analisis CEA."),
+    )
     cost_discount_rate = models.DecimalField(
         _("Discount rate biaya"),
         max_digits=9,
@@ -201,6 +211,10 @@ class EconomicModel(models.Model):
 
     def __str__(self) -> str:
         return f"Economic model for {self.case.case_id}"
+
+    @property
+    def effective_bia_horizon(self) -> int:
+        return self.bia_horizon_years or self.horizon_years
 
     def value_of(
         self,
