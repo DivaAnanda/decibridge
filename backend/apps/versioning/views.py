@@ -26,6 +26,7 @@ from apps.audit.models import AuditLog
 from apps.bia.models import BIAResult
 from apps.cases.models import Case, CaseVersion
 from apps.cea.models import CEAResult
+from apps.core.privacy import mask_ip, may_see_full_ip
 from apps.policy_brief.models import PolicyBriefDocument
 from apps.recommendation.models import Recommendation
 
@@ -139,19 +140,97 @@ class VersionStateView(APIView):
                 version.locked_by.email if version.locked_by else None
             ),
             "lock_reason": version.lock_reason,
-            "cea": _serialize_cea(version.cea_result_id),
-            "bia": _serialize_bia(version.bia_result_id),
-            "recommendation": _serialize_recommendation(version.recommendation_id),
-            "approval": _serialize_approval(version.approval_id),
-            "policy_brief": _serialize_policy_brief(version.policy_brief_document_id),
-            # Phase V2: the full immutable value snapshot taken at lock time.
-            # This is the authoritative reconstruction source — the pointer
-            # fields above are retained for backwards compatibility only, and
-            # cover just the legacy CEA/BIA rows.
+            **_state_blocks(version, request.user),
+            # Phase V2: the full immutable value snapshot taken at lock time,
+            # from which the economic blocks above are read.
             "snapshot": version.snapshot,
             "has_snapshot": version.snapshot is not None,
         }
         return Response(payload)
+
+
+_DETERMINISTIC_FIELDS = (
+    "total_cost_intervention",
+    "total_cost_comparator",
+    "total_qaly_intervention",
+    "total_qaly_comparator",
+    "incremental_cost",
+    "incremental_qaly",
+    "icer",
+    "inb",
+    "nmb_intervention",
+    "nmb_comparator",
+    "wtp_threshold_used",
+    "decision_code",
+    "algorithm_version",
+    "computed_at",
+)
+_BIA_FIELDS = (
+    "cumulative_net_impact",
+    "pct_of_total_baseline",
+    "annual_budget_baseline",
+    "severity",
+    "budget_score",
+    "algorithm_version",
+    "computed_at",
+)
+_PSA_FIELDS = (
+    "n_simulations",
+    "random_seed",
+    "wtp_base",
+    "prob_cost_effective_base",
+    "mean_incremental_cost",
+    "mean_incremental_qaly",
+    "algorithm_version",
+    "computed_at",
+)
+
+
+def _money(value: Any) -> Any:
+    """The engine's per-year rows carry twenty decimal places; show four."""
+    try:
+        return str(Decimal(str(value)).quantize(Decimal("0.0001")))
+    except (ArithmeticError, ValueError):
+        return value
+
+
+def _pick(block: dict | None, fields: tuple[str, ...]) -> dict | None:
+    return {f: block.get(f) for f in fields} if block else None
+
+
+def _state_blocks(version: CaseVersion, user) -> dict[str, dict | None]:
+    """The headline figures of a version, shared by the state and diff views.
+
+    Econ-first. A case built on apps.econ has no legacy CEAResult/BIAResult
+    rows, so the pointer fields are empty and the screen said "Tidak ada data"
+    for a locked case that plainly had both. Its figures are in the lock
+    snapshot; the legacy pointers stay as the fallback for older versions.
+    """
+    snapshot = version.snapshot or {}
+    econ = snapshot.get("econ") or {}
+
+    bia = _pick(econ.get("bia"), _BIA_FIELDS)
+    if bia is not None:
+        for row in econ["bia"].get("per_year") or []:
+            bia[f"net_impact_year_{row.get('year')}"] = _money(row.get("net_budget_impact"))
+
+    cea = _pick(econ.get("deterministic"), _DETERMINISTIC_FIELDS)
+    legacy_cea = _serialize_cea(version.cea_result_id)
+    legacy_bia = _serialize_bia(version.bia_result_id)
+    # A backfilled snapshot was rebuilt from whatever the case held at backfill
+    # time, which can postdate the lock. Where the row the lock pointed at
+    # still exists, that row is what the KFT saw.
+    if snapshot.get("backfilled"):
+        cea, bia = legacy_cea or cea, legacy_bia or bia
+
+    return {
+        "cea": cea or legacy_cea,
+        "bia": bia or legacy_bia,
+        "psa": _pick(econ.get("psa"), _PSA_FIELDS),
+        "recommendation": _serialize_recommendation(version.recommendation_id),
+        "approval": _serialize_approval(version.approval_id, user),
+        "policy_brief": _serialize_policy_brief(version.policy_brief_document_id),
+    }
 
 
 def _serialize_cea(cea_id: int | None) -> dict | None:
@@ -213,7 +292,7 @@ def _serialize_recommendation(rec_id: int | None) -> dict | None:
     }
 
 
-def _serialize_approval(approval_id: int | None) -> dict | None:
+def _serialize_approval(approval_id: int | None, user) -> dict | None:
     if approval_id is None:
         return None
     a = Approval.objects.filter(pk=approval_id).select_related("approver").first()
@@ -225,7 +304,8 @@ def _serialize_approval(approval_id: int | None) -> dict | None:
         "approver_name": a.approver.full_name or a.approver.email,
         "approver_email": a.approver.email,
         "signed_at": a.signed_at,
-        "ip_address": a.ip_address,
+        # Masked like every other screen: only Admin IT reads a full address.
+        "ip_address": a.ip_address if may_see_full_ip(user) else mask_ip(a.ip_address),
         "reason": a.reason,
     }
 
@@ -261,7 +341,7 @@ class VersionDiffView(APIView):
 
     permission_classes = (IsAuthenticated, VersioningPermission)
 
-    _COMPARED_BLOCKS = ("cea", "bia", "recommendation", "approval", "policy_brief")
+    _COMPARED_BLOCKS = ("cea", "bia", "psa", "recommendation", "approval", "policy_brief")
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)
@@ -278,8 +358,8 @@ class VersionDiffView(APIView):
         v_from = _get_version(case, from_id)
         v_to = _get_version(case, to_id)
 
-        state_from = self._snapshot_state(v_from)
-        state_to = self._snapshot_state(v_to)
+        state_from = _state_blocks(v_from, request.user)
+        state_to = _state_blocks(v_to, request.user)
 
         diff = {}
         for block in self._COMPARED_BLOCKS:
@@ -298,16 +378,6 @@ class VersionDiffView(APIView):
                 "diff": diff,
             }
         )
-
-    @staticmethod
-    def _snapshot_state(version: CaseVersion) -> dict:
-        return {
-            "cea": _serialize_cea(version.cea_result_id),
-            "bia": _serialize_bia(version.bia_result_id),
-            "recommendation": _serialize_recommendation(version.recommendation_id),
-            "approval": _serialize_approval(version.approval_id),
-            "policy_brief": _serialize_policy_brief(version.policy_brief_document_id),
-        }
 
     @staticmethod
     def _diff_dicts(a: dict, b: dict) -> dict:

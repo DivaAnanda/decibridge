@@ -44,6 +44,7 @@ export interface VersionState {
   lock_reason: string
   cea: Record<string, unknown> | null
   bia: Record<string, unknown> | null
+  psa: Record<string, unknown> | null
   recommendation: Record<string, unknown> | null
   approval: Record<string, unknown> | null
   policy_brief: Record<string, unknown> | null

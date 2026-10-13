@@ -19,6 +19,7 @@ import io
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from docx import Document
 from docx.enum.table import WD_ALIGN_VERTICAL
@@ -203,8 +204,14 @@ def _date_id(value: datetime) -> str:
     return f"{value.day} {bulan[value.month]} {value.year}"
 
 
+_WIB = ZoneInfo("Asia/Jakarta")
+
+
 def _datetime_id(value: datetime) -> str:
-    return f"{_date_id(value)}, {value.strftime('%H:%M')} WIB"
+    # Timestamps read from the database are UTC; printing them as they came
+    # put "12:38 WIB" next to an issue time of "19:38 WIB" on the same page.
+    local = value.astimezone(_WIB) if value.tzinfo else value
+    return f"{_date_id(local)}, {local.strftime('%H:%M')} WIB"
 
 
 TRAFFIC_LIGHT_COLORS = {
@@ -360,8 +367,10 @@ def _build_cea(doc, ctx: BriefContext) -> None:
         ["Klasifikasi dominansi", ctx.cea.dominance_label],
         ["Biaya intervensi", _idr(ctx.cea.cost_drug)],
         ["Biaya komparator", _idr(ctx.cea.cost_comparator)],
-        ["Efektivitas intervensi (QALY)", _num(ctx.cea.efficacy_drug)],
-        ["Efektivitas komparator (QALY)", _num(ctx.cea.efficacy_comparator)],
+        # Four places: at two, a QALY of 0.695 printed as 0.70 and no longer
+        # matched the Analisis Ekonomi tab.
+        ["Efektivitas intervensi (QALY)", _num(ctx.cea.efficacy_drug, 4)],
+        ["Efektivitas komparator (QALY)", _num(ctx.cea.efficacy_comparator, 4)],
         ["Ambang WTOP", _idr(ctx.cea.wtop_threshold) + " / QALY"],
         ["Skor CE", f"{ctx.cea.ce_score:.2f} / 100"],
     ]

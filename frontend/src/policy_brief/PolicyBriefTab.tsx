@@ -42,8 +42,8 @@ const GATEABLE_STATUSES = new Set(['approved', 'locked'])
 
 export function PolicyBriefTab({ caseId, caseStatus }: Props): JSX.Element {
   const { hasRole } = useAuth()
-  const canGenerate =
-    hasRole('hta_analyst', 'farmasi_sekretaris', 'ketua_kft') &&
+  const mayGenerate = hasRole('hta_analyst', 'ketua_kft', 'admin_it')
+  const canGenerate = mayGenerate &&
     GATEABLE_STATUSES.has(caseStatus)
 
   const queryClient = useQueryClient()
@@ -93,7 +93,7 @@ export function PolicyBriefTab({ caseId, caseStatus }: Props): JSX.Element {
   const latest = briefsQuery.data?.[0]
   const reasonGenerateDisabled = !GATEABLE_STATUSES.has(caseStatus)
     ? 'Kasus harus berstatus "Disetujui" atau "Terkunci" sebelum ringkasan dapat diterbitkan.'
-    : !hasRole('hta_analyst', 'farmasi_sekretaris', 'ketua_kft')
+    : !mayGenerate
       ? 'Anda tidak memiliki izin untuk menerbitkan ringkasan kebijakan.'
       : null
 

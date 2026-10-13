@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -120,6 +120,29 @@ class TestCEASection:
         assert "Cost-effective" in combined
         assert "Rp 10.000.000" in combined
         assert "sensitivitas" in combined.lower()
+
+    def test_qaly_is_not_rounded_to_two_places(self):
+        """The training case: 0.695 printed as 0.70, off from every other screen."""
+        ctx = _minimal_ctx(
+            cea=engine.CEABlock(
+                icer=Decimal("225454545.45"),
+                dominance_label="Cost-effective pada WTP terpilih",
+                cost_drug=Decimal("16500000"),
+                cost_comparator=Decimal("4100000"),
+                efficacy_drug=Decimal("0.75"),
+                efficacy_comparator=Decimal("0.695"),
+                wtop_threshold=Decimal("300000000"),
+                ce_score=Decimal("100"),
+                sensitivity_low_icer=None,
+                sensitivity_high_icer=None,
+            )
+        )
+        doc = _read_docx(engine.build_docx_bytes(ctx))
+        cells = [c.text for t in doc.tables for r in t.rows for c in r.cells]
+
+        assert "0.6950" in cells
+        assert "0.7500" in cells
+        assert "0.70" not in cells
 
 
 class TestBIASection:
@@ -252,3 +275,41 @@ class TestFormatting:
     def test_date_id_formatting(self):
         d = datetime(2026, 6, 8)
         assert engine._date_id(d) == "8 Juni 2026"
+
+    def test_utc_timestamp_is_converted_before_it_is_labelled_wib(self):
+        """A database timestamp is UTC; 12:38 UTC is 19:38 in Jakarta."""
+        stored = datetime(2026, 10, 13, 12, 38, tzinfo=UTC)
+
+        assert engine._datetime_id(stored) == "13 Oktober 2026, 19:38 WIB"
+
+    def test_conversion_can_move_the_date(self):
+        stored = datetime(2026, 10, 13, 18, 5, tzinfo=UTC)
+
+        assert engine._datetime_id(stored) == "14 Oktober 2026, 01:05 WIB"
+
+    def test_naive_local_time_is_left_alone(self):
+        assert engine._datetime_id(datetime(2026, 6, 8, 14, 30)) == "8 Juni 2026, 14:30 WIB"
+
+
+class TestSignerAddress:
+    def test_service_masks_the_address_before_it_reaches_the_document(self):
+        """Every role can download a brief, so it follows the on-screen masking."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        from apps.policy_brief import service
+
+        approval = SimpleNamespace(
+            decision="approved",
+            approver=SimpleNamespace(full_name="Ketua", email="ketua@example.com"),
+            signed_at=datetime(2026, 10, 13, 12, 0, tzinfo=UTC),
+            reason="",
+            ip_address="203.0.113.77",
+        )
+        queryset = SimpleNamespace(
+            select_related=lambda *a: SimpleNamespace(order_by=lambda *b: [approval])
+        )
+        with patch.object(service.Approval.objects, "filter", return_value=queryset):
+            rows = service._build_approvals(case=None)
+
+        assert rows[0].ip_address == "203.0.113.xxx"

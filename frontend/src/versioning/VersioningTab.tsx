@@ -41,6 +41,13 @@ function fmtDateTime(value: string | null): string {
   return new Date(value).toLocaleString('id-ID')
 }
 
+// A status change that needs a reason (revision, send-back, archive) stores it in
+// the audit entry's metadata; without this line it was recorded but never shown.
+function transitionReason(metadata: Record<string, unknown> | null): string | null {
+  const reason = metadata?.reason
+  return typeof reason === 'string' && reason.trim() !== '' ? reason : null
+}
+
 function fmtVal(value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'string' || typeof value === 'number') return String(value)
@@ -299,6 +306,11 @@ function VersionDetailDrawer({ caseId, version, onClose }: DrawerProps): JSX.Ele
                         Target: {entry.target_label}
                       </Text>
                     )}
+                    {transitionReason(entry.metadata) && (
+                      <Text size="sm" mt={4}>
+                        Alasan: {transitionReason(entry.metadata)}
+                      </Text>
+                    )}
                     {entry.diff && (
                       <Code block fz="xs" mt={4}>
                         {JSON.stringify(entry.diff, null, 2)}
@@ -320,8 +332,9 @@ function VersionDetailDrawer({ caseId, version, onClose }: DrawerProps): JSX.Ele
             {stateQuery.data && (
               <Stack gap="md">
                 <StateBlock title="Rekomendasi" data={stateQuery.data.recommendation} />
-                <StateBlock title="CEA" data={stateQuery.data.cea} />
-                <StateBlock title="BIA" data={stateQuery.data.bia} />
+                <StateBlock title="Analisis Ekonomi (CEA)" data={stateQuery.data.cea} />
+                <StateBlock title="Dampak Anggaran (BIA)" data={stateQuery.data.bia} />
+                <StateBlock title="PSA" data={stateQuery.data.psa} />
                 <StateBlock title="Tanda Tangan" data={stateQuery.data.approval} />
                 <StateBlock title="Policy Brief" data={stateQuery.data.policy_brief} />
               </Stack>

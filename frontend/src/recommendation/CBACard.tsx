@@ -92,6 +92,7 @@ export function CBACard({ caseId, caseIsLocked }: Props): JSX.Element {
       editing ? updateCBA(caseId, editing.id, payload) : createCBA(caseId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'cba'] })
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
       notifications.show({ color: 'teal', message: 'Kriteria CBA tersimpan.' })
       setModalOpen(false)
     },
@@ -105,6 +106,7 @@ export function CBACard({ caseId, caseIsLocked }: Props): JSX.Element {
       updateCBA(caseId, id, { is_satisfied: value }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'cba'] })
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
     },
   })
 
@@ -112,6 +114,7 @@ export function CBACard({ caseId, caseIsLocked }: Props): JSX.Element {
     mutationFn: (id: number) => deleteCBA(caseId, id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'cba'] })
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
       notifications.show({ color: 'teal', message: 'Kriteria dihapus.' })
     },
   })
@@ -147,8 +150,9 @@ export function CBACard({ caseId, caseIsLocked }: Props): JSX.Element {
 
       {criteria.length === 0 && (
         <Text c="dimmed" size="sm">
-          Belum ada kriteria CBA. Tanpa kriteria, skor CBA otomatis 100 (tidak ada batasan).
-          Tambahkan kriteria jika adopsi obat ini perlu dibatasi pada kondisi tertentu.
+          Belum ada kriteria CBA. Tanpa kriteria, komponen CBA tidak dinilai dan bobotnya
+          dibagi ke komponen lain. Tambahkan kriteria jika adopsi obat ini perlu dibatasi
+          pada kondisi tertentu; kriteria yang belum terpenuhi menjadikan adopsi bersyarat.
         </Text>
       )}
 

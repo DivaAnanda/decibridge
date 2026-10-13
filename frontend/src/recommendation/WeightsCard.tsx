@@ -56,6 +56,7 @@ export function WeightsCard({ caseId, caseIsLocked }: Props): JSX.Element {
     mutationFn: () => upsertWeights(caseId, myWeights),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'weights'] })
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
       void queryClient.invalidateQueries({
         queryKey: ['recommendation', caseId, 'weights', 'summary'],
       })

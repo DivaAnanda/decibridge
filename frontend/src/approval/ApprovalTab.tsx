@@ -19,6 +19,7 @@ import { getLatestRecommendation } from '../api/recommendation'
 import { useAuth } from '../auth/useAuth'
 import { ApprovalDossierCard } from './ApprovalDossierCard'
 import { ReadinessChecklistCard } from './ReadinessChecklistCard'
+import { StaleRecommendationAlert } from '../recommendation/StaleRecommendationAlert'
 import { SignatureModal } from './SignatureModal'
 import {
   DECISION_COLOR,
@@ -80,6 +81,10 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
     <Stack gap="lg">
       <ReadinessChecklistCard caseId={caseId} />
       <ApprovalDossierCard caseId={caseId} />
+      <StaleRecommendationAlert
+        caseId={caseId}
+        caseIsLocked={caseStatus === 'locked' || caseStatus === 'archived'}
+      />
 
       {isKetua && (
         <Card withBorder padding="lg" radius="md">

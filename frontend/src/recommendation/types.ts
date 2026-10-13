@@ -77,6 +77,9 @@ export interface Recommendation {
   weight_aggregation_method: string
   computed_at: string
   computed_by: AuthUser | null
+  // Present on the latest-result endpoint only.
+  is_stale?: boolean
+  stale_reasons?: string[]
 }
 
 export const TRAFFIC_LIGHT_LABEL_ID: Record<TrafficLight, string> = {

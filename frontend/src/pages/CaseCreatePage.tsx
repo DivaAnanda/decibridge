@@ -21,13 +21,12 @@ import { notifications } from '@mantine/notifications'
 import { IconArrowLeft } from '@tabler/icons-react'
 
 import { createCase } from '../api/cases'
-import type { CaseCreateInput, CasePerspective } from '../cases/types'
+import { PERSPECTIVE_LABEL_ID, type CaseCreateInput } from '../cases/types'
 
-const PERSPECTIVE_OPTIONS: { value: CasePerspective; label: string }[] = [
-  { value: 'hospital', label: 'Rumah Sakit' },
-  { value: 'payer_bpjs', label: 'BPJS / Pembayar' },
-  { value: 'societal', label: 'Masyarakat' },
-]
+const PERSPECTIVE_OPTIONS = Object.entries(PERSPECTIVE_LABEL_ID).map(([value, label]) => ({
+  value,
+  label,
+}))
 
 const CASE_ID_RE = /^[A-Z][A-Z0-9_]{2,63}$/
 
@@ -127,8 +126,8 @@ export function CaseCreatePage() {
 
       <Title order={2}>Buat Kasus Baru</Title>
       <Text c="dimmed" size="sm">
-        Lengkapi metadata kasus. Detail klinis lengkap dapat ditambahkan melalui unggah Excel
-        case pack pada Sprint berikutnya.
+        Lengkapi identitas kasus dan pertanyaan keputusannya. Parameter ekonomi, penilaian
+        EtD dan rekomendasi diisi pada tab masing-masing setelah kasus tersimpan.
       </Text>
 
       <Card withBorder padding="lg" radius="md">

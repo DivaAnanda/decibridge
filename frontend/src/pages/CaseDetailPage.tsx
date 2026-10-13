@@ -37,6 +37,7 @@ import {
 import { getCase, transitionCase } from '../api/cases'
 import { IntegrityAlert } from '../cases/IntegrityAlert'
 import {
+  PERSPECTIVE_LABEL_ID,
   STATUS_COLOR,
   STATUS_LABEL_ID,
   TRANSITION_LABEL_ID,
@@ -109,7 +110,9 @@ function OverviewPanel({ data }: PanelProps): JSX.Element {
             </Grid.Col>
           )}
           <Grid.Col span={6}>
-            <SummaryField label="Perspektif">{data.perspective}</SummaryField>
+            <SummaryField label="Perspektif">
+              {PERSPECTIVE_LABEL_ID[data.perspective] ?? data.perspective}
+            </SummaryField>
           </Grid.Col>
           <Grid.Col span={6}>
             <SummaryField label="Dibuat oleh">{data.created_by.full_name}</SummaryField>

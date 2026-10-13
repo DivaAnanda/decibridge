@@ -16,6 +16,7 @@ import { IconCalculator } from '@tabler/icons-react'
 
 import { computeRecommendation, listRecommendations } from '../api/recommendation'
 import { useAuth } from '../auth/useAuth'
+import { StaleRecommendationAlert } from './StaleRecommendationAlert'
 import { WeightsCard } from './WeightsCard'
 import { CBACard } from './CBACard'
 import { RecommendationCard } from './RecommendationCard'
@@ -45,6 +46,7 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
     onSuccess: () => {
       setMissing([])
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'results'] })
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
       notifications.show({ color: 'teal', message: 'Rekomendasi berhasil dihitung.' })
     },
     onError: (err: { response?: { data?: { detail?: string; missing_components?: string[] } } }) => {
@@ -62,6 +64,7 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
 
   return (
     <Stack gap="lg">
+      <StaleRecommendationAlert caseId={caseId} caseIsLocked={caseIsLocked} />
       {latest && <RecommendationCard result={latest} />}
 
       {missing.length > 0 && (

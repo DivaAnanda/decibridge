@@ -4,6 +4,12 @@ export type CaseStatus = 'draft' | 'in_review' | 'approved' | 'locked' | 'archiv
 
 export type CasePerspective = 'hospital' | 'payer_bpjs' | 'societal'
 
+export const PERSPECTIVE_LABEL_ID: Record<CasePerspective, string> = {
+  hospital: 'Rumah Sakit',
+  payer_bpjs: 'BPJS / Pembayar',
+  societal: 'Masyarakat',
+}
+
 export interface DecisionQuestion {
   id: number
   order: number

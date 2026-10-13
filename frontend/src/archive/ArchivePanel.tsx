@@ -94,8 +94,8 @@ export function ArchivePanel({ caseId, caseStatus }: Props): JSX.Element {
         </Group>
         {canArchive ? (
           <Alert color="blue" variant="light">
-            Kasus telah dikunci dan siap diarsipkan. Ketua KFT atau Admin IT
-            dapat menjalankan aksi <Code>Arsipkan</Code> melalui menu Tindakan
+            Kasus telah dikunci dan siap diarsipkan. Ketua KFT dapat
+            menjalankan aksi <Code>Arsipkan</Code> melalui menu Tindakan
             di kanan atas. Pengarsipan akan membuat manifest SHA-256 dari
             seluruh artefak kasus dengan retensi 7 tahun.
           </Alert>

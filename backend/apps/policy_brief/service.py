@@ -24,6 +24,7 @@ from apps.approval.models import Approval
 from apps.bia.models import BIAInput, BIAResult, ProjectionHorizon, Severity
 from apps.cases.models import Case, CaseStatus
 from apps.cea.models import CEAInput, CEAResult, Dominance
+from apps.core.privacy import mask_ip
 from apps.etd.aggregation import aggregate_domain, aggregate_overall
 from apps.etd.models import Certainty, EtDAppraisal, EtDDomain, Judgement, ReferenceCitation
 from apps.recommendation.models import Recommendation, TrafficLight
@@ -397,7 +398,8 @@ def _build_approvals(case: Case) -> list[engine.ApprovalRow]:
                 approver_email=a.approver.email,
                 signed_at=a.signed_at,
                 reason=a.reason or "",
-                ip_address=a.ip_address or "",
+                # A brief is a document handed around, read by every role.
+                ip_address=mask_ip(a.ip_address) or "",
             )
         )
     return rows
