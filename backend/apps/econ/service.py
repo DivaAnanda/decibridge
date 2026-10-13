@@ -41,6 +41,7 @@ from .models import (
     EconPSAResult,
     ParamKey,
 )
+from .psa_distributions import distribution_errors, psa_input_state, sampled_parameters
 from .validation_fixtures import PSA_SEED, PSA_SIMULATIONS
 
 User = get_user_model()
@@ -373,6 +374,17 @@ def _alternative_specs(model: EconomicModel, alt: str) -> AlternativeSpecs:
     )
 
 
+def _distribution_gaps(model: EconomicModel) -> list[str]:
+    gaps: list[str] = []
+    for row in sampled_parameters(model):
+        errors = distribution_errors(
+            row.param_type, row.distribution, row.dist_param1, row.dist_param2
+        )
+        where = f"{row.display_label} ({row.get_alternative_display()})"
+        gaps.extend(f"Distribusi PSA {where}: {message}" for message in errors.values())
+    return gaps
+
+
 def run_psa(
     model: EconomicModel,
     computed_by: User | None = None,
@@ -389,6 +401,10 @@ def run_psa(
     IncompleteModelError) AND gives the deterministic base-case point.
     """
     base = compute_deterministic(build_input(model))
+
+    gaps = _distribution_gaps(model)
+    if gaps:
+        raise IncompleteModelError(gaps)
 
     wtp_base = float(model.wtp_threshold)
     lo = wtp_min if wtp_min is not None else 0.0
@@ -421,6 +437,7 @@ def run_psa(
             "wtp_min": lo,
             "wtp_max": hi,
             "wtp_step": step,
+            "inputs": psa_input_state(model),
         },
         n_simulations=result.n_simulations,
         random_seed=result.seed,

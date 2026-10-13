@@ -49,6 +49,7 @@ import {
   type EconParameterPayload,
 } from './types'
 import { EconResultCard } from './EconResultCard'
+import { trimDecimal } from './format'
 import { ValidationImportCard } from './ValidationImportCard'
 
 interface Props {
@@ -118,11 +119,6 @@ interface RowError {
 // Proportions: the backend rejects anything outside 0-1, so say so on the field.
 const UNIT_INTERVAL_TYPES = new Set<string>(['probability', 'utility', 'disutility', 'rate'])
 
-// Stored decimals carry ten places ("200.0000000000"); show them as typed.
-function trimDecimal(value: string): string {
-  return value.includes('.') ? value.replace(/\.?0+$/, '') : value
-}
-
 function toPayload(p: EconParameter): EconParameterPayload {
   return {
     key: p.key,
@@ -136,10 +132,8 @@ function toPayload(p: EconParameter): EconParameterPayload {
     source_year: p.source_year,
     notes: p.notes,
     label: p.label,
-    // Carried through untouched so saving the table never drops the PSA set-up.
-    distribution: p.distribution,
-    dist_param1: p.dist_param1,
-    dist_param2: p.dist_param2,
+    // No distribution fields: the PSA tab owns them, and the backend leaves
+    // unsent fields as stored. Echoing a cached copy could undo a newer set-up.
   }
 }
 
@@ -220,10 +214,16 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
     })),
   ]
 
+  // The PSA result carries an is_stale flag derived from these inputs.
+  const invalidatePSA = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['econ', caseId, 'psa'] })
+  }
+
   const saveModel = useMutation({
     mutationFn: (payload: EconModelPayload) => saveEconModel(caseId, payload),
     onSuccess: (saved) => {
       queryClient.setQueryData(['econ', caseId, 'model'], saved)
+      invalidatePSA()
       notifications.show({ color: 'teal', message: 'Model ekonomi disimpan.' })
     },
     onError: () => notifications.show({ color: 'red', message: 'Gagal menyimpan model.' }),
@@ -233,6 +233,7 @@ export function EconTab({ caseId, caseIsLocked }: Props): JSX.Element {
     mutationFn: (payload: EconParameterPayload[]) => saveEconParameters(caseId, payload),
     onSuccess: (saved) => {
       queryClient.setQueryData(['econ', caseId, 'params'], saved)
+      invalidatePSA()
       notifications.show({ color: 'teal', message: 'Parameter disimpan.' })
     },
     onError: (err: { response?: { data?: { detail?: string; row_errors?: RowError[] } } }) => {

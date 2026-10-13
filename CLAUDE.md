@@ -4,8 +4,8 @@ Auto-loaded into every Claude Code session in this repo. Keep short, keep curren
 
 ## CURRENT STATE - read this first (2026-10-13)
 
-**Rounds 1-4 are shipped, deployed and verified on production. `main` = `origin/main` = `b6277ed`,
-working tree clean. 470 tests passing (~12 min full run).**
+**Rounds 1-4 and the PSA distribution editor are shipped and deployed (pushed 2026-10-13; see
+`git log` for the head). 505 backend tests passing (~14 min full run).**
 
 - **Live:** https://decibridge-production.up.railway.app (still on Railway; migration not started).
 - **Production now holds other people's work.** Students and the lecturer create cases there
@@ -62,8 +62,7 @@ takes event probabilities, not hazard ratios. `HF_ARNI_ACEI_001` still holds the
 
 ### Open items, in suggested order
 
-1. **PSA distribution editor.** No screen exists for choosing distributions (package steps 37-39);
-   only seeders can set them. Needed before the PSA part of the manual can be screenshotted.
+1. ~~PSA distribution editor~~ - built 2026-10-13 (see "PSA set-up" below).
 2. Work `DB_DEMO_HF_001` through EtD -> Versi in each role; write the manual book with screenshots.
 3. Plan and build the 23092026 spec as its own round.
 4. Pin `djangorestframework` (pyproject says `>=3.15`; local venv 3.17, Docker image 3.18).
@@ -73,6 +72,29 @@ takes event probabilities, not hazard ratios. `HF_ARNI_ACEI_001` still holds the
    not in any brief. Moot once item 3 replaces the engine.
 7. Still unwritten from round 2 item 9: functional / edge-case / security test documentation, SUS,
    KFT meeting simulation.
+
+### PSA set-up (package steps 37-39)
+
+- Edited on the PSA tab (`frontend/src/econ/PSADistributionCard.tsx`), saved by its own endpoint
+  `PUT /cases/{id}/econ/psa/distributions/` with rows `{id, distribution, dist_param1, dist_param2}`.
+  It never writes a value (`save(update_fields=...)`), and the table endpoint cannot write
+  distributions: they are read-only in `EconomicParameterSerializer`. Keep it that way; two
+  screens echoing each other's cached fields is how the PSA set-up got wiped before.
+- Only the rows the engine samples are editable: six keys, `year_index` null
+  (`apps/econ/psa_distributions.py::SAMPLED_KEYS`).
+- Users may type SE/SD as a number or as a share of the base value (`10%`); the two stored
+  parameters are derived by method of moments in `frontend/src/econ/psaDistribution.ts`. Drug cost
+  is stored per year while the package quotes per month, so `10%` is the safe way to enter it.
+  The dot is the decimal point (`600.000` = 600), so the screen reads the parsed SE back.
+- A workbook import stores `distribution` as typed (e.g. `Beta`), outside the choices. The
+  validator reports it and the editor still renders the row so it can be re-picked.
+- Beta only for probability/utility/disutility; Gamma and Log-normal only for costs. The same
+  validator (`distribution_errors`) runs at save and at `run_psa`, which now returns 422 with the
+  reason instead of silently holding a half-filled distribution fixed.
+- Each PSA result records its inputs in `input_snapshot["inputs"]`; `is_stale` on the result
+  compares them with the present state (`null` for results older than 2026-10-13).
+- Known and left alone: a `shared` parameter (e.g. event cost) is drawn separately for each arm
+  rather than once for both. Changing it would move every PSA number; ask the lecturer first.
 
 ### Operational quick-reference
 
@@ -111,6 +133,11 @@ Entrypoint on every deploy: `migrate`, `create_test_users`, `backfill_decision_s
     newlines; use the Write/Edit tools for such content.
 13. `compose` builds with `context: ./backend` and `./frontend`, so each needs its own
     `.dockerignore`; the repo-root one does not apply.
+14. `npx vitest run` in `frontend/` shows two failures that predate round 4: Vitest collects the
+    Playwright spec `e2e/smoke.spec.ts`, and `App.test.tsx` needs a `window.matchMedia` stub.
+    `src/econ/psaDistribution.test.ts` is the frontend suite that is expected to pass.
+15. Case tabs use `keepMounted={false}`: leaving a tab unmounts it, so unsaved edits in it are lost
+    and its queries refetch on return only if older than the 30 s `staleTime` or invalidated.
 
 ### Standing constraints from the lecturer
 
@@ -162,7 +189,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 470 tests, all passing.** Coverage target 80%.
+**Test suite: 505 tests, all passing.** Coverage target 80%.
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 

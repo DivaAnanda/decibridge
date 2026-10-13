@@ -68,13 +68,23 @@ class TestPSAApi:
                 "param_type": str(s["param_type"]),
                 "data_status": str(s["data_status"]),
                 "unit": s.get("unit", ""),
-                "distribution": s.get("distribution", "fixed"),
-                "dist_param1": str(s["dist_param1"]) if s.get("dist_param1") is not None else None,
-                "dist_param2": str(s["dist_param2"]) if s.get("dist_param2") is not None else None,
             }
             for s in VALIDATION_PARAMETERS
         ]
-        client.put(f"{BASE}/parameters/", params, format="json")
+        saved = client.put(f"{BASE}/parameters/", params, format="json").data
+        ids = {(p["key"], p["alternative"]): p["id"] for p in saved}
+        distributions = [
+            {
+                "id": ids[(str(s["key"]), str(s["alternative"]))],
+                "distribution": s["distribution"],
+                "dist_param1": str(s["dist_param1"]),
+                "dist_param2": str(s["dist_param2"]),
+            }
+            for s in VALIDATION_PARAMETERS
+            if s.get("distribution", "fixed") != "fixed"
+        ]
+        response = client.put(f"{BASE}/psa/distributions/", distributions, format="json")
+        assert response.status_code == 200, response.data
 
     def test_compute_returns_ceac_and_scatter(self, hta_client, pilot_case):
         self._seed(hta_client)

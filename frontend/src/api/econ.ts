@@ -8,6 +8,7 @@ import type {
   EconPSAResult,
   EconResult,
   PSAConfig,
+  PSADistributionPayload,
   ValidationReport,
 } from '../econ/types'
 
@@ -68,6 +69,17 @@ export async function getLatestEconBIA(caseId: string): Promise<EconBIAResult | 
 
 export async function computeEconPSA(caseId: string, config: PSAConfig): Promise<EconPSAResult> {
   const { data } = await apiClient.post<EconPSAResult>(`/cases/${caseId}/econ/psa/compute/`, config)
+  return data
+}
+
+export async function saveEconPSADistributions(
+  caseId: string,
+  payload: PSADistributionPayload[],
+): Promise<EconParameter[]> {
+  const { data } = await apiClient.put<EconParameter[]>(
+    `/cases/${caseId}/econ/psa/distributions/`,
+    payload,
+  )
   return data
 }
 

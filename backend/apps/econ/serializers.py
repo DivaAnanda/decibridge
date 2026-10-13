@@ -7,6 +7,9 @@ from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 
 from .models import (
+    VALUE_DECIMAL_PLACES,
+    VALUE_MAX_DIGITS,
+    Distribution,
     EconBIAResult,
     EconDeterministicResult,
     EconomicModel,
@@ -14,6 +17,7 @@ from .models import (
     EconPSAResult,
     ParamType,
 )
+from .psa_distributions import distribution_errors, psa_input_state
 
 # Uptake and market share are stored as `rate` and are proportions too; they were
 # missing here, so a market share of 11 (1100%) saved without complaint.
@@ -124,9 +128,15 @@ class EconomicParameterSerializer(serializers.ModelSerializer):
             "created_by",
             "last_edited_by",
         ]
+        # The three PSA fields are written only through PSADistributionSerializer.
+        # A table save that echoed a cached copy would undo a newer set-up, which
+        # a browser tab opened before this change still does.
         read_only_fields = [
             "id",
             "display_label",
+            "distribution",
+            "dist_param1",
+            "dist_param2",
             "version",
             "created_at",
             "updated_at",
@@ -147,6 +157,43 @@ class EconomicParameterSerializer(serializers.ModelSerializer):
             if param_type == ParamType.COUNT and value < 0:
                 raise serializers.ValidationError({"value": "Jumlah tidak boleh negatif."})
         return attrs
+
+
+class PSADistributionSerializer(serializers.Serializer):
+    """One row of the PSA set-up. It has no value field on purpose.
+
+    `context["rows"]` maps parameter id -> the stored row, limited to the rows
+    PSA samples for this case.
+    """
+
+    id = serializers.IntegerField()
+    distribution = serializers.ChoiceField(choices=Distribution.choices)
+    dist_param1 = serializers.DecimalField(
+        max_digits=VALUE_MAX_DIGITS,
+        decimal_places=VALUE_DECIMAL_PLACES,
+        allow_null=True,
+        required=False,
+    )
+    dist_param2 = serializers.DecimalField(
+        max_digits=VALUE_MAX_DIGITS,
+        decimal_places=VALUE_DECIMAL_PLACES,
+        allow_null=True,
+        required=False,
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        row = self.context["rows"].get(attrs["id"])
+        if row is None:
+            raise serializers.ValidationError(
+                {"id": "Parameter ini tidak disampel oleh PSA pada kasus ini."}
+            )
+        if attrs["distribution"] == Distribution.FIXED:
+            return {**attrs, "dist_param1": None, "dist_param2": None}
+        p1, p2 = attrs.get("dist_param1"), attrs.get("dist_param2")
+        errors = distribution_errors(row.param_type, attrs["distribution"], p1, p2)
+        if errors:
+            raise serializers.ValidationError(errors)
+        return {**attrs, "dist_param1": p1, "dist_param2": p2}
 
 
 class EconBIAResultSerializer(serializers.ModelSerializer):
@@ -174,11 +221,13 @@ class EconBIAResultSerializer(serializers.ModelSerializer):
 
 class EconPSAResultSerializer(serializers.ModelSerializer):
     computed_by = UserSerializer(read_only=True)
+    is_stale = serializers.SerializerMethodField()
 
     class Meta:
         model = EconPSAResult
         fields = [
             "id",
+            "is_stale",
             "input_snapshot",
             "n_simulations",
             "random_seed",
@@ -196,6 +245,14 @@ class EconPSAResultSerializer(serializers.ModelSerializer):
             "computed_by",
         ]
         read_only_fields = fields
+
+    def get_is_stale(self, obj: EconPSAResult) -> bool | None:
+        """Whether the inputs changed since this run; None when they were not recorded."""
+        recorded = obj.input_snapshot.get("inputs")
+        if recorded is None:
+            return None
+        model = EconomicModel.objects.filter(case=obj.case).first()
+        return model is None or recorded != psa_input_state(model)
 
 
 class EconDeterministicResultSerializer(serializers.ModelSerializer):

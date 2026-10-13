@@ -22,7 +22,9 @@ from .serializers import (
     EconomicModelSerializer,
     EconomicParameterSerializer,
     EconPSAResultSerializer,
+    PSADistributionSerializer,
 )
+from .psa_distributions import sampled_parameters
 from .service import IncompleteModelError, run_bia, run_deterministic, run_psa
 from .validation_service import import_and_validate
 from .validation_workbook import build_workbook
@@ -69,9 +71,6 @@ _OPTIONAL_PARAMETER_FIELDS = (
     "source_reference",
     "source_year",
     "notes",
-    "distribution",
-    "dist_param1",
-    "dist_param2",
 )
 
 
@@ -165,9 +164,10 @@ class EconParametersView(APIView):
             )
 
         for raw, item in zip(payload, serializer.validated_data):
-            # Only overwrite what the client actually sent. The table never sent
-            # the PSA distribution fields, and defaulting them here reset every
-            # distribution to "fixed" on each save - one click wiped the PSA set-up.
+            # Only overwrite what the client actually sent; defaulting the rest once
+            # reset every PSA distribution to "fixed" on each save. Distributions
+            # are not written here at all (read-only in the serializer): they
+            # belong to EconPSADistributionsView.
             defaults = {
                 "value": item["value"],
                 "param_type": item.get("param_type"),
@@ -301,6 +301,87 @@ class EconPSAComputeView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         return Response(EconPSAResultSerializer(result).data, status=status.HTTP_201_CREATED)
+
+
+class EconPSADistributionsView(APIView):
+    """PUT the PSA uncertainty set-up for a case, and nothing else.
+
+    Kept apart from the parameter table save so that choosing a distribution can
+    never write back a stale value, and a table save never writes back a stale
+    distribution. All-or-nothing, with the reason per rejected row.
+    """
+
+    permission_classes = (IsAuthenticated, EconPermission)
+
+    @transaction.atomic
+    def put(self, request: Request, case_id: str) -> Response:
+        case = _get_case(case_id)
+        self.check_object_permissions(request, case)
+
+        model = _get_model(case)
+        if model is None:
+            return Response(
+                {"detail": "Model ekonomi belum dibuat. Simpan parameter model terlebih dahulu."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = request.data
+        if not isinstance(payload, list):
+            return Response(
+                {"detail": "Payload harus berupa array distribusi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rows = {p.pk: p for p in sampled_parameters(model)}
+        validated: list[dict] = []
+        row_errors: list[dict] = []
+        for index, item in enumerate(payload):
+            serializer = PSADistributionSerializer(data=item, context={"rows": rows})
+            if serializer.is_valid():
+                validated.append(serializer.validated_data)
+                continue
+            row_id = item.get("id") if isinstance(item, dict) else None
+            for field, messages in serializer.errors.items():
+                row_errors.extend(
+                    {"index": index, "id": row_id, "field": field, "message": str(message)}
+                    for message in messages
+                )
+
+        if row_errors:
+            invalid = len({e["index"] for e in row_errors})
+            return Response(
+                {
+                    "detail": (
+                        f"{invalid} baris distribusi belum valid, sehingga tidak ada yang "
+                        "disimpan. Perbaiki baris yang ditandai lalu simpan lagi."
+                    ),
+                    "row_errors": row_errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for item in validated:
+            row = rows[item["id"]]
+            new = (item["distribution"], item["dist_param1"], item["dist_param2"])
+            if (row.distribution, row.dist_param1, row.dist_param2) == new:
+                continue
+            row.distribution, row.dist_param1, row.dist_param2 = new
+            row.last_edited_by = request.user
+            # Named columns only: the row was read at the start of the request, and
+            # a full save would write its value back over a concurrent table save.
+            row.save(
+                update_fields=[
+                    "distribution",
+                    "dist_param1",
+                    "dist_param2",
+                    "last_edited_by",
+                    "version",
+                    "updated_at",
+                ]
+            )
+
+        params = model.parameters.all().select_related("created_by", "last_edited_by")
+        return Response(EconomicParameterSerializer(params, many=True).data)
 
 
 class EconPSAResultLatestView(APIView):

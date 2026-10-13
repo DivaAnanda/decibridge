@@ -54,18 +54,19 @@ class TestSavePreservesUnsentFields:
         assert response.status_code == 200, response.data
         assert _distributions() == before
 
-    def test_explicit_distribution_is_still_updated(self, hta_client, demo):
+    def test_table_save_ignores_distribution_fields(self, hta_client, demo):
+        """A browser tab opened before the PSA editor existed still echoes its
+        cached distributions on every table save; that must not undo a set-up
+        made since. Distributions are written through /psa/distributions/ only."""
+        before = _distributions()
         payload = _table_payload(hta_client)
         target = next(r for r in payload if r["key"] == "event_cost")
-        target.update({"distribution": "lognormal", "dist_param1": "6000000", "dist_param2": "600000"})
+        target.update({"distribution": "fixed", "dist_param1": None, "dist_param2": None})
 
-        hta_client.put(URL, payload, format="json")
+        response = hta_client.put(URL, payload, format="json")
 
-        p = EconomicParameter.objects.get(
-            economic_model__case__case_id="DB_DEMO_HF_001", key="event_cost"
-        )
-        assert p.distribution == "lognormal"
-        assert p.dist_param2 == Decimal("600000")
+        assert response.status_code == 200, response.data
+        assert _distributions() == before
 
     def test_edit_changes_only_the_value(self, hta_client, demo):
         payload = _table_payload(hta_client)

@@ -1,6 +1,7 @@
 export type Alternative = 'intervention' | 'comparator' | 'shared'
 export type ParamType = 'cost' | 'probability' | 'utility' | 'disutility' | 'rate' | 'count'
 export type DataStatus = 'observed' | 'proxy' | 'assumption' | 'validated'
+export type PSADistribution = 'fixed' | 'beta' | 'gamma' | 'lognormal' | 'normal'
 
 export const ALTERNATIVE_LABEL: Record<Alternative, string> = {
   intervention: 'Intervensi',
@@ -112,7 +113,7 @@ export interface EconParameter {
   source_reference: string
   source_year: number | null
   notes: string
-  distribution: string
+  distribution: PSADistribution
   dist_param1: string | null
   dist_param2: string | null
   version: number
@@ -130,9 +131,14 @@ export interface EconParameterPayload {
   source_year?: number | null
   notes?: string
   label?: string
-  distribution?: string
-  dist_param1?: string | null
-  dist_param2?: string | null
+}
+
+// The PSA set-up is saved on its own, without the parameter's value.
+export interface PSADistributionPayload {
+  id: number
+  distribution: PSADistribution
+  dist_param1: string | null
+  dist_param2: string | null
 }
 
 export interface YearRow {
@@ -265,6 +271,8 @@ export interface CEACPoint {
 
 export interface EconPSAResult {
   id: number
+  // null = computed before inputs were recorded, so it cannot be told.
+  is_stale: boolean | null
   n_simulations: number
   random_seed: number
   wtp_base: string

@@ -32,6 +32,7 @@ import {
 
 import { computeEconPSA, getLatestEconPSA } from '../api/econ'
 import { useAuth } from '../auth/useAuth'
+import { PSADistributionCard } from './PSADistributionCard'
 import type { EconPSAResult } from './types'
 
 interface Props {
@@ -113,6 +114,8 @@ export function EconPSATab({ caseId, caseIsLocked }: Props): JSX.Element {
   const [nSim, setNSim] = useState<number>(1000)
   const [seed, setSeed] = useState<number>(42)
   const [missing, setMissing] = useState<string[]>([])
+  // The run reads what is stored, so unsaved distribution edits would be ignored.
+  const [distributionsDirty, setDistributionsDirty] = useState(false)
 
   const resultQuery = useQuery({
     queryKey: ['econ', caseId, 'psa'],
@@ -176,6 +179,13 @@ export function EconPSATab({ caseId, caseIsLocked }: Props): JSX.Element {
         </Card>
       )}
 
+      {latest?.is_stale && (
+        <Alert color="orange" title="Hasil PSA ini tidak lagi sesuai input">
+          Parameter, distribusi, atau pengaturan model berubah setelah PSA ini dijalankan.
+          Jalankan ulang PSA agar hasil di atas mencerminkan input yang sekarang.
+        </Alert>
+      )}
+
       {latest && <PSACharts result={latest} />}
 
       {missing.length > 0 && (
@@ -186,17 +196,24 @@ export function EconPSATab({ caseId, caseIsLocked }: Props): JSX.Element {
             ))}
           </List>
           <Text size="xs" c="dimmed" mt="xs">
-            Lengkapi parameter di tab "Analisis Ekonomi" (dan distribusinya) lalu jalankan ulang.
+            Lengkapi parameter di tab "Analisis Ekonomi" dan distribusinya di bawah, lalu
+            jalankan ulang.
           </Text>
         </Alert>
       )}
+
+      <PSADistributionCard
+        caseId={caseId}
+        canEdit={canEdit}
+        onDirtyChange={setDistributionsDirty}
+      />
 
       <Card withBorder padding="md" radius="md">
         <Group justify="space-between" align="flex-end">
           <Stack gap={2}>
             <Title order={5}>Jalankan PSA</Title>
             <Text size="xs" c="dimmed">
-              Monte-Carlo memakai distribusi ketidakpastian tiap parameter (di tab Analisis Ekonomi).
+              Monte-Carlo memakai distribusi tiap parameter yang tersimpan di atas.
               Seed tetap → hasil dapat direproduksi.
             </Text>
           </Stack>
@@ -207,13 +224,18 @@ export function EconPSATab({ caseId, caseIsLocked }: Props): JSX.Element {
               leftSection={<IconPlayerPlay size={16} />}
               onClick={() => compute.mutate()}
               loading={compute.isPending}
-              disabled={!canEdit}
+              disabled={!canEdit || distributionsDirty}
               color="teal"
             >
               Hitung PSA
             </Button>
           </Group>
         </Group>
+        {canEdit && distributionsDirty && (
+          <Text size="xs" c="orange" ta="right" mt="xs">
+            Simpan distribusi terlebih dahulu; PSA memakai distribusi yang tersimpan.
+          </Text>
+        )}
         {!canEdit && (
           <Text size="xs" c="dimmed" mt="xs">
             {caseIsLocked ? 'Kasus terkunci — tidak dapat dijalankan.' : 'Anda tidak memiliki izin.'}

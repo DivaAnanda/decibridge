@@ -188,8 +188,8 @@ def import_and_validate(case, file, user) -> dict:
         try:
             psa = run_psa(model, computed_by=user, n_simulations=n, seed=seed)
             checks.append(_check(e["metric"], e["expected"], e["tolerance"], psa.prob_cost_effective_base))
-        except IncompleteModelError:
-            issues.append("PSA tidak dapat dihitung (parameter kurang).")
+        except IncompleteModelError as exc:
+            issues.append(f"PSA tidak dapat dihitung: {exc}")
 
     all_pass = bool(checks) and all(c["pass"] for c in checks) and not issues
     return {
