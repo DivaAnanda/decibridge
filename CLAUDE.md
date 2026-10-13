@@ -2,58 +2,122 @@
 
 Auto-loaded into every Claude Code session in this repo. Keep short, keep current.
 
-## CURRENT STATE - read this first (2026-09-07)
+## CURRENT STATE - read this first (2026-10-13)
 
-**Everything through Round 2 (V1-V4) is shipped, tested, deployed, and verified on production.**
-Nothing is half-finished. Working tree clean; `main` pushed at `7f48a07`.
+**Rounds 1-4 are shipped, deployed and verified on production. `main` = `origin/main` = `b6277ed`,
+working tree clean. 470 tests passing (~12 min full run).**
 
-- **470 tests passing, ~86% coverage.**
-- **Live:** https://decibridge-production.up.railway.app - **11/11 of the lecturer's QC01-QC11
-  checks verified passing on production**, using his own `09_DATA_MAP_QC` expected values.
-- `HF_ARNI_ACEI_001` (draft) is fully seeded with his REAL parameters and has deterministic +
-  BIA + PSA results computed. Use it for any demo or verification.
-- `HF_ARNI_ACEI_004` (locked) is his **regression case - NEVER DELETE**. It has a backfilled
-  immutable snapshot and is correctly blocked by the completeness gate at EtD 4/9.
+- **Live:** https://decibridge-production.up.railway.app (still on Railway; migration not started).
+- **Production now holds other people's work.** Students and the lecturer create cases there
+  (`HF_ARNI_ACEI_DWIKA`, `HF_ARNI_ACEI_TANIA`, `NN_DEMO_HF_001`, `TRN_HF_ARNI_001_1`,
+  `HF_ARNI_ACEI_0510`, ...). Never reset, reseed or overwrite a case you did not create. Every
+  seeder in the entrypoint is create-only for this reason.
+- Reference cases: `DB_DEMO_HF_001` (synthetic training case, matches the instructor key),
+  `UAT_*` (five gate fixtures), `HF_ARNI_ACEI_001` (old validation-workbook values, 11/11 QC),
+  `HF_ARNI_ACEI_004` (locked, flagged `requires_remediation`, NEVER DELETE).
 
-**Next up:** the lecturer received the Round 2 fixes and **more revisions are expected**.
-Read the newest document in `../Brief/` before assuming scope.
+### Documents in `../Brief/`, oldest to newest - LATER ONES SUPERSEDE EARLIER ONES
+
+| File | What it is |
+|---|---|
+| `11052026_Workflow and Steps kerja untuk IT.docx` | The ORIGINAL brief. Do not treat as current where a later document disagrees. |
+| `Hasil Checking DeciBridge.docx` | Round 1 revision (econ engine). Done. |
+| *(WhatsApp, pasted in chat)* | Round 3: five role-based acceptance reports. Done. |
+| `revisi final.docx` | Round 4: eight items. Done except what the new spec below replaces. |
+| `23092026_DeciBridge_Panduan_Detail_Role_Workflow_dan_Kasus_End_to_End.docx` | **NEW SPEC, not yet implemented.** See below. |
+| `DeciBridge_Demo_Training_Package.xlsx` | Synthetic training case + instructor key. Loaded as `DB_DEMO_HF_001`. |
+
+### What the lecturer asked for last (WhatsApp, early Oct) - NOT DONE YET
+
+"Diva coba dimasukkan pakai data real ini. Kemudian screenshot, sekalian nanti jadi manual book /
+panduan." He then sent the training package when told the docx held no data. So the deliverable is
+a **manual book with screenshots** of the training case being worked through all nine menus.
+Done so far: the case is loaded with CEA/BIA/PSA computed. Not done: EtD, Rekomendasi, Sign-Off,
+Brief, Versi on that case (people do these in their roles), and the manual itself.
+
+"Data real" has NOT been loaded. The package is labelled synthetic. The only real numbers we have
+are in the Panduan section 3 (ARNI Rp1.175.000/month, ramipril Rp90.000/month, HF hospitalisation
+Rp6.500.000/event, HR hospitalisation ~0,80, HR mortality ~0,84) and it marks eligible population,
+uptake and utility as not yet available, so a CUA on them must show INCOMPLETE/BLOCK. The engine
+takes event probabilities, not hazard ratios. `HF_ARNI_ACEI_001` still holds the older values.
+
+### The 23092026 Panduan - next big round, plan with the user before building
+
+- **Seven roles** (we have five): adds Pembimbing/Peneliti (methodology review gate) and
+  Klinisi/Clinical Expert; Farmasi becomes Data Owner; KFT splits Reviewer / Approver.
+- **Status lifecycle:** Draft -> Methodology Review -> Revision Required -> Submitted for KFT ->
+  Rejected / Approved-Frozen -> Archived-Verified.
+- **EtD:** per-domain judgement in its own vocabulary + score -1/0/+1 + rationale + evidence used.
+  "Tanpa automatic weighted decision." Values & Preferences must not auto-count as favourable.
+- **Recommendation is a human decision:** decision type, target population, access criteria,
+  rationale, implementation plan, monitoring plan. This retires the 40/30/20/10 composite, the
+  GREEN/YELLOW/RED verdict and the (inert) domain-weight voting. Do not "fix" those; replace them.
+- **Admin IT is metadata-only:** must not see detailed clinical/economic case content. Today it can.
+- **Per-parameter fields:** adds source_detail, model_status (Included / Not used / Scenario only),
+  validation status "Missing".
+- **Version gate:** CEA, BIA, PSA, EtD, recommendation must share one parameter/model version.
+- **Role dashboards:** four blocks (MY TASK / DATA I NEED / ACTION REQUIRED / OUTPUT-HANDOFF) and a
+  header with versions, completeness %, blocking issues.
+- "FINAL LOCKED FOR STUDENT RESEARCH" needs identical builds: pin dependencies (see gotcha 9).
+
+### Open items, in suggested order
+
+1. **PSA distribution editor.** No screen exists for choosing distributions (package steps 37-39);
+   only seeders can set them. Needed before the PSA part of the manual can be screenshotted.
+2. Work `DB_DEMO_HF_001` through EtD -> Versi in each role; write the manual book with screenshots.
+3. Plan and build the 23092026 spec as its own round.
+4. Pin `djangorestframework` (pyproject says `>=3.15`; local venv 3.17, Docker image 3.18).
+5. Leave Railway: Supabase Postgres + Render (paid) or Fly.io (free, volumes). Backup taken
+   2026-09-11 at `../decibridge-railway.dump` is now stale; take a fresh `pg_dump` first.
+6. `recommendation/engine.py` docstring claims the composite is "per the brief's section 5". It is
+   not in any brief. Moot once item 3 replaces the engine.
+7. Still unwritten from round 2 item 9: functional / edge-case / security test documentation, SUS,
+   KFT meeting simulation.
 
 ### Operational quick-reference
 
 | Need | Command |
 |---|---|
-| Run tests | `cd backend && ./.venv/Scripts/python.exe -m pytest -q` (~8 min full suite) |
+| Run tests | `cd backend && ./.venv/Scripts/python.exe -m pytest -q --no-cov` (~12 min; one run at a time, they share the test DB) |
 | Start DB | `docker compose up -d db redis` (Postgres on **5433**; Docker Desktop must be running) |
-| Prod shell | `railway ssh bash -lc "cd /app/backend && <cmd>"` (CLI is logged in + linked from the Windows home dir) |
-| Re-seed prod | `railway ssh bash -lc "cd /app/backend && python manage.py seed_econ_validation_case"` |
-| Deploy | `git push origin main` - Railway auto-builds (~2 min); entrypoint runs `migrate` + `backfill_decision_snapshots` |
+| Local app | `docker compose up -d backend frontend` -> http://localhost:5173 (API :8000) |
+| Deploy | `git push origin main` - Railway builds in ~2 min |
+| Check prod | Log in through the API as `hta@test.local` and read JSON; `railway ssh` needs `railway login` again (session expired) |
+
+Entrypoint on every deploy: `migrate`, `create_test_users`, `backfill_decision_snapshots`,
+`seed_uat_cases`, `seed_demo_training_case`, `audit_case_integrity`. All create-only or idempotent.
 
 ### Hard-won gotchas (each one cost real time - do not relearn these)
 
-1. **The SPA catch-all returns HTTP 200 + `index.html` for unmatched API paths.** A missing route
-   looks identical to a working one if you check only the status code. **Always assert on the
-   response body** (JSON vs `<!doctype html>`) when verifying a deploy.
-2. **The version state endpoint takes the version *id*, not the version number:**
-   `/cases/{case_id}/versions/{version_id}/state/`.
-3. **`seed_econ_validation_case` prunes stale parameters.** Before that fix a leftover
-   `market_share=0.5` row silently **halved every BIA scenario**. If BIA numbers look exactly
-   half, suspect a stale parameter row. Also: never add this command to the entrypoint - it
-   overwrites economic parameters and would wipe the lecturer's edits on every deploy.
-4. **Never put business gates inside `state_machine.transition()`** - doing so broke 18 tests and
-   43 errors. Gates belong at the API entry points (`enforce_completeness=True`), evaluated
-   **after** the role check so an unauthorised caller still gets 403, not 422.
-5. **Lazy translation proxies are not JSON-serializable.** `decision_snapshot._s()` coerces
-   `django.utils.functional.Promise`; without it every case lock crashed.
-6. **Railway has no "Open Shell" button in the dashboard.** Use the CLI (`railway ssh`).
-7. **Railway subscription showed PAST DUE (2026-09-02).** If the live URL 5xx's or the domain is
-   dark, check billing before debugging code.
+1. **The SPA catch-all returns HTTP 200 + `index.html` for unmatched API paths.** Always assert on
+   the response body. Also: Django admin owns `/admin/*`, so no React route may start with `/admin`.
+2. The version state endpoint takes the version *id*: `/cases/{case_id}/versions/{version_id}/state/`.
+3. **Never add `seed_econ_validation_case` to the entrypoint** - it overwrites parameters.
+4. **Never put business gates inside `state_machine.transition()`**; use `enforce_completeness=True`
+   at API entry points, evaluated after the role check (403 before 422).
+5. Lazy translation proxies are not JSON-serializable (`decision_snapshot._s()` coerces them).
+6. Railway has no dashboard shell; billing lapses take the site down with an edge 404
+   "Application not found". Check billing before debugging.
+7. **A bulk parameter save must only write fields the client sent.** Defaulting missing fields reset
+   every PSA distribution to `fixed` on each table save (fixed in `b6277ed`, tests guard it).
+8. **Tests passing locally does not prove the container.** Check changed UI flows in the browser
+   against the Docker stack before pushing.
+9. **DRF version drift:** bulk-serializer errors are a list in 3.17 and a dict keyed by row in 3.18.
+   Local venv and Docker image differ. `econ/views._row_errors` handles both.
+10. Vite inside Docker on Windows does not hot-reload from the bind mount: `docker compose restart
+    frontend` after frontend edits.
+11. Nullable sub-scores (`cba_score`, `budget_score`) must never be formatted with `:.2f` unguarded.
+12. Bash heredocs break on non-ASCII (em-dash) and turn `\n` inside Python strings into real
+    newlines; use the Write/Edit tools for such content.
+13. `compose` builds with `context: ./backend` and `./frontend`, so each needs its own
+    `.dockerignore`; the repo-root one does not apply.
 
 ### Standing constraints from the lecturer
 
-- "mohon jangan hapus HF_ARNI_ACEI_004, karena kasus ini akan digunakan kembali sebagai
-  regression test" - **never delete that case**.
-- "seluruh parameter wajib editable dan tidak boleh ditanam permanen di source code" - every
-  economic parameter must be editable through the UI, never hardcoded.
+- Never delete `HF_ARNI_ACEI_004`.
+- Every economic parameter must be editable in the UI, never hardcoded.
+- Missing/blank/null must never silently become 0 or a favourable judgement.
+- Synthetic test data must be labelled and kept apart from research cases.
 
 ## What this is
 
@@ -98,7 +162,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 470 tests, all passing.** Coverage target 80% (currently ~86.3%).
+**Test suite: 470 tests, all passing.** Coverage target 80%.
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 
