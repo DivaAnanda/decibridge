@@ -4,8 +4,9 @@ Auto-loaded into every Claude Code session in this repo. Keep short, keep curren
 
 ## CURRENT STATE - read this first (2026-10-13)
 
-**Rounds 1-4 and the PSA distribution editor are shipped and deployed (pushed 2026-10-13; see
-`git log` for the head). 505 backend tests passing (~14 min full run).**
+**Rounds 1-4, the PSA distribution editor, the manual book and the fixes it exposed are shipped
+and deployed (pushed 2026-10-13; see `git log` for the head). 520 backend tests passing (~14 min
+full run).**
 
 - **Live:** https://decibridge-production.up.railway.app (still on Railway; migration not started).
 - **Production now holds other people's work.** Students and the lecturer create cases there
@@ -27,13 +28,14 @@ Auto-loaded into every Claude Code session in this repo. Keep short, keep curren
 | `23092026_DeciBridge_Panduan_Detail_Role_Workflow_dan_Kasus_End_to_End.docx` | **NEW SPEC, not yet implemented.** See below. |
 | `DeciBridge_Demo_Training_Package.xlsx` | Synthetic training case + instructor key. Loaded as `DB_DEMO_HF_001`. |
 
-### What the lecturer asked for last (WhatsApp, early Oct) - NOT DONE YET
+### What the lecturer asked for last (WhatsApp, early Oct) - manual book BUILT 2026-10-13
 
 "Diva coba dimasukkan pakai data real ini. Kemudian screenshot, sekalian nanti jadi manual book /
 panduan." He then sent the training package when told the docx held no data. So the deliverable is
 a **manual book with screenshots** of the training case being worked through all nine menus.
-Done so far: the case is loaded with CEA/BIA/PSA computed. Not done: EtD, Rekomendasi, Sign-Off,
-Brief, Versi on that case (people do these in their roles), and the manual itself.
+The manual is `docs/panduan/Buku_Panduan_DeciBridge_Kasus_Latihan.{docx,pdf}` (42 pages, 47
+screenshots). See "Manual book" below for how it is produced. The fixes found while writing it
+were deployed with it. Whether the manual has been sent to him is for the user to say: ask.
 
 "Data real" has NOT been loaded. The package is labelled synthetic. The only real numbers we have
 are in the Panduan section 3 (ARNI Rp1.175.000/month, ramipril Rp90.000/month, HF hospitalisation
@@ -63,7 +65,11 @@ takes event probabilities, not hazard ratios. `HF_ARNI_ACEI_001` still holds the
 ### Open items, in suggested order
 
 1. ~~PSA distribution editor~~ - built 2026-10-13 (see "PSA set-up" below).
-2. Work `DB_DEMO_HF_001` through EtD -> Versi in each role; write the manual book with screenshots.
+2. ~~Manual book~~ - built 2026-10-13 (see "Manual book" below). Gaps it exposed, not yet built:
+   a locked case cannot be reopened for a v1.1; the brief has no PSA summary or decision
+   question; Rekomendasi has no decision-type / target-population / rationale inputs; the
+   Sign-Off checklist does not include PSA; a stale recommendation is warned about but can
+   still be signed. Most of these are what the 23092026 spec replaces - plan them there.
 3. Plan and build the 23092026 spec as its own round.
 4. Pin `djangorestframework` (pyproject says `>=3.15`; local venv 3.17, Docker image 3.18).
 5. Leave Railway: Supabase Postgres + Render (paid) or Fly.io (free, volumes). Backup taken
@@ -72,6 +78,27 @@ takes event probabilities, not hazard ratios. `HF_ARNI_ACEI_001` still holds the
    not in any brief. Moot once item 3 replaces the engine.
 7. Still unwritten from round 2 item 9: functional / edge-case / security test documentation, SUS,
    KFT meeting simulation.
+
+### Manual book (`docs/panduan/`)
+
+- One command rebuilds it from nothing: `bash docs/panduan/regenerate.sh`. It creates an empty
+  database `decibridge_manual`, points the Docker backend at it
+  (`docs/panduan/docker-compose.manual.yml`), runs `frontend/e2e/capture-manual.mjs` (Playwright
+  works the training case through all nine menus in four roles and saves the screenshots and
+  `results.json`), copies out the generated briefs, then runs `docs/panduan/build_manual.py`.
+  Return to the normal stack afterwards with `docker compose up -d backend frontend`.
+- Every number in the manual comes from `results.json` and is checked against the instructor key
+  in `docs/panduan/manual/data.py`; the build stops if CEA or BIA disagree. Input tables are
+  printed from the capture script's own constants. Do not retype figures into the chapters.
+- The screenshots show the build badge of `MANUAL_BUILD_COMMIT` (HEAD when the script ran), so
+  regenerate AFTER committing app changes, then commit the manual separately.
+- **The verdict depends on the CBA "terpenuhi" tick.** With the four access criteria unticked
+  the training case scores 69.44 KUNING (adopsi bersyarat), which matches the package's "Adopt
+  with criteria-based access". With all four ticked it scores 79.44 HIJAU (tanpa syarat). The
+  manual leaves them unticked and says why (package sheet 06 lists monitoring and workflow as
+  still to be defined). This was the author's judgement; the user was told.
+- EtD judgements are mapped from the package's per-domain vocabulary to the five-point scale in
+  the capture script (`APPRAISALS`). Also a judgement, tabulated in chapter 6 of the manual.
 
 ### PSA set-up (package steps 37-39)
 
@@ -138,6 +165,18 @@ Entrypoint on every deploy: `migrate`, `create_test_users`, `backfill_decision_s
     `src/econ/psaDistribution.test.ts` is the frontend suite that is expected to pass.
 15. Case tabs use `keepMounted={false}`: leaving a tab unmounts it, so unsaved edits in it are lost
     and its queries refetch on return only if older than the 30 s `staleTime` or invalidated.
+16. **Never automate Microsoft Word on this machine** (`docx2pdf`, `win32com`). It attaches to
+    the Word window the user already has open, opens files in it, and `docx2pdf` calls
+    `Quit()` on it afterwards. PDFs for docs are printed with Playwright's Chromium
+    (`frontend/e2e/print-pdf.mjs`); briefs are converted by LibreOffice inside Docker. The app's
+    own `policy_brief.service._convert_docx_to_pdf` still uses docx2pdf when run outside Docker
+    on Windows - generate briefs through the Docker stack.
+17. A case built through the ORM (seeders, tests) has no `v0.1.0` version row; only the API
+    creates it. The Versi tab reads economic figures from the lock snapshot
+    (`versioning/views._state_blocks`), legacy CEA/BIA pointer rows are only a fallback.
+18. Git Bash heredocs and `sed` on this machine: a quoted heredoc still fails on box-drawing or
+    other non-ASCII characters, and Python strings in heredocs lose escapes. Write a patch
+    script with the Write tool and run it.
 
 ### Standing constraints from the lecturer
 
@@ -189,7 +228,7 @@ Django 5.2 + DRF + SimpleJWT + Celery 5.6 · PostgreSQL 16 (Docker host port **5
 
 **🎉 12-sprint roadmap complete + bonus deploy.** All sprints except Sprint 3 (Excel intake — deferred pending dosen XLSX) are shipped, verified, and committed.
 
-**Test suite: 505 tests, all passing.** Coverage target 80%.
+**Test suite: 520 tests, all passing.** Coverage target 80%.
 
 ## Post-demo revision (lecturer feedback — `../Brief/Hasil Checking DeciBridge.docx`)
 

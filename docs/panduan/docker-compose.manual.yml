@@ -1,0 +1,28 @@
+# Overlay used only to capture the manual's screenshots.
+#
+# Points the backend at an empty database of its own, so the walkthrough starts
+# from a clean dashboard and never touches the development database:
+#
+#   docker compose exec db psql -U decibridge -c "CREATE DATABASE decibridge_manual"
+#   docker compose -f docker-compose.yml -f docs/panduan/docker-compose.manual.yml up -d backend frontend
+#
+# Return to the normal stack with: docker compose up -d backend frontend
+services:
+  backend:
+    environment:
+      DATABASE_URL: postgres://decibridge:decibridge@db:5432/decibridge_manual
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py create_test_users &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - manual-media:/app/media
+
+  frontend:
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      VITE_BUILD_COMMIT: ${MANUAL_BUILD_COMMIT:-lokal}
+
+volumes:
+  manual-media:

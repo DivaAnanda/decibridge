@@ -1,0 +1,407 @@
+{
+  "initial": {
+    "deterministic": {
+      "total_cost_intervention": "16500000.0000000000",
+      "total_cost_comparator": "4100000.0000000000",
+      "total_qaly_intervention": "0.7500000000",
+      "total_qaly_comparator": "0.6950000000",
+      "incremental_cost": "12400000.0000000000",
+      "incremental_qaly": "0.0550000000",
+      "icer": "225454545.4545454545",
+      "nmb_intervention": "208500000.0000000000",
+      "nmb_comparator": "204400000.0000000000",
+      "inb": "4100000.0000000000",
+      "decision_code": "cost_effective"
+    },
+    "bia": {
+      "cumulative_net_impact": "2938800000.0000000000",
+      "pct_of_total_baseline": "4.8980",
+      "severity": "significant",
+      "budget_score": 50,
+      "per_year": [
+        {
+          "year": 1,
+          "patients_intervention": "40.00000000000000000000",
+          "net_budget_impact": "496000000.0000000000000000000",
+          "pct_of_annual_baseline": "2.480000000000000"
+        },
+        {
+          "year": 2,
+          "patients_intervention": "77.00000000000000000000",
+          "net_budget_impact": "954800000.0000000000000000000",
+          "pct_of_annual_baseline": "4.774000000000000"
+        },
+        {
+          "year": 3,
+          "patients_intervention": "120.00000000000000000000",
+          "net_budget_impact": "1488000000.000000000000000000",
+          "pct_of_annual_baseline": "7.44000000000000"
+        }
+      ]
+    },
+    "psa": {
+      "n_simulations": 5000,
+      "random_seed": 42,
+      "prob_cost_effective_base": "0.5602",
+      "mean_incremental_cost": "12414195.4321628700",
+      "mean_incremental_qaly": "0.0539807889"
+    },
+    "recommendation": {
+      "traffic_light": "yellow",
+      "composite_score": "69.44",
+      "evidence_strength_score": "73.61",
+      "ce_score": "100.00",
+      "budget_score": "50.00",
+      "cba_score": "0.00",
+      "cba_criteria_count": 4,
+      "cba_satisfied_count": 0
+    }
+  },
+  "revised": {
+    "deterministic": {
+      "total_cost_intervention": "15300000.0000000000",
+      "total_cost_comparator": "4100000.0000000000",
+      "total_qaly_intervention": "0.7500000000",
+      "total_qaly_comparator": "0.6950000000",
+      "incremental_cost": "11200000.0000000000",
+      "incremental_qaly": "0.0550000000",
+      "icer": "203636363.6363636364",
+      "nmb_intervention": "209700000.0000000000",
+      "nmb_comparator": "204400000.0000000000",
+      "inb": "5300000.0000000000",
+      "decision_code": "cost_effective"
+    },
+    "bia": {
+      "cumulative_net_impact": "2654400000.0000000000",
+      "pct_of_total_baseline": "4.4240",
+      "severity": "significant",
+      "budget_score": 50,
+      "per_year": [
+        {
+          "year": 1,
+          "patients_intervention": "40.00000000000000000000",
+          "net_budget_impact": "448000000.0000000000000000000",
+          "pct_of_annual_baseline": "2.240000000000000"
+        },
+        {
+          "year": 2,
+          "patients_intervention": "77.00000000000000000000",
+          "net_budget_impact": "862400000.0000000000000000000",
+          "pct_of_annual_baseline": "4.312000000000000"
+        },
+        {
+          "year": 3,
+          "patients_intervention": "120.00000000000000000000",
+          "net_budget_impact": "1344000000.000000000000000000",
+          "pct_of_annual_baseline": "6.72000000000000"
+        }
+      ]
+    },
+    "psa": {
+      "n_simulations": 5000,
+      "random_seed": 42,
+      "prob_cost_effective_base": "0.5768",
+      "mean_incremental_cost": "11213484.4147241790",
+      "mean_incremental_qaly": "0.0539807889"
+    },
+    "recommendation": {
+      "traffic_light": "yellow",
+      "composite_score": "69.44",
+      "evidence_strength_score": "73.61",
+      "ce_score": "100.00",
+      "budget_score": "50.00",
+      "cba_score": "0.00",
+      "cba_criteria_count": 4,
+      "cba_satisfied_count": 0
+    }
+  },
+  "inputs": {
+    "parameters": [
+      [
+        "Biaya obat per pasien per tahun",
+        "Intervensi",
+        "",
+        "14400000",
+        "IDR/pasien/tahun",
+        "SRC-DEMO-01 Farmasi demo"
+      ],
+      [
+        "Biaya obat per pasien per tahun",
+        "Komparator",
+        "",
+        "1200000",
+        "IDR/pasien/tahun",
+        "SRC-DEMO-01 Farmasi demo"
+      ],
+      [
+        "Probabilitas kejadian / rehospitalisasi",
+        "Intervensi",
+        "",
+        "0.30",
+        "proporsi/tahun",
+        "SRC-DEMO-02 RWE demo"
+      ],
+      [
+        "Probabilitas kejadian / rehospitalisasi",
+        "Komparator",
+        "",
+        "0.45",
+        "proporsi/tahun",
+        "SRC-DEMO-02 RWE demo"
+      ],
+      [
+        "Biaya per kejadian / rawat inap",
+        "Bersama",
+        "",
+        "6000000",
+        "IDR/event",
+        "SRC-DEMO-03 Billing demo"
+      ],
+      [
+        "Utility dasar",
+        "Intervensi",
+        "",
+        "0.78",
+        "utility 0-1",
+        "SRC-DEMO-04 Utility demo"
+      ],
+      [
+        "Utility dasar",
+        "Komparator",
+        "",
+        "0.74",
+        "utility 0-1",
+        "SRC-DEMO-04 Utility demo"
+      ],
+      [
+        "Disutility kejadian",
+        "Bersama",
+        "",
+        "0.10",
+        "decrement/event",
+        "SRC-DEMO-04 Utility demo"
+      ],
+      [
+        "Biaya tambahan lain",
+        "Intervensi",
+        "",
+        "300000",
+        "IDR/pasien/tahun",
+        "Monitoring demo"
+      ],
+      [
+        "Biaya tambahan lain",
+        "Komparator",
+        "",
+        "200000",
+        "IDR/pasien/tahun",
+        "Monitoring demo"
+      ],
+      [
+        "Jumlah populasi eligible",
+        "Bersama",
+        "Tahun 1",
+        "200",
+        "pasien/tahun",
+        "SRC-DEMO-05 SIMRS demo"
+      ],
+      [
+        "Jumlah populasi eligible",
+        "Bersama",
+        "Tahun 2",
+        "220",
+        "pasien/tahun",
+        "SRC-DEMO-05 SIMRS demo"
+      ],
+      [
+        "Jumlah populasi eligible",
+        "Bersama",
+        "Tahun 3",
+        "240",
+        "pasien/tahun",
+        "SRC-DEMO-05 SIMRS demo"
+      ],
+      [
+        "Uptake",
+        "Bersama",
+        "Tahun 1",
+        "0.20",
+        "proporsi",
+        "SRC-DEMO-06 Protokol latihan"
+      ],
+      [
+        "Uptake",
+        "Bersama",
+        "Tahun 2",
+        "0.35",
+        "proporsi",
+        "SRC-DEMO-06 Protokol latihan"
+      ],
+      [
+        "Uptake",
+        "Bersama",
+        "Tahun 3",
+        "0.50",
+        "proporsi",
+        "SRC-DEMO-06 Protokol latihan"
+      ]
+    ],
+    "distributions": [
+      {
+        "dist": "Gamma",
+        "uncertainty": "10%"
+      },
+      {
+        "dist": "Gamma",
+        "uncertainty": "10%"
+      },
+      {
+        "dist": "Beta",
+        "p1": "60",
+        "p2": "140"
+      },
+      {
+        "dist": "Beta",
+        "p1": "90",
+        "p2": "110"
+      },
+      {
+        "dist": "Gamma",
+        "uncertainty": "10%"
+      },
+      {
+        "dist": "Gamma",
+        "uncertainty": "10%"
+      },
+      {
+        "dist": "Gamma",
+        "uncertainty": "10%"
+      },
+      {
+        "dist": "Beta",
+        "uncertainty": "0,06"
+      },
+      {
+        "dist": "Beta",
+        "uncertainty": "0,06"
+      },
+      {
+        "dist": "Beta",
+        "uncertainty": "0,03"
+      }
+    ],
+    "references": [
+      [
+        "SRC-DEMO-01 Farmasi demo (sintetis, 2026)",
+        "Harga ARNI dan ramipril. Harga latihan saja; bukan harga aktual RS/e-catalogue."
+      ],
+      [
+        "SRC-DEMO-02 RWE demo (sintetis, 2026)",
+        "Probabilitas rehospitalisasi 0,30 vs 0,45 per tahun. Bukan data pasien nyata."
+      ],
+      [
+        "SRC-DEMO-03 Billing demo (sintetis, 2026)",
+        "Biaya rehospitalisasi Rp6.000.000/event. Bukan tarif aktual."
+      ],
+      [
+        "SRC-DEMO-04 Utility demo (sintetis, 2026)",
+        "Utility 0,78 dan 0,74; disutility 0,10. Bukan EQ-5D aktual."
+      ],
+      [
+        "SRC-DEMO-05 SIMRS demo (sintetis, 2026)",
+        "Eligible population 200/220/240 pasien/tahun. Bukan volume nyata RS."
+      ],
+      [
+        "SRC-DEMO-06 Protokol latihan (asumsi, 2026)",
+        "Perspektif, horizon, WTP, uptake, seed. Ditentukan untuk tujuan pembelajaran."
+      ]
+    ],
+    "appraisals": [
+      [
+        "1. Masalah (Problem)",
+        "Ya",
+        [
+          "SRC-DEMO-02"
+        ],
+        "HFrEF dan rehospitalisasi merupakan masalah klinis/biaya yang penting dalam kasus latihan."
+      ],
+      [
+        "2. Efek yang Diinginkan",
+        "Mungkin ya",
+        [
+          "SRC-DEMO-02",
+          "SRC-DEMO-04"
+        ],
+        "Intervensi menurunkan event dan meningkatkan QALY dibanding komparator."
+      ],
+      [
+        "3. Efek yang Tidak Diinginkan",
+        "Mungkin ya",
+        [],
+        "Risiko dalam latihan dianggap dapat dikelola dengan pemantauan."
+      ],
+      [
+        "4. Kepastian Bukti",
+        "Mungkin ya",
+        [
+          "SRC-DEMO-02"
+        ],
+        "Masih ada ketidakpastian/residual confounding walaupun arah manfaat favorable."
+      ],
+      [
+        "5. Nilai & Preferensi",
+        "Mungkin ya",
+        [],
+        "Outcome dianggap penting bagi pasien, namun variasi preferensi dapat terjadi."
+      ],
+      [
+        "6. Penggunaan Sumber Daya",
+        "Tidak pasti",
+        [
+          "SRC-DEMO-01",
+          "SRC-DEMO-03"
+        ],
+        "Value for money favorable pada WTP demo, tetapi affordability meningkat."
+      ],
+      [
+        "7. Ekuitas",
+        "Tidak pasti",
+        [],
+        "Jika diadopsi tanpa kriteria, akses dapat dipengaruhi keterbatasan anggaran."
+      ],
+      [
+        "8. Kelayakan Implementasi",
+        "Mungkin ya",
+        [],
+        "Implementasi mungkin dilakukan dengan restriction dan monitoring."
+      ],
+      [
+        "9. Penerimaan oleh Pemangku Kepentingan",
+        "Mungkin ya",
+        [],
+        "Penerimaan mungkin berbeda antar stakeholder karena biaya."
+      ]
+    ],
+    "criteria": [
+      [
+        "Eligibilitas: HFrEF terkonfirmasi",
+        "Diagnosis HFrEF dikonfirmasi (LVEF ≤40%, NYHA II–IV); memenuhi kriteria klinis lokal."
+      ],
+      [
+        "Prescriber: inisiasi oleh spesialis",
+        "Inisiasi oleh spesialis terkait."
+      ],
+      [
+        "Monitoring: tekanan darah, fungsi ginjal, K+",
+        "Tekanan darah, fungsi ginjal dan kalium dimonitor; review tolerabilitas."
+      ],
+      [
+        "Stop/reassess",
+        "Reassess bila intoleransi/masalah keselamatan atau tidak lagi memenuhi kriteria."
+      ]
+    ],
+    "revision_reason": "Pembaruan harga kontrak demo"
+  },
+  "build": "5871bf8",
+  "case_id": "DB_DEMO_HF_001"
+}
