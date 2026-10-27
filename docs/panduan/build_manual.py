@@ -33,7 +33,7 @@ from manual.appendices import appendix_differences, appendix_key, appendix_probl
 from manual.chapters_analysis import about, bia, cover, ekonomi, preparation, psa, ringkasan
 from manual.chapters_decision import brief, etd, rekomendasi, signoff, versi
 from manual.data import (
-    CASE_ID, FOOTER, HERE, INITIAL, MISMATCHES, OUT_DOCX, OUT_PDF, PRINTER,
+    CASE_ID, FOOTER, HERE, INITIAL, INPUTS, MISMATCHES, OUT_DOCX, OUT_PDF, PRINTER,
 )
 from manual.document import Manual
 
@@ -55,6 +55,10 @@ def check_brief() -> None:
         f"{Decimal(det['total_qaly_comparator']):.4f}",
         f"Rp {Decimal(INITIAL['bia']['cumulative_net_impact']):,.0f}".replace(",", "."),
         "ADOPSI BERSYARAT",
+        "Pertanyaan Keputusan dan Populasi Target",
+        "Analisis Sensitivitas Probabilistik (PSA)",
+        f"{Decimal(str(INITIAL['psa']['prob_cost_effective_base'])) * 100:.1f}%",
+        INPUTS["final_decision"],
     ]
     for needle in expected:
         if needle not in text:

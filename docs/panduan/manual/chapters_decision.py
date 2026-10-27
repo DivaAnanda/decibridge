@@ -28,6 +28,10 @@ TRAFFIC_LABEL = {
 }
 
 
+def _probability(psa: dict) -> str:
+    return pct(Decimal(str(psa["prob_cost_effective_base"])) * 100)
+
+
 def etd(m: Manual) -> None:
     m.chapter("6. Menu 5 - EtD")
     m.role_line("Analis HTA (referensi), lalu Anggota KFT (penilaian)", "41-49")
@@ -123,11 +127,16 @@ def rekomendasi(m: Manual) -> None:
     if result["cba_satisfied_count"] != 0 or if_all_met < Decimal("75"):
         MISMATCHES.append("Bab 7: penjelasan 'bila keempatnya dicentang' tidak lagi berlaku")
     m.chapter("7. Menu 6 - Rekomendasi")
-    m.role_line("Sekretaris KFT (kriteria akses), lalu Analis HTA (menghitung)", "50-53")
+    m.role_line(
+        "Sekretaris KFT (kriteria akses), Analis HTA (menghitung), lalu Anggota KFT "
+        "(keputusan final)",
+        "50-53",
+    )
     m.text(
         "Menu ini menggabungkan bukti EtD, cost-effectiveness, dampak anggaran dan kriteria akses "
-        "menjadi satu rekomendasi berwarna. Rekomendasi dihitung oleh sistem; yang diisi pengguna "
-        "adalah kriteria aksesnya."
+        "menjadi satu rekomendasi berwarna yang dihitung sistem. Di bawahnya, KFT mencatat "
+        "keputusannya sendiri beserta alasan. Warna sistem adalah bahan pertimbangan; keputusan "
+        "KFT yang ditandatangani."
     )
 
     m.section("7.1 Kriteria akses (langkah 52)")
@@ -166,14 +175,14 @@ def rekomendasi(m: Manual) -> None:
         kind="warn",
     )
 
-    m.section("7.2 Menghitung rekomendasi (langkah 50)")
+    m.section("7.2 Menghitung rekomendasi sistem")
     m.steps([
         "Masuk sebagai Analis HTA dan buka tab **Rekomendasi**.",
         "Klik **Hitung Rekomendasi**.",
         "Kartu **Rekomendasi Akhir** menampilkan warna, skor komposit, keempat komponen, dan "
         "kalimat **Justifikasi**.",
     ])
-    m.figure("26-rekomendasi-hasil", "Rekomendasi kasus latihan.", max_height_cm=8.0)
+    m.figure("26-rekomendasi-hasil", "Rekomendasi sistem untuk kasus latihan.", max_height_cm=8.0)
     m.table(
         ["Komponen", "Bobot", "Skor", "Berasal dari"],
         [
@@ -186,23 +195,58 @@ def rekomendasi(m: Manual) -> None:
              f"**{TRAFFIC_LABEL[result['traffic_light']]}**"],
         ],
         [4.6, 1.8, 2.2, 8.4],
-        caption="Komponen rekomendasi",
+        caption="Komponen rekomendasi sistem",
     )
+
+    m.section("7.3 Keputusan Final KFT (langkah 50, 51 dan 53)")
     m.text(
-        "Hasil **KUNING - Adopsi Bersyarat (CBA)** sepadan dengan keputusan latihan pada paket, "
-        "\"Adopt with criteria-based access\": manfaat dan cost-effectiveness mendukung, tetapi "
-        "dampak anggaran bermakna dan penggunaannya dibatasi kriteria."
+        "Paket meminta jenis keputusan dan alasan terintegrasi diisi manusia. Kartu **Keputusan "
+        "Final KFT** di bawah rekomendasi sistem menampung keduanya. Kartu ini diisi oleh Anggota "
+        "KFT atau Ketua KFT, wajib disertai alasan, dan menjadi syarat sign-off. Setiap perubahan "
+        "disimpan sebagai riwayat; keputusan lama tidak pernah ditimpa."
+    )
+    m.steps([
+        "Masuk sebagai Anggota KFT dan buka tab **Rekomendasi**.",
+        "Pada kartu **Keputusan Final KFT**, pilih **Keputusan**: "
+        f"`{INPUTS['final_decision']}`.",
+        "Tulis **Alasan** yang memadukan seluruh menu, tidak hanya \"ICER di bawah WTP\".",
+        "Klik **Simpan Keputusan Final**. Keputusan, alasan, nama pencatat, waktu, dan warna "
+        "rekomendasi sistem yang menjadi dasarnya tampil pada kartu.",
+    ])
+    m.table(
+        ["Isian", "Nilai pada kasus latihan"],
+        [
+            ["Keputusan", INPUTS["final_decision"]],
+            ["Alasan", INPUTS["final_reason"]],
+        ],
+        [3.6, 13.4],
+        caption="Keputusan Final KFT kasus latihan (paket langkah 50 dan 53)",
+    )
+    m.figure("26b-rekomendasi-keputusan-form", "Kartu Keputusan Final KFT sebelum disimpan.",
+             max_height_cm=10.0)
+    m.figure("26c-rekomendasi-keputusan-final",
+             "Keputusan Final KFT tersimpan, di samping warna dan skor sistem.", max_height_cm=8.0)
+    m.callout(
+        "Warna sistem dan keputusan KFT",
+        [
+            "Lima jenis keputusan tersedia: Adopt, Adopt with criteria-based access, Defer pending "
+            "additional evidence, Do not adopt, dan Reassess after price negotiation. KFT boleh "
+            "memilih keputusan yang berbeda dari warna sistem, asal alasannya ditulis.",
+            "Hasil **KUNING - Adopsi Bersyarat (CBA)** sepadan dengan keputusan latihan pada paket, "
+            "\"Adopt with criteria-based access\": manfaat dan cost-effectiveness mendukung, tetapi "
+            "dampak anggaran bermakna dan penggunaannya dibatasi kriteria.",
+            "Bila rekomendasi dihitung ulang setelah keputusan dicatat, kartu meminta keputusan "
+            "dicatat ulang atas rekomendasi terbaru sebelum sign-off.",
+            "**Target populasi** (langkah 51) tidak diisi di sini: tercatat pada Ringkasan dan "
+            "pertanyaan PICO, dan dicetak pada brief sebagai Populasi target.",
+        ],
     )
     m.callout(
-        "Yang belum ada pada build ini",
+        "Yang perlu diketahui",
         [
-            "**Decision type, target population dan rationale** (langkah 50, 51 dan 53) tidak "
-            "memiliki isian tersendiri. Jenis keputusan adalah hasil hitung sistem. Target "
-            "populasi tercatat pada Ringkasan dan pada kriteria pertama. Alasan per domain ada "
-            "pada pertimbangan EtD, dan sistem menulis kalimat Justifikasi sendiri.",
             "**Hasil PSA tidak masuk ke skor komposit.** Skor cost-effectiveness hanya memakai "
-            "hasil deterministik, sehingga ketidakpastian sekitar 56% harus dibahas KFT sendiri "
-            "ketika menimbang rekomendasi ini.",
+            "hasil deterministik, sehingga ketidakpastian sekitar 56% ditimbang KFT dalam "
+            "Keputusan Final KFT dan alasannya.",
             "**Bobot Domain EtD** pada tab ini boleh diisi Anggota KFT, tetapi sesuai keterangan "
             "di layar hanya menjadi informasi dan tidak mengubah skor.",
         ],
@@ -213,15 +257,16 @@ def signoff(m: Manual) -> None:
     m.chapter("8. Menu 7 - Sign-Off")
     m.role_line("Analis HTA (mengajukan), lalu Ketua KFT (menandatangani)", "54-55")
     m.text(
-        "Sign-off adalah persetujuan resmi Ketua KFT atas rekomendasi. Sebelum itu, Analis HTA "
-        "memeriksa kelengkapan dossier dan mengajukan kasus untuk ditinjau."
+        "Sign-off adalah persetujuan resmi Ketua KFT atas Keputusan Final KFT. Sebelum itu, "
+        "Analis HTA memeriksa kelengkapan dossier dan mengajukan kasus untuk ditinjau."
     )
 
     m.section("8.1 Memeriksa dan mengajukan (Analis HTA)")
     m.steps([
         "Buka tab **Sign-Off**. Kartu **Kelengkapan Dossier** harus bertanda **SIAP SIGN-OFF**, "
         "dengan semua butir wajib tercentang.",
-        "Periksa kartu **Dossier Kasus untuk Tinjauan**: angkanya harus sama dengan tab asalnya.",
+        "Periksa kartu **Dossier Kasus untuk Tinjauan**: angkanya harus sama dengan tab asalnya, "
+        "dan Keputusan Final KFT tercantum.",
         "Klik **Tindakan** di kanan atas, lalu **Ajukan untuk Tinjauan**. Status kasus menjadi "
         "Dalam Tinjauan.",
     ])
@@ -232,12 +277,14 @@ def signoff(m: Manual) -> None:
     m.callout(
         "Bandingkan dengan checklist paket (sheet 08_SIGN_OFF)",
         [
-            "Kelengkapan Dossier memeriksa PICO, analisis ekonomi, BIA, sembilan domain EtD, "
-            "rekomendasi, sign-off dan kriteria CBA.",
-            "**PSA tidak ada dalam daftar itu.** Butir 4 checklist paket (PSA tersedia, dengan "
-            "iterasi dan seed) harus diperiksa sendiri di tab PSA.",
+            "Kelengkapan Dossier memeriksa PICO, analisis ekonomi, BIA, **PSA yang dijalankan pada "
+            "input terbaru**, sembilan domain EtD, rekomendasi, **rekomendasi yang masih sesuai "
+            "input**, **Keputusan Final KFT**, sign-off dan kriteria CBA.",
+            "PSA dianggap berlaku hanya bila inputnya sama dengan input sekarang. PSA yang "
+            "dijalankan sebelum 13 Oktober 2026 belum mencatat inputnya dan harus dijalankan ulang "
+            "sekali.",
             "Bila ada butir wajib yang kurang, pengajuan ditolak dengan pesan **Dossier belum "
-            "lengkap** beserta daftar kekurangannya.",
+            "lengkap** beserta daftar kekurangannya, dan tombol tanda tangan Ketua KFT tidak aktif.",
         ],
     )
 
@@ -246,7 +293,8 @@ def signoff(m: Manual) -> None:
         "Masuk sebagai Ketua KFT dan buka tab **Sign-Off** kasus tersebut.",
         "Tinjau dossier. Pada kartu **Tanda Tangan Ketua KFT**, klik **Setujui dengan Sign-Off**.",
         "Centang pernyataan konfirmasi, ketik **Sandi Anda**, lalu klik **Setujui & Tanda Tangan**.",
-        "Status kasus menjadi Disetujui, dan tanda tangan tercatat pada **Riwayat Tanda Tangan**.",
+        "Status kasus menjadi Disetujui, dan tanda tangan tercatat pada **Riwayat Tanda Tangan** "
+        "bersama Keputusan Final KFT yang ditandatangani.",
     ])
     m.figure("29-signoff-ketua", "Tab Sign-Off dilihat Ketua KFT, dengan tiga pilihan keputusan.",
              max_height_cm=19.0)
@@ -258,8 +306,8 @@ def signoff(m: Manual) -> None:
         [
             "Hanya Ketua KFT yang melihat tombol tanda tangan. Peran lain dapat menyiapkan seluruh "
             "bukti dan draf, tetapi tidak dapat menyetujui.",
-            "Ketua KFT menyetujui rekomendasi yang dihitung sistem; build ini tidak menyediakan "
-            "pilihan jenis keputusan lain pada saat tanda tangan.",
+            "Tanda tangan mengikat Keputusan Final KFT yang tercatat saat itu. Bila Ketua KFT "
+            "berpendapat lain, ia mencatat keputusan baru di tab Rekomendasi lebih dulu.",
             "**Minta Revisi** dan **Tolak** pada kartu ini wajib disertai alasan dan mengembalikan "
             "kasus ke Draft.",
         ],
@@ -269,8 +317,9 @@ def signoff(m: Manual) -> None:
 def brief(m: Manual) -> None:
     det = INITIAL["deterministic"]
     result = INITIAL["bia"]
+    psa = INITIAL["psa"]
     m.chapter("9. Menu 8 - Brief")
-    m.role_line("Analis HTA (Ketua KFT dan Admin IT juga dapat)", "56")
+    m.role_line("Analis HTA (Ketua KFT juga dapat)", "56")
     m.text(
         "Brief adalah ringkasan kebijakan dalam bentuk DOCX dan PDF. Brief baru dapat diterbitkan "
         "setelah kasus berstatus Disetujui atau Terkunci."
@@ -290,20 +339,27 @@ def brief(m: Manual) -> None:
     m.table(
         ["Bagian brief", "Isi pada kasus latihan"],
         [
-            ["Sampul", "ID kasus, judul, intervensi, komparator, indikasi, status, versi, tanggal"],
+            ["Sampul", "ID kasus, judul, intervensi, komparator, indikasi, populasi target, "
+             "setting, perspektif, status, versi, tanggal"],
             ["1. Ringkasan Eksekutif",
-             f"{TRAFFIC_LABEL[INITIAL['recommendation']['traffic_light']]}; skor komposit "
+             f"Keputusan Final KFT ({INPUTS['final_decision']}) dan alasannya; lalu rekomendasi "
+             f"sistem {TRAFFIC_LABEL[INITIAL['recommendation']['traffic_light']]}, skor komposit "
              f"{num(INITIAL['recommendation']['composite_score'], 2)} dan keempat komponennya"],
-            ["2. Analisis Efektivitas Biaya (CEA)",
+            ["2. Pertanyaan Keputusan dan Populasi Target",
+             "Populasi target, pertanyaan keputusan, dan keempat unsur PICO"],
+            ["3. Analisis Efektivitas Biaya (CEA)",
              f"ICER {rp(det['icer'])}; biaya {rp(det['total_cost_intervention'])} vs "
              f"{rp(det['total_cost_comparator'])}; QALY {num(det['total_qaly_intervention'], 4)} vs "
              f"{num(det['total_qaly_comparator'], 4)}; ambang Rp300.000.000 per QALY"],
-            ["3. Analisis Dampak Anggaran (BIA)",
+            ["4. Analisis Dampak Anggaran (BIA)",
              f"{year_text}; kumulatif {rp(result['cumulative_net_impact'])}"],
-            ["4. Evidence-to-Decision (EtD)", "Tabel sembilan domain: skor, pilihan, kepastian, jumlah penilai"],
-            ["5. Kriteria Akses (CBA)", "Empat kriteria dan status terpenuhinya"],
-            ["6. Daftar Referensi", "Enam referensi"],
-            ["7. Ringkasan Audit & Tanda Tangan", "Penanda tangan, keputusan, waktu"],
+            ["5. Analisis Sensitivitas Probabilistik (PSA)",
+             f"{num(psa['n_simulations'], 0)} iterasi, seed {psa['random_seed']}; peluang "
+             f"cost-effective {_probability(psa)}; rerata selisih biaya dan QALY; titik-titik CEAC"],
+            ["6. Evidence-to-Decision (EtD)", "Tabel sembilan domain: skor, pilihan, kepastian, jumlah penilai"],
+            ["7. Kriteria Akses (CBA)", "Empat kriteria dan status terpenuhinya"],
+            ["8. Daftar Referensi", "Enam referensi"],
+            ["9. Ringkasan Audit & Tanda Tangan", "Penanda tangan, keputusan, waktu"],
         ],
         [5.6, 11.4],
         caption="Isi brief versi 1, sudah dicocokkan dengan berkas yang dihasilkan",
@@ -311,9 +367,9 @@ def brief(m: Manual) -> None:
     m.callout(
         "Bandingkan dengan sheet 09_BRIEF paket",
         [
-            "Angka CEA, BIA, EtD dan rekomendasi pada brief sama dengan tab asalnya.",
-            "**Ringkasan PSA tidak tercantum pada brief** di build ini, begitu pula pertanyaan "
-            "keputusan dan populasi. Untuk butir \"PSA summary\" pada paket, rujuk tab PSA.",
+            "Angka CEA, BIA, PSA, EtD dan rekomendasi pada brief sama dengan tab asalnya.",
+            "Brief memuat ringkasan PSA, pertanyaan keputusan, populasi target, dan Keputusan "
+            "Final KFT yang ditandatangani.",
             "Berkas brief hasil pengerjaan ini disertakan pada folder `contoh-brief`.",
         ],
     )
@@ -327,11 +383,12 @@ def versi(m: Manual) -> None:
     reason = INPUTS["revision_reason"]
 
     m.chapter("10. Menu 9 - Versi")
-    m.role_line("Ketua KFT dan Analis HTA", "57-59")
+    m.role_line("Ketua KFT, Analis HTA, dan Anggota KFT", "55, 57-59")
     m.text(
-        "Menu Versi mencatat riwayat kasus. Versi dibuat oleh sistem pada dua saat: ketika kasus "
-        "dibuat (v0.1.0) dan ketika keputusan dikunci (v1.0). Hasil perhitungan tidak pernah "
-        "ditimpa: setiap perhitungan ulang menambah catatan baru."
+        "Menu Versi mencatat riwayat kasus. Versi dibuat oleh sistem pada tiga saat: ketika kasus "
+        "dibuat (v0.1.0), ketika keputusan dikunci (v1.0, v1.1, dan seterusnya), dan ketika kasus "
+        "terkunci dibuka untuk revisi (misalnya v1.1-draft, beserta alasannya). Versi yang sudah "
+        "terkunci tidak pernah diubah, dan hasil perhitungan tidak pernah ditimpa."
     )
 
     m.section("10.1 Versi awal (langkah 57)")
@@ -342,15 +399,26 @@ def versi(m: Manual) -> None:
     m.figure("34-versi-awal", "Riwayat versi sebelum keputusan dikunci.", max_height_cm=8.5,
              crop_bottom_at=0.6)
 
-    m.section("10.2 Latihan revisi (langkah 58-59)")
+    m.section("10.2 Mengunci keputusan sebagai v1.0 (langkah 55)")
+    m.steps([
+        "**Ketua KFT:** klik **Tindakan**, lalu **Kunci Keputusan**. Status menjadi Terkunci dan "
+        "baris **v1.0** dengan pemicu **KEPUTUSAN DIKUNCI** muncul di tab Versi.",
+        "Seluruh angka yang menjadi dasar keputusan dibekukan pada v1.0. Semua isian kini hanya "
+        "dapat dibaca.",
+    ])
+    m.figure("45-versi-kunci", "Menu Tindakan Ketua KFT pada kasus yang sudah disetujui.",
+             max_height_cm=8.5, crop_bottom_at=0.6)
+
+    m.section("10.3 Latihan revisi sebagai versi baru (langkah 58-59)")
     m.text(
         "Paket meminta harga ARNI diturunkan dari Rp1.200.000 menjadi Rp1.100.000 per bulan, yaitu "
-        "`13200000` per tahun, dengan alasan yang tercatat. Kasus sudah berstatus Disetujui, maka "
-        "revisi dimulai oleh Ketua KFT."
+        "`13200000` per tahun, sebagai versi baru dengan alasan yang tercatat, tanpa mengubah "
+        "versi lama. Analis HTA atau Ketua KFT dapat memulai revisi; di sini Ketua KFT."
     )
     m.steps([
-        "**Ketua KFT:** klik **Tindakan**, lalu **Minta Revisi**. Ketik alasannya, "
-        f"`{reason}`, dan klik **Lanjutkan**. Status kembali ke Dalam Tinjauan.",
+        "**Ketua KFT:** klik **Tindakan**, lalu **Buat Revisi (Versi Baru)**. Ketik alasannya, "
+        f"`{reason}`, dan klik **Lanjutkan**. Kasus kembali ke Draft dengan keterangan **Revisi "
+        "dari v1.0 sedang berjalan**; v1.0 tetap tersimpan tanpa perubahan.",
         "**Analis HTA:** pada tab **Analisis Ekonomi**, ubah **Nilai** baris Biaya obat per pasien "
         "per tahun - Intervensi menjadi `13200000`, lalu klik **Simpan & Hitung**.",
         "**Analis HTA:** pada tab **BIA**, klik **Hitung BIA**.",
@@ -360,12 +428,22 @@ def versi(m: Manual) -> None:
         "5000 dan seed 42.",
         "**Analis HTA:** pada tab **Rekomendasi**, peringatan **Rekomendasi ini tidak lagi sesuai "
         "input** muncul. Klik **Hitung Rekomendasi**.",
+        "**Anggota KFT:** pada kartu **Keputusan Final KFT**, catat keputusan untuk versi baru "
+        "dengan **Catat Keputusan Baru**. Keputusan untuk v1.0 tetap tercantum pada riwayat.",
+        "**Analis HTA:** klik **Tindakan**, lalu **Ajukan untuk Tinjauan**.",
         "**Ketua KFT:** pada tab **Sign-Off**, tanda tangani lagi dengan **Setujui dengan "
-        "Sign-Off**.",
+        "Sign-Off**. Tanda tangan untuk v1.0 tidak berlaku untuk versi baru.",
         "**Analis HTA:** pada tab **Brief**, klik **Buat Versi Baru**. Brief v2 terbit; brief v1 "
         "tetap tersimpan dengan sidik jari yang berbeda.",
+        "**Ketua KFT:** klik **Tindakan**, lalu **Kunci Keputusan**. Versi baru terkunci sebagai "
+        "**v1.1**, beserta brief v2.",
     ])
-    m.figure("35-versi-minta-revisi", "Alasan wajib diisi ketika meminta revisi.", max_height_cm=6.5)
+    m.figure("35-versi-buat-revisi",
+             "Membuat revisi: penjelasan dan alasan wajib sebelum kasus dibuka kembali.",
+             max_height_cm=8.0)
+    m.figure("35b-versi-revisi-berjalan",
+             "Kasus kembali ke Draft dengan keterangan revisi dari v1.0.", max_height_cm=6.0,
+             crop_bottom_at=0.37)
     m.figure("36-versi-harga-baru", "Nilai biaya obat ARNI diganti menjadi 13200000.",
              max_height_cm=2.2)
     m.figure("37-versi-hasil-baru", "Hasil deterministik setelah revisi harga.", max_height_cm=9.5)
@@ -393,61 +471,67 @@ def versi(m: Manual) -> None:
              "Tab Rekomendasi memberi tahu bahwa rekomendasi lama tidak lagi sesuai input.",
              max_height_cm=10.0, crop_bottom_at=0.75)
     m.figure("42-versi-rekomendasi-baru", "Rekomendasi setelah dihitung ulang.", max_height_cm=8.0)
+    m.figure("42b-versi-keputusan-ulang",
+             "Keputusan Final KFT untuk versi baru; keputusan untuk v1.0 ada pada riwayat.",
+             max_height_cm=11.0)
     yearly = "; ".join(f"Tahun {y['year']} {rp(y['net_budget_impact'])}" for y in budget["per_year"])
     m.callout(
         "Angka setelah revisi",
         [
             f"BIA: {yearly}; kumulatif {rp(budget['cumulative_net_impact'])}.",
-            f"PSA: probabilitas cost-effective "
-            f"{pct(Decimal(str(psa_result['prob_cost_effective_base'])) * 100)} "
-            f"(5000 iterasi, seed 42).",
-            f"Rekomendasi: {TRAFFIC_LABEL[reco['traffic_light']]}, skor komposit "
+            f"PSA: probabilitas cost-effective {_probability(psa_result)} (5000 iterasi, seed 42).",
+            f"Rekomendasi sistem: {TRAFFIC_LABEL[reco['traffic_light']]}, skor komposit "
             f"{num(reco['composite_score'], 2)}. Penurunan harga memperbaiki ICER dan BIA, tetapi "
             "tidak mengubah jenis rekomendasi.",
+            f"Keputusan Final KFT untuk versi baru: {INPUTS['final_decision']}, dengan alasan: "
+            f"{INPUTS['final_reason_revised']}",
         ],
         kind="check",
     )
     m.figure("43-versi-tanda-tangan-ulang",
-             "Riwayat tanda tangan memuat dua persetujuan: sebelum dan sesudah revisi.",
+             "Riwayat tanda tangan memuat dua persetujuan: untuk v1.0 dan untuk versi baru.",
              max_height_cm=4.2)
     m.figure("44-versi-brief-v2", "Brief v2 terbit; v1 tetap dapat diunduh.", max_height_cm=5.0)
 
-    m.section("10.3 Mengunci keputusan")
+    m.section("10.4 Membaca riwayat versi")
     m.steps([
-        "**Ketua KFT:** klik **Tindakan**, lalu **Kunci Keputusan**. Status menjadi Terkunci.",
-        "Buka tab **Versi**. Baris **v1.0** dengan pemicu **KEPUTUSAN DIKUNCI** muncul.",
-        "Klik baris **v1.0**. Tab **Timeline Audit** memuat seluruh perubahan sampai saat itu, "
-        "termasuk permintaan revisi beserta alasannya. Tab **Keadaan Data** memuat angka yang "
+        "Buka tab **Versi**. Riwayat memuat **v0.1.0**, **v1.0**, baris **v1.1-draft** dengan "
+        "pemicu **REVISI DIMINTA** dan alasannya, serta **v1.1**.",
+        "Klik baris **v1.1**. Tab **Timeline Audit** memuat seluruh perubahan sampai saat itu, "
+        "termasuk pembuatan revisi beserta alasannya. Tab **Keadaan Data** memuat angka yang "
         "dibekukan pada versi itu.",
-        "Pada **Bandingkan Versi**, pilih v0.1.0 dan v1.0, lalu klik **Tampilkan Diff** untuk "
-        "melihat perbedaannya.",
+        "Pada **Bandingkan Versi**, pilih v1.0 dan v1.1, lalu klik **Tampilkan Diff** untuk "
+        "melihat angka yang berubah karena revisi harga.",
     ])
-    m.figure("45-versi-kunci", "Menu Tindakan Ketua KFT pada kasus yang sudah disetujui.",
-             max_height_cm=8.5, crop_bottom_at=0.6)
-    m.figure("46-versi-riwayat", "Riwayat versi setelah dikunci, dengan v0.1.0 dan v1.0.",
-             max_height_cm=10.5)
+    m.figure("46-versi-riwayat",
+             "Riwayat versi: v0.1.0, v1.0, revisi v1.1-draft beserta alasannya, dan v1.1.",
+             max_height_cm=11.5)
     m.figure("47-versi-timeline",
-             "Entri Timeline Audit untuk permintaan revisi, dengan alasannya.", max_height_cm=6.5)
+             "Entri Timeline Audit untuk pembuatan revisi, dengan alasannya.", max_height_cm=6.5)
     m.figure("48-versi-keadaan-data",
-             "Keadaan Data versi 1.0: rekomendasi dan analisis ekonomi yang dibekukan.",
-             max_height_cm=19.0, width_cm=11.5, crop_bottom_at=0.42)
+             "Keadaan Data versi 1.1: rekomendasi, Keputusan Final KFT dan analisis ekonomi yang "
+             "dibekukan.",
+             max_height_cm=19.5, width_cm=11.5, crop_bottom_at=0.52)
     m.figure("48-versi-keadaan-data",
-             "Keadaan Data versi 1.0 (lanjutan): BIA dan PSA. Tanda tangan dan brief ada di bawahnya.",
-             max_height_cm=13.0, width_cm=11.5, crop_top_at=0.42, crop_bottom_at=0.69)
-    m.figure("49-versi-diff", "Perbandingan v0.1.0 dan v1.0 (bagian atas).", max_height_cm=14.0,
-             crop_bottom_at=0.3)
+             "Keadaan Data versi 1.1 (lanjutan): BIA, PSA, tanda tangan dan brief v2.",
+             max_height_cm=19.0, width_cm=11.5, crop_top_at=0.52, crop_bottom_at=0.995)
+    m.figure("49-versi-diff",
+             "Perbandingan v1.0 dan v1.1: angka yang berubah karena revisi harga.",
+             max_height_cm=17.0, crop_bottom_at=0.5)
+    m.figure("49-versi-diff",
+             "Perbandingan v1.0 dan v1.1 (lanjutan): rekomendasi dan Keputusan Final KFT tiap versi.",
+             max_height_cm=12.0, crop_top_at=0.505, crop_bottom_at=0.75)
     m.figure("50-versi-terkunci",
              "Setelah dikunci, isian pada semua tab hanya dapat dibaca.", max_height_cm=6.0)
     m.callout(
-        "Yang perlu diketahui tentang versi di build ini",
+        "Yang perlu diketahui tentang versi",
         [
-            "Dashboard tidak membuat baris \"v0.2\" untuk revisi sebelum penguncian. Jejak revisi "
-            "ada pada Timeline Audit, pada riwayat perhitungan tiap tab, pada dua tanda tangan, dan "
-            "pada brief v1 dan v2.",
-            "**Kasus yang sudah terkunci tidak dapat dibuka kembali.** Karena itu latihan revisi "
-            "dikerjakan sebelum penguncian. Revisi setelah penguncian belum tersedia.",
-            "Setelah terkunci, Ketua KFT dapat mengarsipkan kasus melalui **Tindakan**, "
-            "**Arsipkan**. Pengarsipan tidak dibahas dalam panduan ini.",
+            "Penomoran paket v0.1 dan v0.2 sepadan dengan v1.0 dan v1.1 di dashboard: keduanya "
+            "adalah keputusan yang sudah dikunci.",
+            "Versi baru selalu memerlukan Keputusan Final KFT dan tanda tangan Ketua KFT yang "
+            "baru; yang dicatat untuk versi sebelumnya tidak berlaku lagi.",
+            "Kasus yang sudah diarsipkan adalah rekam keputusan resmi dan tidak dapat direvisi. "
+            "Pengarsipan (Tindakan, **Arsipkan**, oleh Ketua KFT) tidak dibahas dalam panduan ini.",
         ],
         kind="warn",
     )

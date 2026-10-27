@@ -26,6 +26,7 @@ const USERS = {
   sekre: 'sekre@test.local',
   kft: 'kft1@test.local',
   ketua: 'ketua@test.local',
+  adminit: 'adminit@test.local',
 }
 
 fs.mkdirSync(OUT, { recursive: true })
@@ -478,6 +479,36 @@ async function rekomendasi() {
   await shot(hta, '26-rekomendasi-hasil', card(hta, 'Rekomendasi Akhir'))
 }
 
+// Package steps 50 and 53: the decision type and its integrated rationale,
+// recorded by the KFT beside the system's colour (round 5 item 3).
+const FINAL_DECISION = 'Adopsi dengan kriteria akses (Adopt with criteria-based access)'
+const FINAL_REASON =
+  'Manfaat klinis dan cost-effectiveness deterministik mendukung, tetapi hasil PSA tidak ' +
+  'pasti dan dampak anggaran meningkat. Adopsi dibatasi pada pasien yang memenuhi kriteria akses.'
+const FINAL_REASON_REVISED =
+  'Harga kontrak baru memperbaiki ICER dan dampak anggaran, tetapi ketidakpastian PSA dan ' +
+  'dampak anggaran tetap bermakna. Keputusan tetap adopsi dengan kriteria akses.'
+
+async function recordFinalDecision(page, reason, formShot) {
+  const decision = card(page, 'Keputusan Final KFT')
+  await choose(page, decision.getByPlaceholder('Pilih keputusan'), FINAL_DECISION)
+  await decision.getByRole('textbox', { name: /^Alasan/ }).fill(reason)
+  if (formShot) await shot(page, formShot, decision)
+  await api(page, 'POST', '/final-decisions/', () =>
+    decision.getByRole('button', { name: /Simpan Keputusan Final|Catat Keputusan Baru/ }).click(),
+  )
+  await page.waitForTimeout(800)
+  return decision
+}
+
+async function keputusanFinal() {
+  const kft = await pageFor('kft')
+  await openCase(kft, 'Rekomendasi')
+  const decision = await recordFinalDecision(kft, FINAL_REASON, '26b-rekomendasi-keputusan-form')
+  await decision.scrollIntoViewIfNeeded()
+  await shot(kft, '26c-rekomendasi-keputusan-final', decision)
+}
+
 // ── Menu 7: Sign-Off ──────────────────────────────────────────────────────
 
 async function transition(page, label, reason) {
@@ -544,14 +575,24 @@ async function versi() {
   await openCase(ketua, 'Versi')
   await shot(ketua, '34-versi-awal')
 
-  // Package steps 58-59: ARNI falls from Rp1.200.000 to Rp1.100.000 per month.
-  // The case is approved, so the Ketua reopens it with a recorded reason.
+  // Package step 55: after approval the decision is frozen. It is locked as v1.0.
   await ketua.evaluate(() => window.scrollTo(0, 0))
-  const reasonDialog = await transition(ketua, 'Minta Revisi', REVISION_REASON)
-  await shot(ketua, '35-versi-minta-revisi', reasonDialog)
+  await ketua.getByRole('button', { name: 'Tindakan' }).click()
+  await shot(ketua, '45-versi-kunci')
+  await ketua.keyboard.press('Escape')
+  await transition(ketua, 'Kunci Keputusan')
+
+  // Package steps 58-59: ARNI falls from Rp1.200.000 to Rp1.100.000 per month,
+  // made as a new version with a recorded reason; v1.0 is left as it is.
+  await openCase(ketua)
+  const reasonDialog = await transition(ketua, 'Buat Revisi (Versi Baru)', REVISION_REASON)
+  await shot(ketua, '35-versi-buat-revisi', reasonDialog)
   await api(ketua, 'POST', '/transition/', () =>
     reasonDialog.getByRole('button', { name: 'Lanjutkan' }).click(),
   )
+  await ketua.waitForTimeout(800)
+  await ketua.evaluate(() => window.scrollTo(0, 0))
+  await shot(ketua, '35b-versi-revisi-berjalan')
 
   const hta = await pageFor('hta')
   await openCase(hta, 'Analisis Ekonomi')
@@ -603,6 +644,17 @@ async function versi() {
   await hta.evaluate(() => window.scrollTo(0, 0))
   await shot(hta, '42-versi-rekomendasi-baru', card(hta, 'Rekomendasi Akhir'))
 
+  // The recommendation was recomputed for the new version, so the KFT records
+  // its decision again; the v1.0 decision stays in the history.
+  const kft = await pageFor('kft')
+  await openCase(kft, 'Rekomendasi')
+  const decision = await recordFinalDecision(kft, FINAL_REASON_REVISED)
+  await decision.scrollIntoViewIfNeeded()
+  await shot(kft, '42b-versi-keputusan-ulang', decision)
+
+  await openCase(hta)
+  await transition(hta, 'Ajukan untuk Tinjauan')
+
   await openCase(ketua, 'Sign-Off')
   const signDialog = await sign(ketua)
   await api(ketua, 'POST', '/approvals/sign/', () =>
@@ -619,10 +671,8 @@ async function versi() {
   await shot(hta, '44-versi-brief-v2', card(hta, 'Riwayat Versi'))
 
   await openCase(ketua)
-  await ketua.getByRole('button', { name: 'Tindakan' }).click()
-  await shot(ketua, '45-versi-kunci')
-  await ketua.keyboard.press('Escape')
   await transition(ketua, 'Kunci Keputusan')
+
   await openCase(ketua, 'Versi')
   await ketua.waitForTimeout(800)
   await shot(ketua, '46-versi-riwayat', 'full')
@@ -633,7 +683,7 @@ async function versi() {
 async function versiDetail() {
   const ketua = await pageFor('ketua')
   await openCase(ketua, 'Versi')
-  await ketua.getByRole('cell', { name: 'v1.0', exact: true }).click()
+  await ketua.getByRole('cell', { name: 'v1.1', exact: true }).click()
   const drawer = ketua.getByRole('dialog')
   await drawer.getByRole('tab', { name: 'Timeline Audit' }).waitFor()
   const reasonEntry = drawer.locator('.mantine-Card-root', { hasText: REVISION_REASON })
@@ -647,8 +697,8 @@ async function versiDetail() {
   await ketua.setViewportSize({ width: 1440, height: 900 })
   await ketua.keyboard.press('Escape')
 
-  await choose(ketua, ketua.getByRole('textbox', { name: 'Dari versi' }), /^v0\.1\.0/)
-  await choose(ketua, ketua.getByRole('textbox', { name: 'Ke versi' }), /^v1\.0/)
+  await choose(ketua, ketua.getByRole('textbox', { name: 'Dari versi' }), /^v1\.0 /)
+  await choose(ketua, ketua.getByRole('textbox', { name: 'Ke versi' }), /^v1\.1 /)
   await ketua.getByText('Tampilkan Diff').click()
   const diff = ketua.getByRole('dialog')
   await diff.getByText('Perbandingan Versi').waitFor()
@@ -664,15 +714,30 @@ async function versiDetail() {
   await shot(hta, '50-versi-terkunci', card(hta, 'Parameter Model Ekonomi'))
 }
 
+/** Round 5 item 5: Admin IT sees the case as metadata only. */
+async function adminit() {
+  const admin = await pageFor('adminit')
+  await admin.goto(`${BASE}/cases/${CASE_ID}`)
+  await admin.getByText('Tampilan metadata').waitFor()
+  await toasts(admin, false)
+  await admin.waitForTimeout(600)
+  await shot(admin, '51-admin-it-kasus')
+}
+
 // `inputs` captures nothing: it only rewrites results.json from the tables above.
 const PHASES = {
-  login, ringkasan, ekonomi, bia, psa, etd, rekomendasi, signoff, brief, versi, versiDetail,
+  login, ringkasan, ekonomi, bia, psa, etd, rekomendasi, keputusanFinal, signoff, brief, versi,
+  versiDetail, adminit,
   inputs: async () => {},
 }
 
 const requested = process.argv.slice(2)
-// A full run stops at `versi`, which captures the locked version itself.
-const FULL_RUN = ['login', 'ringkasan', 'ekonomi', 'bia', 'psa', 'etd', 'rekomendasi', 'signoff', 'brief', 'versi']
+// A full run locks v1.0, revises it into v1.1 and locks that, then shows the
+// Admin IT view of the finished case.
+const FULL_RUN = [
+  'login', 'ringkasan', 'ekonomi', 'bia', 'psa', 'etd', 'rekomendasi', 'keputusanFinal',
+  'signoff', 'brief', 'versi', 'adminit',
+]
 const order = requested.length ? requested : FULL_RUN
 
 browser = await chromium.launch()
@@ -695,6 +760,9 @@ results.inputs = {
   appraisals: APPRAISALS,
   criteria: CRITERIA,
   revision_reason: REVISION_REASON,
+  final_decision: FINAL_DECISION,
+  final_reason: FINAL_REASON,
+  final_reason_revised: FINAL_REASON_REVISED,
 }
 results.build = process.env.MANUAL_BUILD_COMMIT ?? 'lokal'
 results.case_id = CASE_ID

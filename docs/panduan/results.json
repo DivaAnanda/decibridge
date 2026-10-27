@@ -400,8 +400,11 @@
         "Reassess bila intoleransi/masalah keselamatan atau tidak lagi memenuhi kriteria."
       ]
     ],
-    "revision_reason": "Pembaruan harga kontrak demo"
+    "revision_reason": "Pembaruan harga kontrak demo",
+    "final_decision": "Adopsi dengan kriteria akses (Adopt with criteria-based access)",
+    "final_reason": "Manfaat klinis dan cost-effectiveness deterministik mendukung, tetapi hasil PSA tidak pasti dan dampak anggaran meningkat. Adopsi dibatasi pada pasien yang memenuhi kriteria akses.",
+    "final_reason_revised": "Harga kontrak baru memperbaiki ICER dan dampak anggaran, tetapi ketidakpastian PSA dan dampak anggaran tetap bermakna. Keputusan tetap adopsi dengan kriteria akses."
   },
-  "build": "5871bf8",
+  "build": "4e42330",
   "case_id": "DB_DEMO_HF_001"
 }

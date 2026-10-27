@@ -73,22 +73,29 @@ def appendix_differences(m: Manual) -> None:
             ["41-49", "Judgement dengan istilah tiap domain",
              "Skala lima pilihan (Tidak sampai Ya) ditambah kepastian GRADE per domain. Padanannya pada Bab 6."],
             ["50", "Decision type dipilih pengguna",
-             "Tidak ada isian. Sistem menghitung warna rekomendasi; KUNING sepadan dengan adopsi bersyarat."],
+             "Dipilih pada kartu Keputusan Final KFT (tab Rekomendasi) oleh Anggota atau Ketua KFT. "
+             "Warna dan skor sistem tetap ditampilkan sebagai bahan pertimbangan."],
             ["51", "Target population diisi di Rekomendasi",
-             "Tidak ada isian. Tercatat di Ringkasan dan pada kriteria akses pertama."],
+             "Tidak ada isian terpisah. Tercatat di Ringkasan dan pertanyaan PICO, dan dicetak pada "
+             "brief sebagai Populasi target."],
             ["52", "Access criteria", "Diisi sebagai Kriteria Akses (CBA)."],
             ["53", "Rationale terintegrasi diisi pengguna",
-             "Tidak ada isian. Sistem menulis Justifikasi; alasan per domain ada pada pertimbangan EtD."],
+             "Ditulis sebagai Alasan pada Keputusan Final KFT (wajib). Sistem tetap menulis "
+             "Justifikasi untuk rekomendasinya."],
             ["54", "Checklist delapan butir, termasuk PSA",
-             "Kelengkapan Dossier tidak memuat PSA; diperiksa sendiri di tab PSA."],
+             "Kelengkapan Dossier memuat PSA pada input terbaru, rekomendasi yang masih sesuai "
+             "input, dan Keputusan Final KFT; sign-off ditolak bila ada yang kurang."],
             ["55", "Approver memilih keputusan",
-             "Ketua KFT menyetujui, meminta revisi, atau menolak rekomendasi yang dihitung sistem."],
+             "Ketua KFT menandatangani Keputusan Final KFT yang tercatat (atau mencatat keputusan "
+             "baru lebih dulu); tanda tangan mengikat keputusan itu."],
             ["56", "Brief memuat ringkasan PSA dan pertanyaan keputusan",
-             "Brief memuat CEA, BIA, EtD, CBA, referensi dan tanda tangan; tanpa ringkasan PSA."],
+             "Sama: brief memuat ringkasan PSA, pertanyaan keputusan, populasi target dan Keputusan "
+             "Final KFT."],
             ["57", "Versi awal disimpan sebagai v0.1", "v0.1.0 dibuat otomatis ketika kasus dibuat."],
             ["58-59", "Buat versi baru v0.2 dengan alasan",
-             "Revisi dikerjakan sebelum penguncian melalui Minta Revisi dengan alasan. Tidak ada baris "
-             "v0.2; penguncian menghasilkan v1.0. Kasus terkunci tidak dapat dibuka kembali."],
+             "Keputusan dikunci sebagai v1.0, lalu **Buat Revisi (Versi Baru)** dengan alasan "
+             "membuka versi berikutnya tanpa mengubah v1.0. Setelah dikunci ulang menjadi v1.1. "
+             "Penomoran v1.0/v1.1 sepadan dengan v0.1/v0.2 pada paket."],
         ],
         [1.6, 5.4, 10.0],
         caption="Perbedaan langkah paket dan dashboard",
@@ -119,7 +126,14 @@ def appendix_problems(m: Manual) -> None:
              "Parameter atau distribusi berubah setelah PSA dijalankan", "Jalankan ulang PSA."],
             ["Peringatan **Rekomendasi ini tidak lagi sesuai input**",
              "Analisis ekonomi, BIA, EtD atau kriteria berubah setelah rekomendasi dihitung",
-             "Klik Hitung Rekomendasi sebelum mengajukan atau menandatangani."],
+             "Klik Hitung Rekomendasi; sign-off dan penguncian ditolak sampai itu dilakukan."],
+            ["Tombol **Setujui dengan Sign-Off** tidak aktif",
+             "Ada butir wajib pada Kelengkapan Dossier yang belum terpenuhi, misalnya PSA perlu "
+             "dijalankan ulang atau Keputusan Final KFT belum dicatat",
+             "Lengkapi butir bertanda silang, lalu buka lagi tab Sign-Off."],
+            ["Keputusan Final KFT minta **dikonfirmasi ulang**",
+             "Rekomendasi dihitung ulang, atau kasus sedang direvisi sebagai versi baru",
+             "Anggota atau Ketua KFT mencatat keputusan baru pada tab Rekomendasi."],
             ["Rekomendasi **Belum dapat dihitung**",
              "Belum semua domain EtD terisi, atau analisis ekonomi atau BIA belum dihitung",
              "Lengkapi komponen yang disebut pada daftar."],
@@ -128,9 +142,10 @@ def appendix_problems(m: Manual) -> None:
              "Buka tab Sign-Off dan lengkapi butir bertanda silang."],
             ["Tombol **Terbitkan Ringkasan** tidak aktif",
              "Kasus belum Disetujui, atau peran tidak berwenang",
-             "Minta sign-off Ketua KFT; terbitkan sebagai Analis HTA, Ketua KFT atau Admin IT."],
+             "Minta sign-off Ketua KFT; terbitkan sebagai Analis HTA atau Ketua KFT."],
             ["Tidak ada isian yang dapat diubah", "Kasus sudah Terkunci",
-             "Kasus terkunci hanya dapat dibaca."],
+             "Untuk mengubahnya, Analis HTA atau Ketua KFT memilih Tindakan, **Buat Revisi (Versi "
+             "Baru)**, dengan alasan."],
         ],
         [5.4, 5.6, 6.0],
         caption="Masalah umum dan penyelesaiannya",

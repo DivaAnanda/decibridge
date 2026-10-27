@@ -8,7 +8,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parents[1]
 SHOTS = HERE / "screenshots"
-OUT_DOCX = HERE / "Buku_Panduan_DeciBridge_Kasus_Latihan.docx"
+OUT_DOCX = HERE / "Buku_Panduan_DeciBridge.docx"
 PRINTER = HERE.parents[1] / "frontend" / "e2e" / "print-pdf.mjs"
 OUT_PDF = OUT_DOCX.with_suffix(".pdf")
 

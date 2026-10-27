@@ -75,10 +75,10 @@ def about(m: Manual) -> None:
             ["4", "BIA", "25-34", "Analis HTA"],
             ["5", "PSA", "35-40", "Analis HTA"],
             ["6", "EtD", "41-49", "Analis HTA, lalu Anggota KFT"],
-            ["7", "Rekomendasi", "50-53", "Sekretaris KFT, lalu Analis HTA"],
+            ["7", "Rekomendasi", "50-53", "Sekretaris KFT, Analis HTA, lalu Anggota KFT"],
             ["8", "Sign-Off", "54-55", "Analis HTA, lalu Ketua KFT"],
             ["9", "Brief", "56", "Analis HTA"],
-            ["10", "Versi", "57-59", "Ketua KFT dan Analis HTA"],
+            ["10", "Versi", "55, 57-59", "Ketua KFT, Analis HTA dan Anggota KFT"],
             ["A", "Lampiran: kunci hasil", "", ""],
             ["B", "Lampiran: perbedaan paket latihan dan dashboard", "", ""],
             ["C", "Lampiran: masalah yang sering terjadi", "", ""],
@@ -103,16 +103,26 @@ def preparation(m: Manual) -> None:
              "Membuat kasus; mengisi Analisis Ekonomi, BIA, PSA dan referensi; menghitung "
              "rekomendasi; mengajukan kasus; menerbitkan brief"],
             ["Sekretaris KFT / Farmasi RS", "`sekre@test.local`", "Mengisi kriteria akses (CBA)"],
-            ["Anggota KFT", "`kft1@test.local`", "Menilai sembilan domain EtD"],
+            ["Anggota KFT", "`kft1@test.local`",
+             "Menilai sembilan domain EtD; mencatat Keputusan Final KFT beserta alasannya"],
             ["Ketua KFT", "`ketua@test.local`",
-             "Menandatangani sign-off, meminta revisi, mengunci keputusan"],
+             "Menandatangani sign-off, mengunci keputusan, membuat revisi sebagai versi baru"],
             ["Admin IT", "`adminit@test.local`",
-             "Tidak mengerjakan isi kasus; mengelola pengguna dan memverifikasi arsip"],
+             "Tidak membuka isi kasus; mengelola pengguna, memantau status dan integritas "
+             "kasus, dan memeriksa segel arsip"],
         ],
         [4.2, 3.6, 9.2],
         caption="Peran, akun demo, dan pekerjaannya",
     )
     m.text("Kata sandi akun demo tertulis di halaman masuk, pada bagian **Akun demo**.")
+    m.text(
+        "Admin IT mengurus pengguna, sistem dan cadangan. Pada daftar kasus dan halaman kasus, "
+        "Admin IT hanya melihat metadata: ID, judul, status, tanggal, integritas, dan segel arsip. "
+        "Isi analisis tidak dapat dibuka, dan Admin IT tidak dapat mengubah analisis maupun "
+        "menerbitkan keputusan."
+    )
+    m.figure("51-admin-it-kasus", "Kasus latihan dilihat Admin IT: metadata saja.",
+             max_height_cm=8.5, crop_bottom_at=0.72)
 
     m.section("1.2 Masuk")
     m.steps([
@@ -138,7 +148,10 @@ def preparation(m: Manual) -> None:
              "Semua isian; Ketua KFT dapat menandatangani"],
             ["Disetujui", "Ketua KFT menandatangani sign-off",
              "Brief dapat diterbitkan; Ketua KFT dapat meminta revisi"],
-            ["Terkunci", "Ketua KFT memilih **Kunci Keputusan**", "Tidak ada; kasus hanya dapat dibaca"],
+            ["Terkunci", "Ketua KFT memilih **Kunci Keputusan**",
+             "Tidak ada. Untuk mengubah, Analis HTA atau Ketua KFT memilih **Buat Revisi (Versi "
+             "Baru)**; kasus kembali ke Draft sebagai versi berikutnya dan versi terkunci tetap "
+             "utuh"],
         ],
         [3.2, 6.6, 7.2],
         caption="Status kasus sepanjang alur",
