@@ -20,17 +20,23 @@ import { StaleRecommendationAlert } from './StaleRecommendationAlert'
 import { WeightsCard } from './WeightsCard'
 import { CBACard } from './CBACard'
 import { RecommendationCard } from './RecommendationCard'
+import { FinalDecisionCard } from './FinalDecisionCard'
 import { TRAFFIC_LIGHT_COLOR, TRAFFIC_LIGHT_LABEL_ID } from './types'
 
 interface Props {
   caseId: string
   caseIsLocked: boolean
+  caseIsEditable: boolean
 }
 
-export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element {
+export function RecommendationTab({
+  caseId,
+  caseIsLocked,
+  caseIsEditable,
+}: Props): JSX.Element {
   const { hasRole } = useAuth()
   const canCompute =
-    !caseIsLocked && hasRole('hta_analyst', 'farmasi_sekretaris', 'ketua_kft')
+    caseIsEditable && hasRole('hta_analyst', 'farmasi_sekretaris', 'ketua_kft')
 
   const [method, setMethod] = useState<'mean' | 'median'>('mean')
   const [missing, setMissing] = useState<string[]>([])
@@ -47,6 +53,8 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
       setMissing([])
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'results'] })
       void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId, 'latest'] })
+      // A recomputed recommendation asks for the KFT decision to be confirmed again.
+      void queryClient.invalidateQueries({ queryKey: ['final-decisions', caseId] })
       notifications.show({ color: 'teal', message: 'Rekomendasi berhasil dihitung.' })
     },
     onError: (err: { response?: { data?: { detail?: string; missing_components?: string[] } } }) => {
@@ -66,6 +74,11 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
     <Stack gap="lg">
       <StaleRecommendationAlert caseId={caseId} caseIsLocked={caseIsLocked} />
       {latest && <RecommendationCard result={latest} />}
+      <FinalDecisionCard
+        caseId={caseId}
+        caseIsEditable={caseIsEditable}
+        hasRecommendation={Boolean(latest)}
+      />
 
       {missing.length > 0 && (
         <Alert color="orange" title="Belum dapat dihitung — komponen wajib yang kurang">
@@ -121,7 +134,9 @@ export function RecommendationTab({ caseId, caseIsLocked }: Props): JSX.Element 
           <Text size="xs" c="dimmed" mt="xs">
             {caseIsLocked
               ? 'Kasus terkunci — rekomendasi tidak dapat dihitung ulang.'
-              : 'Anda tidak memiliki izin untuk menjalankan komputasi.'}
+              : !caseIsEditable
+                ? 'Kasus sudah disetujui. Untuk menghitung ulang, Ketua KFT memilih Minta Revisi lebih dulu.'
+                : 'Anda tidak memiliki izin untuk menjalankan komputasi.'}
           </Text>
         )}
       </Card>

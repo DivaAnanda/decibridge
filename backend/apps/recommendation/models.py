@@ -178,3 +178,56 @@ class Recommendation(models.Model):
 
     def delete(self, *args, **kwargs):
         raise PermissionError("Recommendation rows are append-only and cannot be deleted.")
+
+
+class FinalDecisionType(models.TextChoices):
+    """The five decision types of the original brief, labelled in both languages."""
+
+    ADOPT = "adopt", _("Adopsi (Adopt)")
+    ADOPT_WITH_CRITERIA = "adopt_with_criteria", _(
+        "Adopsi dengan kriteria akses (Adopt with criteria-based access)"
+    )
+    DEFER = "defer", _("Tunda, menunggu bukti tambahan (Defer pending additional evidence)")
+    DO_NOT_ADOPT = "do_not_adopt", _("Tidak diadopsi (Do not adopt)")
+    REASSESS_AFTER_NEGOTIATION = "reassess_after_negotiation", _(
+        "Kaji ulang setelah negosiasi harga (Reassess after price negotiation)"
+    )
+
+
+class FinalDecision(models.Model):
+    """The KFT's own decision beside the system's colour and score (round 5 item 3).
+
+    Append-only: a change of mind is a new row, and the latest row is the current
+    decision. Each row names the recommendation it was decided against, so a
+    recomputed recommendation visibly calls for the decision to be confirmed again.
+    """
+
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name="final_decisions")
+    recommendation = models.ForeignKey(
+        Recommendation, on_delete=models.PROTECT, related_name="final_decisions"
+    )
+    decision = models.CharField(max_length=32, choices=FinalDecisionType.choices)
+    reason = models.TextField()
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="final_decisions_made",
+    )
+    decided_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        ordering = ["-decided_at", "-id"]
+        verbose_name = _("Keputusan Final KFT")
+        verbose_name_plural = _("Keputusan Final KFT")
+        indexes = [models.Index(fields=["case", "-decided_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.case.case_id} → {self.decision} by {self.decided_by.email}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise PermissionError("Final decisions are immutable; record a new one instead.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("Final decisions are append-only and cannot be deleted.")

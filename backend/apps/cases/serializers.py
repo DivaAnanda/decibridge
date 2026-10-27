@@ -34,6 +34,7 @@ class CaseVersionSerializer(serializers.ModelSerializer):
             "id",
             "version_number",
             "status",
+            "trigger",
             "locked_at",
             "locked_by",
             "lock_reason",
@@ -66,6 +67,69 @@ class CaseListSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+def _allowed_transitions(context: dict, obj: Case) -> list[dict]:
+    request = context.get("request")
+    if request is None or not request.user.is_authenticated:
+        return []
+    return [
+        {
+            "name": t.name,
+            "target": t.target,
+            "requires_reason": t.requires_reason,
+        }
+        for t in allowed_transitions_for(obj, request.user)
+    ]
+
+
+class CaseMetadataListSerializer(serializers.ModelSerializer):
+    """Case list for Admin IT: identity, status and integrity, no clinical content."""
+
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
+
+    class Meta:
+        model = Case
+        fields = [
+            "id",
+            "case_id",
+            "case_title",
+            "status",
+            "integrity_flag",
+            "created_by_email",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class CaseMetadataSerializer(serializers.ModelSerializer):
+    """Case detail for Admin IT; the integrity fields are what it monitors."""
+
+    created_by = UserSerializer(read_only=True)
+    allowed_transitions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Case
+        fields = [
+            "id",
+            "case_id",
+            "case_title",
+            "status",
+            "integrity_flag",
+            "integrity_notes",
+            "integrity_checked_at",
+            "is_editable",
+            "is_locked",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "allowed_transitions",
+        ]
+        read_only_fields = fields
+
+    def get_allowed_transitions(self, obj: Case) -> list[dict]:
+        return _allowed_transitions(self.context, obj)
 
 
 class CaseDetailSerializer(serializers.ModelSerializer):
@@ -116,17 +180,7 @@ class CaseDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_allowed_transitions(self, obj: Case) -> list[dict]:
-        request = self.context.get("request")
-        if request is None or not request.user.is_authenticated:
-            return []
-        return [
-            {
-                "name": t.name,
-                "target": t.target,
-                "requires_reason": t.requires_reason,
-            }
-            for t in allowed_transitions_for(obj, request.user)
-        ]
+        return _allowed_transitions(self.context, obj)
 
 
 class CaseCreateSerializer(serializers.ModelSerializer):

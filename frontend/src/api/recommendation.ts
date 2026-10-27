@@ -3,6 +3,8 @@ import type {
   CBACriterion,
   CBACriterionPayload,
   DomainWeightVote,
+  FinalDecision,
+  FinalDecisionPayload,
   Recommendation,
   WeightsSummary,
 } from '../recommendation/types'
@@ -85,4 +87,19 @@ export async function getLatestRecommendation(caseId: string): Promise<Recommend
     { validateStatus: (s) => s === 200 || s === 204 },
   )
   return response.status === 204 ? null : response.data
+}
+
+// ── Keputusan Final KFT ─────────────────────────────────────────────────
+
+export async function listFinalDecisions(caseId: string): Promise<FinalDecision[]> {
+  const { data } = await apiClient.get<FinalDecision[]>(`/cases/${caseId}/final-decisions/`)
+  return data
+}
+
+export async function recordFinalDecision(
+  caseId: string,
+  payload: FinalDecisionPayload,
+): Promise<FinalDecision> {
+  const { data } = await apiClient.post<FinalDecision>(`/cases/${caseId}/final-decisions/`, payload)
+  return data
 }

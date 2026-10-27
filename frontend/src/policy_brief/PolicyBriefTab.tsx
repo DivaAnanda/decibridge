@@ -42,7 +42,7 @@ const GATEABLE_STATUSES = new Set(['approved', 'locked'])
 
 export function PolicyBriefTab({ caseId, caseStatus }: Props): JSX.Element {
   const { hasRole } = useAuth()
-  const mayGenerate = hasRole('hta_analyst', 'ketua_kft', 'admin_it')
+  const mayGenerate = hasRole('hta_analyst', 'ketua_kft')
   const canGenerate = mayGenerate &&
     GATEABLE_STATUSES.has(caseStatus)
 

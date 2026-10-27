@@ -73,7 +73,7 @@ class PolicyBriefListGenerateView(APIView):
         # Gate: dossier must be complete. A case locked before this rule existed
         # still fails here, which is the point — its brief would otherwise
         # present a verdict built on missing CEA/BIA/EtD components.
-        readiness = evaluate_readiness(case)
+        readiness = evaluate_readiness(case, action="brief")
         if not readiness["is_ready"]:
             return Response(
                 {

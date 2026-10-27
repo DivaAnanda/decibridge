@@ -24,6 +24,7 @@ import { useAuth } from '../auth/useAuth'
 import {
   STATUS_COLOR,
   STATUS_LABEL_ID,
+  hasListContent,
   type CaseStatus,
 } from '../cases/types'
 
@@ -69,6 +70,9 @@ export function CasesPage() {
       }),
   })
 
+  // Admin IT gets metadata rows without the clinical columns (round 5 item 5).
+  const showContent = data?.results.some(hasListContent) ?? false
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
@@ -88,7 +92,11 @@ export function CasesPage() {
       <Card withBorder padding="md" radius="md">
         <Group>
           <TextInput
-            placeholder="Cari berdasarkan ID, judul, intervensi..."
+            placeholder={
+              data && !showContent
+                ? 'Cari berdasarkan ID atau judul...'
+                : 'Cari berdasarkan ID, judul, intervensi...'
+            }
             leftSection={<IconSearch size={14} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -136,8 +144,14 @@ export function CasesPage() {
               <Table.Tr>
                 <Table.Th>ID Kasus</Table.Th>
                 <Table.Th>Judul</Table.Th>
-                <Table.Th>Intervensi</Table.Th>
-                <Table.Th>Komparator</Table.Th>
+                {showContent ? (
+                  <>
+                    <Table.Th>Intervensi</Table.Th>
+                    <Table.Th>Komparator</Table.Th>
+                  </>
+                ) : (
+                  <Table.Th>Diperbarui</Table.Th>
+                )}
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Dibuat oleh</Table.Th>
               </Table.Tr>
@@ -151,8 +165,16 @@ export function CasesPage() {
                     </Anchor>
                   </Table.Td>
                   <Table.Td>{c.case_title}</Table.Td>
-                  <Table.Td>{c.technology}</Table.Td>
-                  <Table.Td>{c.comparator}</Table.Td>
+                  {showContent ? (
+                    <>
+                      <Table.Td>{hasListContent(c) ? c.technology : ''}</Table.Td>
+                      <Table.Td>{hasListContent(c) ? c.comparator : ''}</Table.Td>
+                    </>
+                  ) : (
+                    <Table.Td>
+                      <Text size="sm">{new Date(c.updated_at).toLocaleString('id-ID')}</Text>
+                    </Table.Td>
+                  )}
                   <Table.Td>
                     <Group gap={6} wrap="nowrap">
                       <Badge color={STATUS_COLOR[c.status]} variant="light">

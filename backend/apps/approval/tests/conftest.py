@@ -7,6 +7,8 @@ from decimal import Decimal
 import pytest
 
 from apps.cases.state_machine import transition as case_transition
+from apps.econ.tests.factories import make_psa_result
+from apps.recommendation.tests.factories import make_final_decision
 from apps.recommendation.models import Recommendation
 
 
@@ -38,7 +40,7 @@ def _build_green_recommendation(case, user):
 
 
 def _make_dossier_complete(case, user):
-    """Satisfy the sign-off gate: PICO + CEA + BIA + all 9 EtD domains.
+    """Satisfy the sign-off gate: PICO + CEA + BIA + PSA + all 9 EtD domains.
 
     Sign-off is blocked on an incomplete dossier, so any fixture that is about
     to approve a case must supply one. Values are placeholders — these tests
@@ -94,6 +96,7 @@ def _make_dossier_complete(case, user):
         interpretation_text="fixture",
         computed_by=user,
     )
+    make_psa_result(case, user)
     for domain in EtDDomain.objects.all():
         EtDAppraisal.objects.create(
             case=case, domain=domain, member=user, judgement=75, certainty="high"
@@ -103,7 +106,9 @@ def _make_dossier_complete(case, user):
 @pytest.fixture
 def green_recommendation(case_in_review, hta_user):
     _make_dossier_complete(case_in_review, hta_user)
-    return _build_green_recommendation(case_in_review, hta_user)
+    rec = _build_green_recommendation(case_in_review, hta_user)
+    make_final_decision(case_in_review, hta_user, recommendation=rec)
+    return rec
 
 
 @pytest.fixture

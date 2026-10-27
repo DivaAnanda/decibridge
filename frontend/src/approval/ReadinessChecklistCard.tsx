@@ -19,6 +19,9 @@ export function ReadinessChecklistCard({ caseId }: Props): JSX.Element {
   const { data, isLoading } = useQuery({
     queryKey: ['case', caseId, 'readiness'],
     queryFn: () => getCaseReadiness(caseId),
+    // PSA and the recommendation are re-run on other tabs, which do not know to
+    // invalidate this query.
+    staleTime: 0,
   })
 
   if (isLoading || !data) {
@@ -39,7 +42,8 @@ export function ReadinessChecklistCard({ caseId }: Props): JSX.Element {
       </Group>
       <Text size="xs" c="dimmed" mb="md">
         Persetujuan dan penguncian keputusan hanya dapat dilakukan bila seluruh komponen wajib
-        di bawah sudah terpenuhi. Seluruh 9 domain EtD bersifat wajib.
+        di bawah sudah terpenuhi. Seluruh 9 domain EtD bersifat wajib. PSA dan rekomendasi harus
+        dihitung ulang setiap kali inputnya berubah.
       </Text>
 
       <Stack gap="xs">
@@ -61,7 +65,7 @@ export function ReadinessChecklistCard({ caseId }: Props): JSX.Element {
                 )}
               </Text>
             </Group>
-            <Text size="xs" c="dimmed" ta="right" style={{ whiteSpace: 'nowrap' }}>
+            <Text size="xs" c="dimmed" ta="right" maw="55%">
               {r.detail}
             </Text>
           </Group>

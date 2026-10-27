@@ -152,7 +152,7 @@ class DecisionQuestion(models.Model):
 
 
 class CaseVersionStatus(models.TextChoices):
-    DRAFT = "draft", _("Draft (v0.x)")
+    DRAFT = "draft", _("Draft")
     LOCKED = "locked", _("Locked (v1.x)")
     ARCHIVED = "archived", _("Archived")
 

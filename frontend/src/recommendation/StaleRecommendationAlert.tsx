@@ -34,7 +34,7 @@ export function StaleRecommendationAlert({ caseId, caseIsLocked }: Props): JSX.E
       <Text size="xs" c="dimmed" mt="xs">
         {caseIsLocked
           ? 'Kasus sudah terkunci, sehingga rekomendasi tidak dapat dihitung ulang. Catatan ini menandai bahwa keputusan ditandatangani atas rekomendasi yang dihitung sebelum input terakhir berubah.'
-          : 'Hitung ulang di tab Rekomendasi sebelum kasus diajukan atau ditandatangani.'}
+          : 'Sign-off dan penguncian ditolak sampai rekomendasi dihitung ulang di tab Rekomendasi.'}
       </Text>
     </Alert>
   )

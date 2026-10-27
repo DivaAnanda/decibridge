@@ -126,10 +126,24 @@ class TestSignerAddressIsMasked:
 
         assert approval["ip_address"] == "203.0.113.xxx"
 
-    def test_admin_it_sees_the_full_address(self, admin_it_client, signed_and_locked):
-        approval = _state(admin_it_client, signed_and_locked)["approval"]
+    def test_superuser_sees_the_full_address(self, user_factory, signed_and_locked):
+        from rest_framework.test import APIClient
+
+        client = APIClient()
+        client.force_authenticate(user=user_factory(email="root@example.com", is_superuser=True))
+
+        approval = _state(client, signed_and_locked)["approval"]
 
         assert approval["ip_address"] == "203.0.113.77"
+
+    def test_admin_it_cannot_open_the_version_state(self, admin_it_client, signed_and_locked):
+        version = _locked_version(signed_and_locked)
+
+        response = admin_it_client.get(
+            f"/api/v1/cases/{CASE_ID}/versions/{version.pk}/state/"
+        )
+
+        assert response.status_code == 403
 
 
 class TestLegacyVersions:

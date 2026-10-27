@@ -132,6 +132,11 @@ class TestArchiveDetailAPI:
         response = kft_member_client.get(_detail_url(archived_case.case_id))
         assert response.status_code == status.HTTP_200_OK
 
+    def test_admin_it_can_read_the_seal(self, admin_it_client, archived_case):
+        response = admin_it_client.get(_detail_url(archived_case.case_id))
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["manifest_sha256"]) == 64
+
     def test_unauthenticated_blocked(self, api_client, archived_case):
         response = api_client.get(_detail_url(archived_case.case_id))
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -148,3 +153,23 @@ class TestManifestDownload:
     def test_download_404_for_unarchived(self, hta_client, locked_case):
         response = hta_client.get(_manifest_url(locked_case.case_id))
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_admin_it_cannot_download_the_case_content(self, admin_it_client, archived_case):
+        """The manifest carries the PICO, results and appraisals in full (round 5 item 5)."""
+        response = admin_it_client.get(_manifest_url(archived_case.case_id))
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+@pytest.mark.django_db
+def test_manifest_carries_the_kft_final_decision(locked_case, ketua_user, kft_member_user):
+    """Round 5 item 3: the human decision is part of the sealed record."""
+    from apps.cases.state_machine import transition as case_transition
+    from apps.recommendation.tests.factories import make_final_decision
+
+    make_final_decision(locked_case, kft_member_user)
+    case_transition(locked_case, "archive", ketua_user, reason="Selesai")
+
+    record = ArchiveRecord.objects.get(case=locked_case)
+    manifest = json.loads((Path(settings.MEDIA_ROOT) / record.manifest_path).read_text("utf-8"))
+    assert record.artifact_counts["final_decisions"] == 1
+    assert len(manifest["artifacts"]["final_decisions"]) == 1

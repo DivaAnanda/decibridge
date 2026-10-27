@@ -52,10 +52,12 @@ class TestGenerationGate:
         response = sekretaris_client.post(_list_url(case.case_id))
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_admin_it_can_generate(self, admin_it_client, approved_case_with_rec):
+    def test_admin_it_cannot_generate(self, admin_it_client, approved_case_with_rec):
+        """Round 5 item 5: Admin IT may not publish decision documents."""
         case, _ = approved_case_with_rec
         response = admin_it_client.post(_list_url(case.case_id))
-        assert response.status_code == status.HTTP_201_CREATED, response.data
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert not PolicyBriefDocument.objects.filter(case=case).exists()
 
     def test_ketua_can_generate(self, ketua_client, approved_case_with_rec):
         case, _ = approved_case_with_rec

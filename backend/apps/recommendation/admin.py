@@ -1,7 +1,7 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import CBACriterion, DomainWeightVote, Recommendation
+from .models import CBACriterion, DomainWeightVote, FinalDecision, Recommendation
 
 
 @admin.register(DomainWeightVote)
@@ -35,6 +35,22 @@ class RecommendationAdmin(admin.ModelAdmin):
     readonly_fields = tuple(
         f.name for f in Recommendation._meta.get_fields() if not f.is_relation or f.many_to_one
     )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(FinalDecision)
+class FinalDecisionAdmin(admin.ModelAdmin):
+    list_display = ("case", "decision", "decided_by", "decided_at", "recommendation")
+    list_filter = ("decision",)
+    search_fields = ("case__case_id",)
 
     def has_add_permission(self, request) -> bool:
         return False

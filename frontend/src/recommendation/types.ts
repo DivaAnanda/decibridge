@@ -82,6 +82,59 @@ export interface Recommendation {
   stale_reasons?: string[]
 }
 
+export type FinalDecisionType =
+  | 'adopt'
+  | 'adopt_with_criteria'
+  | 'defer'
+  | 'do_not_adopt'
+  | 'reassess_after_negotiation'
+
+/** Round 5 item 3: the KFT's own decision beside the system verdict. */
+export interface FinalDecision {
+  id: number
+  decision: FinalDecisionType
+  decision_label: string
+  reason: string
+  decided_by_name: string
+  decided_at: string
+  recommendation_id: number
+  recommendation_traffic_light: TrafficLight
+  recommendation_composite_score: string
+  matches_latest_recommendation: boolean
+  /** On the latest recommendation and recorded for the version now open. */
+  is_current: boolean
+}
+
+export interface FinalDecisionPayload {
+  decision: FinalDecisionType
+  reason: string
+}
+
+export const FINAL_DECISION_OPTIONS: { value: FinalDecisionType; label: string }[] = [
+  { value: 'adopt', label: 'Adopsi (Adopt)' },
+  {
+    value: 'adopt_with_criteria',
+    label: 'Adopsi dengan kriteria akses (Adopt with criteria-based access)',
+  },
+  {
+    value: 'defer',
+    label: 'Tunda, menunggu bukti tambahan (Defer pending additional evidence)',
+  },
+  { value: 'do_not_adopt', label: 'Tidak diadopsi (Do not adopt)' },
+  {
+    value: 'reassess_after_negotiation',
+    label: 'Kaji ulang setelah negosiasi harga (Reassess after price negotiation)',
+  },
+]
+
+export const FINAL_DECISION_COLOR: Record<FinalDecisionType, string> = {
+  adopt: 'green',
+  adopt_with_criteria: 'teal',
+  defer: 'yellow',
+  do_not_adopt: 'red',
+  reassess_after_negotiation: 'orange',
+}
+
 export const TRAFFIC_LIGHT_LABEL_ID: Record<TrafficLight, string> = {
   green: 'HIJAU — Adopsi Tanpa Syarat',
   yellow: 'KUNING — Adopsi Bersyarat (CBA)',

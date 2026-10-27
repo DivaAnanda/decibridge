@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from .models import Distribution, EconomicModel, ParamKey, ParamType
+from .models import Distribution, EconomicModel, EconPSAResult, ParamKey, ParamType
 
 # The parameters engine_psa samples. BIA-only rows (population, uptake) are not.
 SAMPLED_KEYS = (
@@ -110,3 +110,12 @@ def psa_input_state(model: EconomicModel) -> dict:
             for p in sampled_parameters(model).order_by("key", "alternative")
         ],
     }
+
+
+def psa_result_is_stale(result: EconPSAResult) -> bool | None:
+    """Whether the inputs changed since this run; None when they were not recorded."""
+    recorded = result.input_snapshot.get("inputs")
+    if recorded is None:
+        return None
+    model = EconomicModel.objects.filter(case_id=result.case_id).first()
+    return model is None or recorded != psa_input_state(model)

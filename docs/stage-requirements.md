@@ -16,10 +16,10 @@ murni kelengkapan dossier, bukan perizinan.
 |---|---|---|---|
 | Submit (draft to in_review) | HTA Analyst, Sekretaris KFT | PICO lengkap | 422 |
 | Hitung rekomendasi | HTA Analyst, Sekretaris KFT | EtD 9/9, CEA, BIA | 422 |
-| Sign-off Ketua | Ketua KFT | PICO, CEA, BIA, EtD 9/9, rekomendasi | 422 |
-| Lock keputusan | Ketua KFT | seluruh syarat sign-off + tanda tangan tercatat | 422 |
-| Penerbitan brief final | Ketua KFT, Admin IT, HTA Analyst | status approved/locked + rekomendasi + seluruh syarat sign-off | 400 / 422 |
-| Archive | Ketua KFT | seluruh syarat lock + snapshot keputusan + alasan | 422 |
+| Sign-off Ketua | Ketua KFT | PICO, CEA, BIA, PSA pada input terbaru, EtD 9/9, rekomendasi yang masih sesuai input, Keputusan Final KFT atas rekomendasi itu | 422 |
+| Lock keputusan | Ketua KFT | seluruh syarat sign-off + tanda tangan persetujuan atas rekomendasi dan Keputusan Final KFT yang berlaku (setelah revisi: tanda tangan baru) | 422 |
+| Penerbitan brief final | Ketua KFT, HTA Analyst | status approved/locked + rekomendasi + PICO, CEA, BIA, EtD 9/9 | 400 / 422 |
+| Archive | Ketua KFT | PICO, CEA, BIA, EtD 9/9, rekomendasi, tanda tangan + snapshot keputusan + alasan | 422 |
 
 ## Mengapa berbeda per tahap
 
@@ -29,6 +29,28 @@ Yang wajib ada hanyalah pertanyaan keputusan yang nyata -- keempat bagian P, I, 
 dan O harus terisi, bukan sekadar satu baris judul.
 
 **Sign-off menuntut dossier penuh.** Inilah titik ketika keputusan klinis diambil.
+
+**Sign-off dan lock menuntut PSA dan rekomendasi yang masih berlaku (Round 5 item 1).**
+*"Kalau PSA belum dikerjakan atau sudah tidak sesuai input terbaru -> belum boleh
+sign-off/lock."* Setiap hasil PSA mencatat input yang dipakainya; PSA dianggap
+berlaku hanya bila input itu sama dengan input sekarang. PSA yang dijalankan sebelum
+13 Oktober 2026 belum mencatat inputnya, sehingga harus dijalankan ulang sekali.
+Rekomendasi yang dihitung sebelum CEA, BIA, EtD, bobot, atau CBA terakhir berubah juga
+menahan sign-off sampai dihitung ulang.
+
+**Sign-off dan lock menuntut Keputusan Final KFT (Round 5 item 3).** Warna dan skor
+sistem tetap ditampilkan, tetapi keputusan diambil manusia: Anggota KFT atau Ketua KFT
+memilih salah satu dari lima jenis keputusan (Adopt, Adopt with criteria-based access,
+Defer pending additional evidence, Do not adopt, Reassess after price negotiation) dan
+wajib menulis alasannya. Setiap keputusan disimpan sebagai riwayat dan mencatat
+rekomendasi yang menjadi dasarnya; bila rekomendasi dihitung ulang, keputusan harus
+dikonfirmasi ulang. Tanda tangan Ketua mencatat keputusan mana yang ditandatangani.
+
+**Brief dan archive tidak menuntut PSA maupun Keputusan Final KFT.** Keduanya hanya berlaku untuk kasus yang
+sudah disetujui atau dikunci, yang telah lolos aturan yang berlaku saat ditandatangani.
+Kasus yang dikunci sebelum Round 5 tidak dapat menjalankan ulang PSA, dan pemeriksaan
+integritas yang berjalan pada setiap deploy tidak boleh mengubahnya menjadi kasus
+"perlu perbaikan".
 
 **Lock menambahkan tanda tangan tercatat.** Baris `Approval` hanya ditulis oleh
 endpoint sign-off. Sebelum perbaikan ini, transisi `approve` mentah tidak menulis

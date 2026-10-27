@@ -3,15 +3,17 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.accounts.serializers import UserSerializer
+from apps.core.privacy import MaskedIPField
+from apps.recommendation.serializers import FinalDecisionSerializer
 
 from .models import Approval, ApprovalDecision
-from apps.core.privacy import MaskedIPField
 
 
 class ApprovalReadSerializer(serializers.ModelSerializer):
     ip_address = MaskedIPField()
     approver = UserSerializer(read_only=True)
     decision_label = serializers.SerializerMethodField()
+    final_decision = FinalDecisionSerializer(read_only=True)
 
     class Meta:
         model = Approval
@@ -19,6 +21,7 @@ class ApprovalReadSerializer(serializers.ModelSerializer):
             "id",
             "case",
             "recommendation",
+            "final_decision",
             "approver",
             "decision",
             "decision_label",
@@ -40,6 +43,8 @@ class SignRequestSerializer(serializers.Serializer):
     password against request.user via check_password()."""
 
     recommendation_id = serializers.IntegerField()
+    # The KFT decision the signer saw; refused if a newer one was recorded since.
+    final_decision_id = serializers.IntegerField(required=False, allow_null=True)
     decision = serializers.ChoiceField(choices=ApprovalDecision.choices)
     confirmation_acknowledged = serializers.BooleanField()
     password = serializers.CharField(write_only=True)

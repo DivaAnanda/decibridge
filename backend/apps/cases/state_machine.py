@@ -10,6 +10,8 @@ Transitions:
     approved → in_review     (revision requested: ketua_kft only — undo own approval before lock)
     approved → locked        (ketua_kft only — locks evidence for v1.x)
     locked → archived        (ketua_kft only - Round 3 item D)
+    locked → draft           (revise: hta_analyst, ketua_kft - Round 5 item 4; the locked
+                              version stays and the next lock is a new one)
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import RoleSlug
@@ -84,6 +87,16 @@ TRANSITIONS: dict[str, Transition] = {
         allowed_roles=frozenset({RoleSlug.KETUA_KFT}),
         requires_reason=True,
     ),
+    # Round 5 item 4: "kalau kasus sudah locked dan perlu revisi, buat versi/revisi
+    # baru, jangan mengubah versi yang lama." Archived cases are the formal record
+    # and are not reopened.
+    "revise": Transition(
+        name="revise",
+        source=frozenset({CaseStatus.LOCKED}),
+        target=CaseStatus.DRAFT,
+        allowed_roles=frozenset({RoleSlug.HTA_ANALYST, RoleSlug.KETUA_KFT}),
+        requires_reason=True,
+    ),
 }
 
 
@@ -97,7 +110,9 @@ def allowed_transitions_for(case: Case, user: AbstractBaseUser) -> list[Transiti
     return [
         t
         for t in TRANSITIONS.values()
-        if case.status in t.source and (user_roles & t.allowed_roles)
+        if case.status in t.source
+        and (user_roles & t.allowed_roles)
+        and not (t.name == "revise" and case.integrity_flag)
     ]
 
 
@@ -126,6 +141,12 @@ def transition(
             f"Transition '{action}' not allowed from status '{case.status}'.",
             code="invalid_transition",
         )
+    if action == "revise" and case.integrity_flag:
+        raise ValidationError(
+            "Kasus uji lama disimpan sebagai rujukan dan regression test, sehingga tidak dapat "
+            "direvisi. Buat kasus baru untuk keputusan yang diperbaiki.",
+            code="invalid_transition",
+        )
 
     user_roles = set(getattr(user, "role_slugs", []))
     if not user.is_superuser and not (user_roles & t.allowed_roles):
@@ -149,20 +170,30 @@ def transition(
 
         assert_ready_for(case, action)
 
-    case.status = t.target
-    case.save(update_fields=["status", "updated_at"])
+    with transaction.atomic():
+        current = type(case).objects.select_for_update().only("status").get(pk=case.pk)
+        if current.status not in t.source:
+            raise ValidationError(
+                f"Transition '{action}' not allowed from status '{current.status}'.",
+                code="invalid_transition",
+            )
+        if action == "revise":
+            _record_revision(case, user, reason)
 
-    # Sprint 10: snapshot the case as a CaseVersion row when locking.
-    if action == "lock":
-        _snapshot_locked_case(case, user)
+        case.status = t.target
+        case.save(update_fields=["status", "updated_at"])
 
-    # Sprint 11: build the long-term archive when archiving.
-    if action == "archive":
-        # Lazy import — apps.archive depends on cases, would create a circular
-        # import at module load.
-        from apps.archive.service import archive_case
+        # Sprint 10: snapshot the case as a CaseVersion row when locking.
+        if action == "lock":
+            _snapshot_locked_case(case, user)
 
-        archive_case(case, user)
+        # Sprint 11: build the long-term archive when archiving.
+        if action == "archive":
+            # Lazy import — apps.archive depends on cases, would create a circular
+            # import at module load.
+            from apps.archive.service import archive_case
+
+            archive_case(case, user)
 
     return case
 
@@ -192,6 +223,28 @@ def _next_lock_version_number(case: Case) -> str:
         return "99.0"
 
 
+def _record_revision(case: Case, user: AbstractBaseUser, reason: str) -> CaseVersion:
+    """Open the next version of a locked case; the locked version is never touched."""
+    revised = (
+        CaseVersion.objects.filter(case=case, status=CaseVersionStatus.LOCKED)
+        .order_by("-id")
+        .first()
+    )
+    return CaseVersion.objects.create(
+        case=case,
+        version_number=f"{_next_lock_version_number(case)}-draft",
+        status=CaseVersionStatus.DRAFT,
+        trigger=CaseVersionTrigger.REVISION_REQUESTED,
+        lock_reason=reason.strip(),
+        diff=(
+            {"revises_version": revised.version_number, "revises_version_id": revised.pk}
+            if revised
+            else None
+        ),
+        created_by=user,
+    )
+
+
 def _latest_pk(manager, order_field: str = "-pk") -> int | None:
     return manager.all().order_by(order_field).values_list("pk", flat=True).first()
 
@@ -205,20 +258,19 @@ def _snapshot_locked_case(case: Case, user: AbstractBaseUser) -> CaseVersion:
     cea_id = _latest_pk(case.cea_results, "-computed_at")
     bia_id = _latest_pk(case.bia_results, "-computed_at")
     rec_id = _latest_pk(case.recommendations, "-computed_at")
+    # Rows from before the current revision belong to the earlier version.
+    from .completeness import _revision_start
+
+    since = _revision_start(case)
+    approvals = case.approvals.filter(decision="approved")
+    briefs = case.policy_briefs.filter(status="completed")
+    if since is not None:
+        approvals = approvals.filter(signed_at__gte=since)
+        briefs = briefs.filter(generated_at__gte=since)
     # Approval: only "approved" decisions are eligible to anchor the snapshot.
-    approval_id = (
-        case.approvals.filter(decision="approved")
-        .order_by("-signed_at")
-        .values_list("pk", flat=True)
-        .first()
-    )
+    approval_id = approvals.order_by("-signed_at").values_list("pk", flat=True).first()
     # Policy brief: latest completed.
-    brief_id = (
-        case.policy_briefs.filter(status="completed")
-        .order_by("-version")
-        .values_list("pk", flat=True)
-        .first()
-    )
+    brief_id = briefs.order_by("-version").values_list("pk", flat=True).first()
 
     # Phase V2: capture the full value snapshot, not just pointers, so every
     # module renders the same figures for this version forever.

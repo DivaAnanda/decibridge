@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
 from apps.cases.models import Case
+from apps.cases.permissions import CanReadCaseContent
 
 from .aggregation import aggregate_domain, aggregate_overall
 from .models import EtDAppraisal, EtDDomain, ReferenceCitation
@@ -174,7 +175,7 @@ class EtDAppraisalDeleteView(APIView):
 class EtDSummaryView(APIView):
     """Aggregate per-domain + overall evidence-strength score."""
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, CanReadCaseContent)
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)

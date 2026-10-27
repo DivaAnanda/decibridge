@@ -23,6 +23,8 @@ import { downloadArchiveManifest, getArchiveRecord } from '../api/archive'
 interface Props {
   caseId: string
   caseStatus: string
+  /** The manifest is a full export of the case, which Admin IT may not read. */
+  canDownloadManifest?: boolean
 }
 
 function fmtDateTime(value: string): string {
@@ -60,7 +62,11 @@ function fmtBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function ArchivePanel({ caseId, caseStatus }: Props): JSX.Element {
+export function ArchivePanel({
+  caseId,
+  caseStatus,
+  canDownloadManifest = true,
+}: Props): JSX.Element {
   const archiveQuery = useQuery({
     queryKey: ['archive', caseId],
     queryFn: () => getArchiveRecord(caseId),
@@ -202,15 +208,17 @@ export function ArchivePanel({ caseId, caseStatus }: Props): JSX.Element {
         </Grid>
       </Card.Section>
 
-      <Group justify="flex-end" mt="md">
-        <Button
-          leftSection={<IconDownload size={16} />}
-          variant="default"
-          onClick={() => void handleDownloadManifest()}
-        >
-          Unduh Manifest JSON
-        </Button>
-      </Group>
+      {canDownloadManifest && (
+        <Group justify="flex-end" mt="md">
+          <Button
+            leftSection={<IconDownload size={16} />}
+            variant="default"
+            onClick={() => void handleDownloadManifest()}
+          >
+            Unduh Manifest JSON
+          </Button>
+        </Group>
+      )}
     </Card>
   )
 }

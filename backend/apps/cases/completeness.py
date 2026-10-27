@@ -29,21 +29,28 @@ GATED_TRANSITIONS = frozenset({"submit", "approve", "lock"})
 # only needs a real decision question -- the analysis is what the review is for.
 # Approval needs the full dossier. Locking additionally needs a recorded
 # signature, which cannot exist any earlier.
+_DOSSIER = frozenset(
+    {"pico", "economic_analysis", "budget_impact", "etd_domains", "recommendation"}
+)
+# Round 5 item 1: "Kalau PSA belum dikerjakan atau sudah tidak sesuai input terbaru
+# -> belum boleh sign-off/lock." The recommendation must be current for the same
+# reason (Panduan section 15: one version of the inputs behind every result).
+_CURRENT = frozenset({"psa", "recommendation_current"})
+# Round 5 item 3: the KFT's own decision on the current recommendation.
+_HUMAN = frozenset({"final_decision"})
+
 STAGE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "submit": frozenset({"pico"}),
-    "approve": frozenset(
-        {"pico", "economic_analysis", "budget_impact", "etd_domains", "recommendation"}
-    ),
-    "lock": frozenset(
-        {
-            "pico",
-            "economic_analysis",
-            "budget_impact",
-            "etd_domains",
-            "recommendation",
-            "signoff",
-        }
-    ),
+    "approve": _DOSSIER | _CURRENT | _HUMAN,
+    "lock": _DOSSIER | _CURRENT | _HUMAN | {"signoff"},
+    # A brief is only issued for an approved or locked case, which passed the gate
+    # in force when it was signed. Cases signed before round 5 cannot re-run a PSA
+    # once locked, so asking for one here would leave them without a brief.
+    "brief": _DOSSIER,
+    # The archive check, also run over every case on each deploy. It judges a
+    # locked decision by the rules it was locked under, so round 5 does not turn
+    # older locked cases into remediation cases.
+    "integrity": _DOSSIER | {"signoff"},
 }
 # The Sign-Off checklist renders without naming an action; show the approve set.
 DEFAULT_STAGE = "approve"
@@ -137,20 +144,61 @@ def _pico_requirement(case) -> Requirement:
     )
 
 
-def _signoff_requirement(case, *, mandatory: bool) -> Requirement:
+def _revision_start(case):
+    """When the current revision of a once-locked case began, or None (round 5 item 4).
+
+    Signatures and KFT decisions from before it belong to the earlier version.
+    """
+    from .models import CaseVersion, CaseVersionTrigger
+
+    return (
+        CaseVersion.objects.filter(case=case, trigger=CaseVersionTrigger.REVISION_REQUESTED)
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+
+
+def _signoff_requirement(case, *, mandatory: bool, strict: bool = False) -> Requirement:
     """Round 3 item 1 also names sign-off as a lock precondition.
 
     An Approval row is only written by the sign-off endpoint, so the raw
     `approve` transition could otherwise reach `locked` with no signature on
     file -- the "backend pernah memungkinkan penguncian tidak sah" case.
+
+    `strict` (the lock itself, round 5) counts only an approval of the
+    recommendation and the KFT decision that are current now. The archive and
+    deploy-time integrity checks keep the older count so earlier locks stand.
     """
-    count = case.approvals.count()
+    approvals = case.approvals.all()
+    since = _revision_start(case)
+    if since is not None:
+        approvals = approvals.filter(signed_at__gte=since)
+    if strict:
+        from apps.approval.models import ApprovalDecision
+
+        recorded = approvals.exists()
+        latest = case.recommendations.order_by("-computed_at").first()
+        approvals = approvals.filter(
+            decision=ApprovalDecision.APPROVED,
+            recommendation_id=latest.pk if latest else None,
+        )
+        current = case.final_decisions.first()
+        if current is not None:
+            approvals = approvals.filter(final_decision=current)
+    count = approvals.count()
+    if count:
+        detail = f"{count} tanda tangan tercatat"
+    elif strict and recorded:
+        detail = "Tanda tangan tercatat untuk rekomendasi atau keputusan sebelumnya"
+    else:
+        detail = "Belum ada tanda tangan untuk versi ini" if since else "Belum ada tanda tangan"
     return Requirement(
         key="signoff",
         label="Sign-off Ketua KFT tercatat",
         satisfied=count > 0,
         mandatory=mandatory,
-        detail=f"{count} tanda tangan tercatat" if count else "Belum ada tanda tangan",
+        detail=detail,
     )
 
 
@@ -162,6 +210,85 @@ def _recommendation_requirement(case) -> Requirement:
         satisfied=rec is not None,
         detail=(f"{rec.traffic_light.upper()} — skor {rec.composite_score}" if rec
                 else "Belum dihitung"),
+    )
+
+
+def _psa_requirement(case) -> Requirement:
+    from apps.econ.models import EconPSAResult
+    from apps.econ.psa_distributions import psa_result_is_stale
+
+    psa = EconPSAResult.objects.filter(case=case).order_by("-computed_at", "-id").first()
+    label = "PSA dijalankan pada input terbaru"
+    if psa is None:
+        return Requirement(key="psa", label=label, satisfied=False, detail="PSA belum dijalankan")
+
+    stale = psa_result_is_stale(psa)
+    if stale is None:
+        detail = (
+            "PSA ini dijalankan sebelum inputnya dicatat (sebelum 13 Oktober 2026); "
+            "jalankan ulang PSA"
+        )
+    elif stale:
+        detail = "Input berubah setelah PSA terakhir; jalankan ulang PSA"
+    else:
+        detail = (
+            f"Peluang cost-effective {psa.prob_cost_effective_base:.1%}, "
+            f"{psa.n_simulations:,} iterasi, seed {psa.random_seed}"
+        )
+    return Requirement(key="psa", label=label, satisfied=stale is False, detail=detail)
+
+
+def _recommendation_current_requirement(case) -> Requirement:
+    from apps.recommendation.staleness import evaluate_staleness
+
+    label = "Rekomendasi sesuai input terbaru"
+    rec = case.recommendations.order_by("-computed_at").first()
+    if rec is None:
+        return Requirement(
+            key="recommendation_current", label=label, satisfied=False,
+            detail="Belum ada rekomendasi",
+        )
+    report = evaluate_staleness(case, rec)
+    return Requirement(
+        key="recommendation_current",
+        label=label,
+        satisfied=not report.is_stale,
+        detail=(
+            " ".join(report.reasons) + " Hitung ulang rekomendasi." if report.is_stale
+            else "Tidak ada input yang berubah sejak dihitung"
+        ),
+    )
+
+
+def _final_decision_requirement(case) -> Requirement:
+    label = "Keputusan Final KFT tercatat"
+    decision = case.final_decisions.select_related("decided_by").first()
+    if decision is None:
+        return Requirement(
+            key="final_decision", label=label, satisfied=False, detail="Belum ada keputusan final"
+        )
+    since = _revision_start(case)
+    if since is not None and decision.decided_at < since:
+        return Requirement(
+            key="final_decision",
+            label=label,
+            satisfied=False,
+            detail="Diputuskan untuk versi sebelumnya; konfirmasi ulang",
+        )
+    latest = case.recommendations.order_by("-computed_at").first()
+    if latest is None or decision.recommendation_id != latest.pk:
+        return Requirement(
+            key="final_decision",
+            label=label,
+            satisfied=False,
+            detail="Diputuskan atas rekomendasi sebelumnya; konfirmasi ulang",
+        )
+    who = decision.decided_by.full_name or decision.decided_by.email
+    return Requirement(
+        key="final_decision",
+        label=label,
+        satisfied=True,
+        detail=f"{decision.get_decision_display()} oleh {who}",
     )
 
 
@@ -190,9 +317,12 @@ def evaluate_readiness(case, *, action: str | None = None) -> dict:
     requirements = [
         _pico_requirement(case),
         *_econ_requirements(case),
+        _psa_requirement(case),
         _etd_requirement(case),
         _recommendation_requirement(case),
-        _signoff_requirement(case, mandatory=True),
+        _recommendation_current_requirement(case),
+        _final_decision_requirement(case),
+        _signoff_requirement(case, mandatory=True, strict=action == "lock"),
         _cba_requirement(case),
     ]
     requirements = [
@@ -227,8 +357,16 @@ def assert_ready_for(case, action: str) -> None:
 
     readiness = evaluate_readiness(case, action=action)
     if not readiness["is_ready"]:
+        message = "Dossier belum lengkap: " + "; ".join(readiness["missing"])
+        if action == "lock":
+            # An approved case cannot record a decision or recompute; the way back
+            # is Minta Revisi (approved -> in_review), then a new signature.
+            message += (
+                ". Pilih Minta Revisi untuk mengembalikan kasus ke Dalam Tinjauan, lengkapi "
+                "butir di atas, lalu tanda tangani ulang."
+            )
         raise ValidationError(
-            "Dossier belum lengkap: " + "; ".join(readiness["missing"]),
+            message,
             code="incomplete_dossier",
             params={"missing": readiness["missing"]},
         )

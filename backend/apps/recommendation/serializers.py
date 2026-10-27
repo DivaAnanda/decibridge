@@ -4,7 +4,14 @@ from rest_framework import serializers
 
 from apps.accounts.serializers import UserSerializer
 
-from .models import CBACriterion, DomainWeightVote, Recommendation, TrafficLight
+from .models import (
+    CBACriterion,
+    DomainWeightVote,
+    FinalDecision,
+    FinalDecisionType,
+    Recommendation,
+    TrafficLight,
+)
 
 
 class DomainWeightVoteReadSerializer(serializers.ModelSerializer):
@@ -91,3 +98,65 @@ class WeightAggregateSerializer(serializers.Serializer):
 class WeightsSummarySerializer(serializers.Serializer):
     method = serializers.CharField()
     aggregates = WeightAggregateSerializer(many=True)
+
+
+class FinalDecisionSerializer(serializers.ModelSerializer):
+    decision_label = serializers.CharField(source="get_decision_display", read_only=True)
+    decided_by_name = serializers.SerializerMethodField()
+    recommendation_id = serializers.IntegerField(read_only=True)
+    recommendation_traffic_light = serializers.CharField(
+        source="recommendation.traffic_light", read_only=True
+    )
+    recommendation_composite_score = serializers.DecimalField(
+        source="recommendation.composite_score", max_digits=6, decimal_places=2, read_only=True
+    )
+    matches_latest_recommendation = serializers.SerializerMethodField()
+    is_current = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FinalDecision
+        fields = [
+            "id",
+            "decision",
+            "decision_label",
+            "reason",
+            "decided_by_name",
+            "decided_at",
+            "recommendation_id",
+            "recommendation_traffic_light",
+            "recommendation_composite_score",
+            "matches_latest_recommendation",
+            "is_current",
+        ]
+        read_only_fields = fields
+
+    def get_decided_by_name(self, obj: FinalDecision) -> str:
+        return obj.decided_by.full_name or obj.decided_by.email
+
+    def get_matches_latest_recommendation(self, obj: FinalDecision) -> bool:
+        if "latest_recommendation_id" in self.context:
+            latest_id = self.context["latest_recommendation_id"]
+        else:
+            latest = obj.case.recommendations.order_by("-computed_at").first()
+            latest_id = latest.pk if latest else None
+        return obj.recommendation_id == latest_id
+
+    def get_is_current(self, obj: FinalDecision) -> bool:
+        """What the sign-off gate accepts: on the latest recommendation, and recorded
+        for the version now open (round 5 item 4)."""
+        if "revision_start" in self.context:
+            since = self.context["revision_start"]
+        else:
+            from apps.cases.completeness import _revision_start
+
+            since = _revision_start(obj.case)
+        recorded_for_this_version = since is None or obj.decided_at >= since
+        return self.get_matches_latest_recommendation(obj) and recorded_for_this_version
+
+
+class FinalDecisionCreateSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=FinalDecisionType.choices)
+    reason = serializers.CharField(
+        trim_whitespace=True,
+        error_messages={"blank": "Alasan keputusan final wajib diisi."},
+    )

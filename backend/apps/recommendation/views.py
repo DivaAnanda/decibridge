@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
 from apps.cases.models import Case
+from apps.cases.permissions import CanReadCaseContent
 from apps.econ.models import EconBIAResult, EconDeterministicResult
 from apps.econ.scoring import ce_score_from_result
 from apps.recommendation.staleness import evaluate_staleness
@@ -91,7 +92,7 @@ class WeightVoteListUpsertView(APIView):
 class WeightsSummaryView(APIView):
     """Aggregated weights across all members for the case."""
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, CanReadCaseContent)
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)
@@ -181,6 +182,16 @@ class RecommendationComputeView(APIView):
             return Response(
                 {"detail": "Kasus terkunci — rekomendasi tidak dapat dihitung ulang."},
                 status=status.HTTP_403_FORBIDDEN,
+            )
+        if not case.is_editable:
+            return Response(
+                {
+                    "detail": (
+                        "Kasus sudah disetujui. Untuk menghitung ulang rekomendasi, Ketua KFT "
+                        "memilih Minta Revisi lebih dulu."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         latest_econ: EconDeterministicResult | None = (
@@ -292,7 +303,7 @@ class RecommendationComputeView(APIView):
 
 
 class RecommendationListView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, CanReadCaseContent)
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)
@@ -301,7 +312,7 @@ class RecommendationListView(APIView):
 
 
 class RecommendationLatestView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, CanReadCaseContent)
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)

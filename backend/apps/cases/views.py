@@ -12,11 +12,13 @@ from apps.audit.middleware import client_ip
 from apps.audit.models import AuditLog
 
 from .models import Case, DecisionQuestion
-from .permissions import CasePermission
+from .permissions import CasePermission, sees_metadata_only
 from .serializers import (
     CaseCreateSerializer,
     CaseDetailSerializer,
     CaseListSerializer,
+    CaseMetadataListSerializer,
+    CaseMetadataSerializer,
     DecisionQuestionSerializer,
     TransitionSerializer,
 )
@@ -42,12 +44,30 @@ class CaseViewSet(viewsets.ModelViewSet):
     lookup_field = "case_id"
     lookup_value_regex = r"[A-Z][A-Z0-9_]{2,63}"
     filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
-    filterset_fields = ("status", "perspective", "created_by")
-    search_fields = ("case_id", "case_title", "technology", "comparator", "indication")
     ordering_fields = ("created_at", "updated_at", "case_id")
     ordering = ("-created_at",)
 
+    # Admin IT must not be able to probe content it cannot see by filtering on it.
+    @property
+    def search_fields(self) -> tuple[str, ...]:
+        if sees_metadata_only(getattr(self.request, "user", None)):
+            return ("case_id", "case_title")
+        return ("case_id", "case_title", "technology", "comparator", "indication")
+
+    @property
+    def filterset_fields(self) -> tuple[str, ...]:
+        if sees_metadata_only(getattr(self.request, "user", None)):
+            return ("status",)
+        return ("status", "perspective", "created_by")
+
+    def get_queryset(self):
+        if sees_metadata_only(getattr(self.request, "user", None)):
+            return Case.objects.select_related("created_by")
+        return super().get_queryset()
+
     def get_serializer_class(self):
+        if sees_metadata_only(getattr(self.request, "user", None)):
+            return CaseMetadataListSerializer if self.action == "list" else CaseMetadataSerializer
         if self.action == "list":
             return CaseListSerializer
         if self.action == "create":
@@ -99,8 +119,10 @@ class CaseViewSet(viewsets.ModelViewSet):
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
         )
 
+        # Re-read: the prefetched versions predate the row a lock or revision just added.
+        fresh = self.get_queryset().get(pk=case.pk)
         return Response(
-            CaseDetailSerializer(case, context=self.get_serializer_context()).data
+            CaseDetailSerializer(fresh, context=self.get_serializer_context()).data
         )
 
     @action(detail=True, methods=["get"], url_path="readiness")
@@ -112,7 +134,10 @@ class CaseViewSet(viewsets.ModelViewSet):
         """
         from .completeness import evaluate_readiness
 
-        return Response(evaluate_readiness(self.get_object()))
+        case = self.get_object()
+        # A locked decision is shown against the rules it was locked under.
+        action = "integrity" if case.status in {"locked", "archived"} else None
+        return Response(evaluate_readiness(case, action=action))
 
     @action(detail=True, methods=["post"], url_path="questions")
     def add_question(self, request: Request, case_id: str | None = None) -> Response:

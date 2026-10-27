@@ -15,7 +15,8 @@ import { notifications } from '@mantine/notifications'
 import { IconCheck, IconEdit, IconShieldCheck, IconX } from '@tabler/icons-react'
 
 import { listApprovals, signApproval } from '../api/approval'
-import { getLatestRecommendation } from '../api/recommendation'
+import { getCaseReadiness } from '../api/cases'
+import { getLatestRecommendation, listFinalDecisions } from '../api/recommendation'
 import { useAuth } from '../auth/useAuth'
 import { ApprovalDossierCard } from './ApprovalDossierCard'
 import { ReadinessChecklistCard } from './ReadinessChecklistCard'
@@ -51,6 +52,18 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
     queryFn: () => listApprovals(caseId),
   })
 
+  const decisionsQuery = useQuery({
+    queryKey: ['final-decisions', caseId],
+    queryFn: () => listFinalDecisions(caseId),
+  })
+
+  const readinessQuery = useQuery({
+    queryKey: ['case', caseId, 'readiness'],
+    queryFn: () => getCaseReadiness(caseId),
+    staleTime: 0,
+  })
+  const isReady = (readinessQuery.data?.is_ready ?? false) && !readinessQuery.isFetching
+
   const signMutation = useMutation({
     mutationFn: signApproval.bind(null, caseId),
     onSuccess: () => {
@@ -69,6 +82,11 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
               .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
               .join('\n') || 'Tanda tangan gagal.'
       notifications.show({ color: 'red', title: 'Sign-off gagal', message })
+      // A 409 means the recommendation or the KFT decision changed under this
+      // screen; show the current ones before anyone tries again.
+      void queryClient.invalidateQueries({ queryKey: ['recommendation', caseId] })
+      void queryClient.invalidateQueries({ queryKey: ['final-decisions', caseId] })
+      void queryClient.invalidateQueries({ queryKey: ['case', caseId] })
     },
   })
 
@@ -107,7 +125,7 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
                 color="teal"
                 leftSection={<IconShieldCheck size={16} />}
                 onClick={() => openModal('approved')}
-                disabled={!recoQuery.data}
+                disabled={!recoQuery.data || !isReady}
               >
                 Setujui dengan Sign-Off
               </Button>
@@ -128,6 +146,13 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
                 Tolak
               </Button>
             </Group>
+          )}
+
+          {canSign && recoQuery.data && readinessQuery.data && !readinessQuery.data.is_ready && (
+            <Text size="xs" c="dimmed" mt="sm">
+              Persetujuan belum dapat dilakukan. Lengkapi butir bertanda silang pada Kelengkapan
+              Dossier di atas.
+            </Text>
           )}
 
           {canSign && !recoQuery.data && (
@@ -155,6 +180,7 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
                 <Table.Th>Waktu</Table.Th>
                 <Table.Th>Keputusan</Table.Th>
                 <Table.Th>Penandatangan</Table.Th>
+                <Table.Th>Keputusan Final KFT</Table.Th>
                 <Table.Th>Alasan</Table.Th>
                 <Table.Th>IP</Table.Th>
               </Table.Tr>
@@ -177,6 +203,9 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
                       {a.approver.email}
                     </Text>
                   </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{a.final_decision?.decision_label ?? '—'}</Text>
+                  </Table.Td>
                   <Table.Td>{a.reason || '—'}</Table.Td>
                   <Table.Td ff="monospace" fz="xs">
                     {a.ip_address || '—'}
@@ -192,6 +221,7 @@ export function ApprovalTab({ caseId, caseStatus }: Props): JSX.Element {
         opened={modalOpen}
         decision={decision}
         recommendationId={recoQuery.data?.id ?? null}
+        finalDecisionId={decisionsQuery.data?.[0]?.id ?? null}
         onClose={() => setModalOpen(false)}
         onSubmit={(payload) => signMutation.mutate(payload)}
         isSubmitting={signMutation.isPending}

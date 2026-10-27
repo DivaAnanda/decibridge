@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.cases.models import Case
-from apps.recommendation.models import Recommendation
+from apps.recommendation.models import FinalDecision, Recommendation
 
 
 class ApprovalDecision(models.TextChoices):
@@ -36,6 +36,14 @@ class Approval(models.Model):
         on_delete=models.PROTECT,
         related_name="approvals",
         help_text=_("Exact recommendation row that was reviewed and signed."),
+    )
+    final_decision = models.ForeignKey(
+        FinalDecision,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="approvals",
+        help_text=_("The KFT final decision current at sign time (round 5 item 3)."),
     )
     approver = models.ForeignKey(
         settings.AUTH_USER_MODEL,

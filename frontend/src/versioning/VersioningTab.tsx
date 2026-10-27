@@ -88,8 +88,9 @@ export function VersioningTab({ caseId, caseStatus }: Props): JSX.Element {
           <Title order={4}>Riwayat Versi</Title>
           <Text size="xs" c="dimmed">
             Setiap penguncian keputusan oleh Ketua KFT menghasilkan satu baris
-            versi baru. Data versi bersifat append-only dan tidak dapat diubah
-            atau dihapus. Klik baris untuk melihat timeline audit dan keadaan
+            versi baru. Revisi atas kasus terkunci membuka versi berikutnya
+            tanpa mengubah versi yang sudah terkunci. Data versi bersifat
+            append-only dan tidak dapat diubah atau dihapus. Klik baris untuk melihat timeline audit dan keadaan
             data pada saat itu.
           </Text>
         </Stack>
@@ -332,6 +333,7 @@ function VersionDetailDrawer({ caseId, version, onClose }: DrawerProps): JSX.Ele
             {stateQuery.data && (
               <Stack gap="md">
                 <StateBlock title="Rekomendasi" data={stateQuery.data.recommendation} />
+                <StateBlock title="Keputusan Final KFT" data={stateQuery.data.final_decision} />
                 <StateBlock title="Analisis Ekonomi (CEA)" data={stateQuery.data.cea} />
                 <StateBlock title="Dampak Anggaran (BIA)" data={stateQuery.data.bia} />
                 <StateBlock title="PSA" data={stateQuery.data.psa} />

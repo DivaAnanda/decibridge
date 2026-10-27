@@ -1,11 +1,13 @@
 """Policy-brief permissions.
 
-- Generate: Ketua KFT, Admin IT, HTA Analyst — case must be in `approved` or
-  `locked` status (no point generating a brief before the decision has been
-  signed off). The brief's section P ("UI tombol dan hak akses") assigns
-  "Create New Version" to "Approver/Admin/HTA sesuai SOP"; Sekretaris KFT is
-  deliberately not on that list.
-- List + download: all 5 roles.
+- Generate: Ketua KFT, HTA Analyst — case must be in `approved` or `locked`
+  status (no point generating a brief before the decision has been signed off).
+  The brief's section P ("UI tombol dan hak akses") assigns "Create New Version"
+  to "Approver/Admin/HTA sesuai SOP"; Sekretaris KFT is deliberately not on that
+  list. Round 5 item 5 took Admin IT off it: "Tidak boleh ... menerbitkan
+  keputusan."
+- List + download: the four content roles. A brief is case content, which Admin
+  IT may not read.
 """
 
 from __future__ import annotations
@@ -22,21 +24,19 @@ VIEWER_ROLES = frozenset(
         RoleSlug.FARMASI_SEKRETARIS,
         RoleSlug.KETUA_KFT,
         RoleSlug.KFT_MEMBER,
-        RoleSlug.ADMIN_IT,
     }
 )
 
 GENERATOR_ROLES = frozenset(
     {
         RoleSlug.KETUA_KFT,
-        RoleSlug.ADMIN_IT,
         RoleSlug.HTA_ANALYST,
     }
 )
 
 
 class PolicyBriefPermission(BasePermission):
-    """All viewers can list+download; only Ketua/Admin IT/HTA generate."""
+    """Content roles list and download; only Ketua KFT and HTA Analyst generate."""
 
     message = "Anda tidak memiliki izin untuk operasi ini pada dokumen kebijakan."
 

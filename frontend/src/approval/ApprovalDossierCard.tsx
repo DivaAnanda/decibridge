@@ -3,14 +3,18 @@ import { Alert, Badge, Card, Center, Grid, Group, Loader, Stack, Text, Title } f
 
 import { getLatestEconBIA, getLatestEconResult } from '../api/econ'
 import { getSummary as getEtDSummary } from '../api/etd'
-import { getLatestRecommendation } from '../api/recommendation'
+import { getLatestRecommendation, listFinalDecisions } from '../api/recommendation'
 import {
   BIA_SEVERITY_COLOR,
   BIA_SEVERITY_LABEL,
   DECISION_COLOR,
   DECISION_LABEL,
 } from '../econ/types'
-import { TRAFFIC_LIGHT_COLOR, TRAFFIC_LIGHT_LABEL_ID } from '../recommendation/types'
+import {
+  FINAL_DECISION_COLOR,
+  TRAFFIC_LIGHT_COLOR,
+  TRAFFIC_LIGHT_LABEL_ID,
+} from '../recommendation/types'
 import { CERTAINTY_COLOR } from '../etd/types'
 
 interface Props {
@@ -34,9 +38,17 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
     queryKey: ['recommendation', caseId, 'latest'],
     queryFn: () => getLatestRecommendation(caseId),
   })
+  const decisionsQuery = useQuery({
+    queryKey: ['final-decisions', caseId],
+    queryFn: () => listFinalDecisions(caseId),
+  })
 
   const isLoading =
-    econQuery.isLoading || biaQuery.isLoading || etdQuery.isLoading || recoQuery.isLoading
+    econQuery.isLoading ||
+    biaQuery.isLoading ||
+    etdQuery.isLoading ||
+    recoQuery.isLoading ||
+    decisionsQuery.isLoading
 
   if (isLoading) {
     return (
@@ -50,6 +62,7 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
   const bia = biaQuery.data
   const etd = etdQuery.data
   const reco = recoQuery.data
+  const finalDecision = decisionsQuery.data?.[0]
 
   const idr = (value: string): string =>
     Number(value).toLocaleString('id-ID', { maximumFractionDigits: 0 })
@@ -221,6 +234,41 @@ export function ApprovalDossierCard({ caseId }: Props): JSX.Element {
             ) : (
               <Text size="sm" c="red" mt={4}>
                 Belum terkomputasi.
+              </Text>
+            )}
+          </Card>
+        </Grid.Col>
+
+        <Grid.Col span={12}>
+          <Card withBorder padding="md" radius="sm">
+            <Text size="xs" c="dimmed">
+              Keputusan Final KFT
+            </Text>
+            {finalDecision ? (
+              <Stack gap={4} mt={4}>
+                <Group gap="xs">
+                  <Badge
+                    color={FINAL_DECISION_COLOR[finalDecision.decision]}
+                    variant="filled"
+                    tt="none"
+                  >
+                    {finalDecision.decision_label}
+                  </Badge>
+                  {!finalDecision.is_current && (
+                    <Badge color="orange" variant="light" tt="none">
+                      Perlu dikonfirmasi ulang
+                    </Badge>
+                  )}
+                </Group>
+                <Text size="sm">{finalDecision.reason}</Text>
+                <Text size="xs" c="dimmed">
+                  {finalDecision.decided_by_name},{' '}
+                  {new Date(finalDecision.decided_at).toLocaleString('id-ID')}
+                </Text>
+              </Stack>
+            ) : (
+              <Text size="sm" c="red" mt={4}>
+                Belum dicatat. Anggota KFT atau Ketua KFT mengisinya di tab Rekomendasi.
               </Text>
             )}
           </Card>

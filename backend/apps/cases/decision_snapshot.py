@@ -235,6 +235,22 @@ def _recommendation_block(case) -> dict | None:
     }
 
 
+def _final_decision_block(case) -> dict | None:
+    """Round 5 item 3: the KFT's own decision, current at lock time."""
+    decision = case.final_decisions.select_related("decided_by").first()
+    if decision is None:
+        return None
+    return {
+        "id": decision.pk,
+        "decision": decision.decision,
+        "decision_label": _s(decision.get_decision_display()),
+        "reason": decision.reason,
+        "decided_by": decision.decided_by.full_name or decision.decided_by.email,
+        "decided_at": decision.decided_at.isoformat(),
+        "recommendation_id": decision.recommendation_id,
+    }
+
+
 def _approval_block(case) -> dict | None:
     approval = case.approvals.filter(decision="approved").order_by("-signed_at").first()
     if approval is None:
@@ -242,6 +258,7 @@ def _approval_block(case) -> dict | None:
     return {
         "id": approval.pk,
         "decision": approval.decision,
+        "final_decision_id": approval.final_decision_id,
         "signed_at": approval.signed_at.isoformat() if approval.signed_at else None,
         "approver": approval.approver.full_name if approval.approver_id else None,
         "approver_email": approval.approver.email if approval.approver_id else None,
@@ -302,6 +319,7 @@ def build_decision_snapshot(case) -> dict:
         "etd": _etd_block(case),
         "cba": _cba_block(case),
         "recommendation": _recommendation_block(case),
+        "final_decision": _final_decision_block(case),
         "approval": _approval_block(case),
         "legacy": _legacy_block(case),
     }

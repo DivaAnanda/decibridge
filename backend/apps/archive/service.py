@@ -177,6 +177,17 @@ def _recommendation_row(r: Recommendation) -> dict:
     }
 
 
+def _final_decision_row(d) -> dict:
+    return {
+        "id": d.pk,
+        "decision": d.decision,
+        "reason": d.reason,
+        "decided_by_email": d.decided_by.email,
+        "decided_at": d.decided_at,
+        "recommendation_id": d.recommendation_id,
+    }
+
+
 def _approval_row(a: Approval) -> dict:
     return {
         "id": a.pk,
@@ -188,6 +199,7 @@ def _approval_row(a: Approval) -> dict:
         "reason": a.reason,
         "ip_address": a.ip_address,
         "recommendation_id": a.recommendation_id,
+        "final_decision_id": a.final_decision_id,
     }
 
 
@@ -298,6 +310,12 @@ def archive_case(case: Case, archived_by) -> ArchiveRecord:
         recommendations=[
             _recommendation_row(r) for r in case.recommendations.all().order_by("computed_at")
         ],
+        final_decisions=[
+            _final_decision_row(d)
+            for d in case.final_decisions.select_related("decided_by").order_by(
+                "decided_at", "id"
+            )
+        ],
         approvals=[
             _approval_row(a)
             for a in case.approvals.select_related("approver").order_by("signed_at")
@@ -333,6 +351,7 @@ def archive_case(case: Case, archived_by) -> ArchiveRecord:
         "etd_appraisals": len(manifest["artifacts"]["etd_appraisals"]),
         "references": len(manifest["artifacts"]["references"]),
         "recommendations": len(manifest["artifacts"]["recommendations"]),
+        "final_decisions": len(manifest["artifacts"]["final_decisions"]),
         "approvals": len(manifest["artifacts"]["approvals"]),
         "case_versions": len(manifest["artifacts"]["case_versions"]),
         "policy_briefs": len(manifest["artifacts"]["policy_briefs"]),

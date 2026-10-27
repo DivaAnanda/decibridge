@@ -13,7 +13,8 @@ Cases created (all prefixed UAT_ and titled "UAT - bukan keputusan klinis"):
 
   UAT_LENGKAP            in_review, full dossier. The success path: PICO,
                          references, economic parameters with source and unit,
-                         CEA, BIA, PSA, 9/9 EtD, CBA. Approval should be allowed.
+                         CEA, BIA, PSA, 9/9 EtD, CBA, Keputusan Final KFT.
+                         Approval should be allowed.
   UAT_TANPA_PICO         draft, no decision question. Submit must be refused.
   UAT_TANPA_EKONOMI      in_review, PICO only. Approval must be refused.
   UAT_ETD_SEBAGIAN       in_review, PICO + CEA + BIA but only 4 of 9 EtD domains.
@@ -77,6 +78,7 @@ class Command(BaseCommand):
         self._etd(complete, member, domains=None)
         self._cba(complete, author)
         self._recommendation(complete, author)
+        self._final_decision(complete, member)
         self._status(complete, CaseStatus.IN_REVIEW)
         self._ok(f"{LENGKAP}: in_review, dossier lengkap (alur berhasil)")
 
@@ -100,6 +102,7 @@ class Command(BaseCommand):
         self._economics(unsigned, author)
         self._etd(unsigned, member, domains=None)
         self._recommendation(unsigned, author)
+        self._final_decision(unsigned, member)
         self._status(unsigned, CaseStatus.APPROVED)
         self._warn(
             f"{TANPA_TANDA_TANGAN}: approved tanpa tanda tangan (lock harus ditolak)"
@@ -179,8 +182,27 @@ class Command(BaseCommand):
             service.run_deterministic(model, computed_by=author)
         if not case.econ_bia_results.exists():
             service.run_bia(model, computed_by=author)
-        if not case.econ_psa_results.exists():
+        self._psa(case, model, author)
+
+    def _psa(self, case: Case, model, author) -> None:
+        """Run a PSA when there is none, or when the latest predates recorded inputs.
+
+        Round 5 item 1 refuses sign-off on a PSA from before 2026-10-13, which did
+        not record its inputs, so those are re-run once to keep UAT_LENGKAP the
+        success path. A PSA made stale by editing an input is left alone: re-running
+        it is the user's step, and the gate exists to make them take it.
+        """
+        from apps.econ import service
+        from apps.econ.psa_distributions import psa_result_is_stale
+        from apps.econ.service import IncompleteModelError
+
+        latest = case.econ_psa_results.order_by("-computed_at", "-id").first()
+        if latest is not None and psa_result_is_stale(latest) is not None:
+            return
+        try:
             service.run_psa(model, computed_by=author)
+        except IncompleteModelError as exc:
+            self._warn(f"{case.case_id}: PSA tidak dapat dijalankan ({'; '.join(exc.missing)})")
 
     def _etd(self, case: Case, member, *, domains: int | None) -> None:
         from apps.etd.models import EtDAppraisal, EtDDomain
@@ -231,6 +253,22 @@ class Command(BaseCommand):
             justification_text="Rekomendasi sintetis untuk UAT.",
             algorithm_version="2.0.0",
             computed_by=author,
+        )
+
+    def _final_decision(self, case: Case, member) -> None:
+        """Round 5 item 3: sign-off needs the KFT's own decision. Added only when
+        the case has none, so a decision someone recorded is never replaced."""
+        from apps.recommendation.models import FinalDecision, FinalDecisionType
+
+        latest = case.recommendations.order_by("-computed_at").first()
+        if latest is None or case.final_decisions.exists():
+            return
+        FinalDecision.objects.create(
+            case=case,
+            recommendation=latest,
+            decision=FinalDecisionType.ADOPT_WITH_CRITERIA,
+            reason="Keputusan sintetis untuk UAT.",
+            decided_by=member,
         )
 
     def _status(self, case: Case, status: str) -> None:

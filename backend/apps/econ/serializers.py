@@ -17,7 +17,7 @@ from .models import (
     EconPSAResult,
     ParamType,
 )
-from .psa_distributions import distribution_errors, psa_input_state
+from .psa_distributions import distribution_errors, psa_result_is_stale
 
 # Uptake and market share are stored as `rate` and are proportions too; they were
 # missing here, so a market share of 11 (1100%) saved without complaint.
@@ -247,12 +247,7 @@ class EconPSAResultSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_is_stale(self, obj: EconPSAResult) -> bool | None:
-        """Whether the inputs changed since this run; None when they were not recorded."""
-        recorded = obj.input_snapshot.get("inputs")
-        if recorded is None:
-            return None
-        model = EconomicModel.objects.filter(case=obj.case).first()
-        return model is None or recorded != psa_input_state(model)
+        return psa_result_is_stale(obj)
 
 
 class EconDeterministicResultSerializer(serializers.ModelSerializer):

@@ -8,6 +8,8 @@ from apps.cases.permissions import VIEWER_ROLES
 CBA_EDITOR_ROLES = {RoleSlug.FARMASI_SEKRETARIS, RoleSlug.KETUA_KFT, RoleSlug.HTA_ANALYST}
 WEIGHT_VOTER_ROLES = {RoleSlug.KFT_MEMBER, RoleSlug.KETUA_KFT}
 COMPUTE_ROLES = {RoleSlug.HTA_ANALYST, RoleSlug.FARMASI_SEKRETARIS, RoleSlug.KETUA_KFT}
+# Round 5 item 3: the KFT itself records its decision.
+FINAL_DECISION_ROLES = {RoleSlug.KFT_MEMBER, RoleSlug.KETUA_KFT}
 
 
 class _BaseScoped(BasePermission):
@@ -72,3 +74,7 @@ class ComputePermission(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return bool(roles & COMPUTE_ROLES)
+
+
+class FinalDecisionPermission(_BaseScoped):
+    write_roles = frozenset(FINAL_DECISION_ROLES)

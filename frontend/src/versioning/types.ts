@@ -46,6 +46,7 @@ export interface VersionState {
   bia: Record<string, unknown> | null
   psa: Record<string, unknown> | null
   recommendation: Record<string, unknown> | null
+  final_decision: Record<string, unknown> | null
   approval: Record<string, unknown> | null
   policy_brief: Record<string, unknown> | null
 }

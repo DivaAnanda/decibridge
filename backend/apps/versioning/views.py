@@ -194,6 +194,16 @@ def _money(value: Any) -> Any:
         return value
 
 
+_FINAL_DECISION_FIELDS = (
+    "decision",
+    "decision_label",
+    "reason",
+    "decided_by",
+    "decided_at",
+    "recommendation_id",
+)
+
+
 def _pick(block: dict | None, fields: tuple[str, ...]) -> dict | None:
     return {f: block.get(f) for f in fields} if block else None
 
@@ -228,6 +238,7 @@ def _state_blocks(version: CaseVersion, user) -> dict[str, dict | None]:
         "bia": bia or legacy_bia,
         "psa": _pick(econ.get("psa"), _PSA_FIELDS),
         "recommendation": _serialize_recommendation(version.recommendation_id),
+        "final_decision": _pick(snapshot.get("final_decision"), _FINAL_DECISION_FIELDS),
         "approval": _serialize_approval(version.approval_id, user),
         "policy_brief": _serialize_policy_brief(version.policy_brief_document_id),
     }
@@ -341,7 +352,15 @@ class VersionDiffView(APIView):
 
     permission_classes = (IsAuthenticated, VersioningPermission)
 
-    _COMPARED_BLOCKS = ("cea", "bia", "psa", "recommendation", "approval", "policy_brief")
+    _COMPARED_BLOCKS = (
+        "cea",
+        "bia",
+        "psa",
+        "recommendation",
+        "final_decision",
+        "approval",
+        "policy_brief",
+    )
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)

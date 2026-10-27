@@ -3,6 +3,8 @@ import type {
   CaseCreateInput,
   CaseDetail,
   CaseListItem,
+  CaseMetadata,
+  CaseMetadataListItem,
   CaseStatus,
   DecisionQuestion, CaseReadiness } from '../cases/types'
 
@@ -17,13 +19,16 @@ export async function listCases(params?: {
   status?: CaseStatus
   search?: string
   page?: number
-}): Promise<Paginated<CaseListItem>> {
-  const { data } = await apiClient.get<Paginated<CaseListItem>>('/cases/', { params })
+}): Promise<Paginated<CaseListItem | CaseMetadataListItem>> {
+  const { data } = await apiClient.get<Paginated<CaseListItem | CaseMetadataListItem>>(
+    '/cases/',
+    { params },
+  )
   return data
 }
 
-export async function getCase(caseId: string): Promise<CaseDetail> {
-  const { data } = await apiClient.get<CaseDetail>(`/cases/${caseId}/`)
+export async function getCase(caseId: string): Promise<CaseDetail | CaseMetadata> {
+  const { data } = await apiClient.get<CaseDetail | CaseMetadata>(`/cases/${caseId}/`)
   return data
 }
 

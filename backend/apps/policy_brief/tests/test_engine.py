@@ -313,3 +313,141 @@ class TestSignerAddress:
             rows = service._build_approvals(case=None)
 
         assert rows[0].ip_address == "203.0.113.xxx"
+
+
+def _all_text(data: bytes) -> str:
+    doc = _read_docx(data)
+    parts = [p.text for p in doc.paragraphs]
+    parts += [cell.text for table in doc.tables for row in table.rows for cell in row.cells]
+    return "\n".join(parts)
+
+
+def _psa(**overrides) -> engine.PSABlock:
+    base = dict(
+        n_simulations=5000,
+        seed=42,
+        wtp_base=Decimal("250000000"),
+        prob_cost_effective=Decimal("0.5602"),
+        mean_incremental_cost=Decimal("12400000"),
+        mean_incremental_qaly=Decimal("0.05512"),
+        base_case_incremental_cost=Decimal("12400000"),
+        base_case_incremental_qaly=Decimal("0.055"),
+        interpretation_text="Peluang ARNI cost-effective 56%.",
+        computed_at=datetime(2026, 10, 26, 5, 0, tzinfo=UTC),
+        is_current=True,
+        ceac=[
+            engine.CEACPoint(wtp=Decimal("0"), probability=0.0),
+            engine.CEACPoint(wtp=Decimal("250000000"), probability=0.5602),
+        ],
+    )
+    base.update(overrides)
+    return engine.PSABlock(**base)
+
+
+class TestRound5Content:
+    """Round 5 item 2: "tambahkan hasil PSA + pertanyaan keputusan + populasi target"."""
+
+    def test_decision_question_with_its_pico(self):
+        ctx = _minimal_ctx(
+            decision_questions=[
+                engine.DecisionQuestionRow(
+                    number=1,
+                    question="Apakah ARNI perlu masuk formularium?",
+                    population="Pasien HFrEF dewasa, EF <= 40%",
+                    intervention="ARNI",
+                    comparator="Ramipril",
+                    outcome="Rehospitalisasi 12 bulan",
+                )
+            ]
+        )
+
+        text = _all_text(engine.build_docx_bytes(ctx))
+
+        assert "Pertanyaan Keputusan dan Populasi Target" in text
+        assert "Apakah ARNI perlu masuk formularium?" in text
+        assert "Pasien HFrEF dewasa, EF <= 40%" in text
+        assert "Rehospitalisasi 12 bulan" in text
+
+    def test_target_population_is_on_the_cover(self):
+        doc = _read_docx(engine.build_docx_bytes(_minimal_ctx()))
+        cover = {row.cells[0].text: row.cells[1].text for row in doc.tables[0].rows}
+
+        assert cover["Populasi target"] == "Adults"
+        assert cover["Perspektif"] == "Rumah Sakit"
+
+    def test_psa_results(self):
+        text = _all_text(engine.build_docx_bytes(_minimal_ctx(psa=_psa())))
+
+        assert "Analisis Sensitivitas Probabilistik (PSA)" in text
+        assert "56.0%" in text
+        assert "5.000" in text
+        assert "Rp 12.400.000" in text
+        assert "Peluang ARNI cost-effective 56%." in text
+
+    def test_psa_curve_points_are_listed(self):
+        text = _all_text(engine.build_docx_bytes(_minimal_ctx(psa=_psa())))
+
+        assert "Rp 250.000.000" in text
+        assert "0.0%" in text
+
+    def test_missing_psa_is_stated(self):
+        text = _all_text(engine.build_docx_bytes(_minimal_ctx()))
+
+        assert "PSA belum dijalankan" in text
+
+    @pytest.mark.parametrize(
+        ("is_current", "note"),
+        [(False, "input berubah setelah PSA ini dijalankan"), (None, "13 Oktober 2026")],
+    )
+    def test_outdated_psa_is_flagged(self, is_current, note):
+        text = _all_text(engine.build_docx_bytes(_minimal_ctx(psa=_psa(is_current=is_current))))
+
+        assert note in text
+
+    def test_final_decision_leads_the_summary(self):
+        ctx = _minimal_ctx(
+            final_decision=engine.FinalDecisionBlock(
+                decision_label="Adopsi dengan kriteria akses (Adopt with criteria-based access)",
+                reason="ICER di bawah ambang; akses dibatasi EF <= 40%.",
+                decided_by="Dr. Anggota",
+                decided_at=datetime(2026, 10, 26, 5, 0, tzinfo=UTC),
+                on_latest_recommendation=True,
+            )
+        )
+
+        body = "\n".join(p.text for p in _read_docx(engine.build_docx_bytes(ctx)).paragraphs)
+
+        assert body.index("Keputusan Final KFT") < body.index("Rekomendasi Sistem")
+        assert "Adopt with criteria-based access" in body
+        assert "ICER di bawah ambang; akses dibatasi EF <= 40%." in body
+        assert "Dr. Anggota" in body
+
+    def test_missing_final_decision_is_stated(self):
+        body = "\n".join(p.text for p in _read_docx(engine.build_docx_bytes(_minimal_ctx())).paragraphs)
+
+        assert "Keputusan Final KFT belum dicatat" in body
+
+
+def test_criteria_without_a_cba_score_still_render():
+    """UAT_LENGKAP has a criterion but its recommendation has no CBA score; the
+    brief failed with a TypeError formatting None."""
+    ctx = _minimal_ctx(
+        cba=engine.CBABlock(
+            rows=[
+                engine.CBACriterionRow(
+                    label="Diresepkan dokter spesialis jantung",
+                    operator="Ada",
+                    value="-",
+                    satisfied=True,
+                    notes="",
+                )
+            ],
+            cba_score=None,
+            satisfied_count=1,
+            total_count=1,
+        )
+    )
+
+    body = "\n".join(p.text for p in _read_docx(engine.build_docx_bytes(ctx)).paragraphs)
+
+    assert "Skor CBA: Belum dinilai" in body

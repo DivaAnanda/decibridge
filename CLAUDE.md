@@ -2,7 +2,7 @@
 
 Auto-loaded into every Claude Code session in this repo. Keep short, keep current.
 
-## CURRENT STATE - read this first (2026-10-13)
+## CURRENT STATE - read this first (2026-10-26)
 
 **Rounds 1-4, the PSA distribution editor, the manual book and the fixes it exposed are shipped
 and deployed (pushed 2026-10-13; see `git log` for the head). 520 backend tests passing (~14 min
@@ -16,6 +16,140 @@ full run).**
 - Reference cases: `DB_DEMO_HF_001` (synthetic training case, matches the instructor key),
   `UAT_*` (five gate fixtures), `HF_ARNI_ACEI_001` (old validation-workbook values, 11/11 QC),
   `HF_ARNI_ACEI_004` (locked, flagged `requires_remediation`, NEVER DELETE).
+
+### ROUND 5 (WhatsApp from Pak Anom, 2026-10-26) - ALL FIVE ITEMS BUILT (uncommitted); next: regenerate the manual, review, commit when asked
+
+**Item 5 as built (2026-10-26):** `apps/cases/permissions.VIEWER_ROLES` now means "may read case
+content" and no longer holds ADMIN_IT; every analysis app imports it, so econ/CEA/BIA/EtD/
+recommendation/approval reads are closed to Admin IT. `METADATA_ROLES` (+ADMIN_IT) and
+`sees_metadata_only(user)` let Admin IT list/retrieve cases through `CaseMetadataListSerializer` /
+`CaseMetadataSerializer` (ID, title, status, dates, integrity) and nothing else (no readiness,
+PATCH, transition). Versioning and policy-brief reads/generation drop ADMIN_IT. Archive: the
+record (seal, retention, counts) stays readable; the manifest download (a full case export) does
+not (`ArchiveManifestPermission`). Four views that only checked login (EtD summary, weights
+summary, recommendation list/latest) now use `CanReadCaseContent`. Full-IP tests for approvals
+and version state moved to a superuser; Admin IT still sees full IPs in user admin. Frontend
+follows the payload shape (`hasCaseContent`, `hasListContent`): `cases/CaseMetadataView.tsx`
+replaces the tabs for Admin IT; the list hides Intervensi/Komparator. Tests:
+`apps/cases/tests/test_admin_it_scope.py`. A user holding Admin IT plus a content role keeps
+content.
+
+**Item 1 as built (2026-10-26):** `completeness.py` adds requirements `psa` (latest PSA's
+recorded inputs equal `psa_input_state(model)` now; unrecorded = must re-run;
+`econ/psa_distributions.psa_result_is_stale` is the one implementation, the serializer uses it)
+and `recommendation_current` (`recommendation/staleness.evaluate_staleness`). Both are in the
+`approve` and `lock` stages, which cover the sign-off endpoint and both transitions. New stage
+keys keep older decisions on their old rules: `brief` (policy_brief/views) and `integrity`
+(`integrity.evaluate_integrity`, used by archive and the deploy-time `audit_case_integrity`).
+`seed_uat_cases._psa` re-runs a UAT PSA only when the latest has no recorded inputs, so
+UAT_LENGKAP stays signable after the deploy; a PSA made stale by an edit is left alone. Frontend:
+checklist refetches on every visit and wraps long details; "Setujui dengan Sign-Off" is disabled
+until ready; the PSA tab warns about pre-2026-10-13 runs. Tests: `test_psa_signoff_gate.py`,
+`test_uat_seed_psa.py`; `econ/tests/factories.make_psa_result` builds PSA rows without Monte
+Carlo. Rules documented in `docs/stage-requirements.md`.
+
+**Item 3 as built (2026-10-26):** `recommendation.FinalDecision` (append-only; latest row is
+current; FK to the recommendation it was decided against; `FinalDecisionType` = the five brief
+decision types, labelled "Indonesian (English)"). `GET/POST /cases/{id}/final-decisions/`
+(`recommendation/final_decision_views.py`): Anggota/Ketua KFT write, only while `is_editable`
+and after a recommendation exists; reason required; audited with `metadata.case_id`. Readiness
+requirement `final_decision` in `approve`/`lock` only ("konfirmasi ulang" when the
+recommendation was recomputed). `Approval.final_decision` (nullable FK) binds the decision at
+sign time. Included in the lock snapshot (`final_decision` block), Versi state, and the archive
+manifest (`final_decisions`). UAT seeder adds a synthetic decision to UAT_LENGKAP and
+UAT_TANPA_TANDA_TANGAN only when they have none. Frontend: `recommendation/FinalDecisionCard.tsx`
+on the Rekomendasi tab (needs `caseIsEditable`), decision on the Sign-Off dossier and signature
+history, Versi block. Factory: `recommendation/tests/factories.make_final_decision`. Migrations
+`recommendation/0003`, `approval/0002`.
+
+**Item 2 as built (2026-10-27):** the brief (`policy_brief/engine.py`, pure; filled by
+`service.build_context`) now has: cover rows Populasi target (case.population, falling back to the
+first PICO P), Setting, Perspektif; section 1 opens with the Keputusan Final KFT, then
+"Rekomendasi Sistem" (colour/score); new section 2 Pertanyaan Keputusan dan Populasi Target (each
+PICO question as a table); new section 5 PSA (iterations, seed, P(CE) at base WTP, mean and
+base-case increments, CEAC at 0/0.5/1/1.5/2 x WTP, interpretation, a note when the PSA is stale or
+predates recorded inputs). Sections renumbered 1-9; the manual's brief chapter
+(`docs/panduan/manual/chapters_decision.py` ~line 294) lists the old numbering - update it when
+regenerating. Fixed in passing: `_build_cba` formatted a null CBA score (UAT_LENGKAP's seeded
+recommendation) and failed the whole brief. Tests: `policy_brief/tests/test_round5_content.py`,
+new cases in `test_engine.py`.
+
+**Item 4 as built (2026-10-27):** transition `revise` (locked -> draft; HTA Analyst or Ketua KFT;
+reason required; archived cases excluded). `state_machine._record_revision` writes an append-only
+CaseVersion `{next}-draft` (e.g. `1.1-draft`), status draft, trigger `revision_requested`, the
+reason in `lock_reason`, `diff = {revises_version, revises_version_id}`. The locked v1.0 row and
+its snapshot are never touched; the next lock is v1.1 (existing `_next_lock_version_number`).
+`transition()` now runs its writes in `transaction.atomic()`. `completeness._revision_start`
+makes the signature and the Keputusan Final KFT count only if recorded after the latest revision
+began, so v1.0's signature cannot lock v1.1. `CaseVersionSerializer` exposes `trigger`; the case
+page shows a "Revisi dari vX sedang berjalan" banner and the reason dialog explains the action.
+Tests: `apps/cases/tests/test_revision.py`.
+
+**Round 5 code review fixes (2026-10-27):** sign-off (`approval/views._approval_refusal`) runs
+inside one `select_for_update` on the case, refuses a `recommendation_id` that is not the latest
+(409) and an optional `final_decision_id` that is no longer current (409); recording a decision
+takes the same row lock. The lock stage's `signoff` requirement is strict: an APPROVED approval,
+since the latest revision, on the latest recommendation and the current decision (integrity and
+archive keep the old count). Lock snapshots and their approval/brief pointers ignore rows from
+before the revision. `transition()` re-reads the status under `select_for_update`. `revise` is
+refused for integrity-flagged cases (HF_ARNI_ACEI_004 stays a locked fixture). Recommendation
+compute is refused once approved. Admin IT case search covers ID and title only. `/readiness/`
+on locked/archived cases uses the `integrity` stage. `FinalDecisionSerializer.is_current` is the
+gate's notion of current. Version diff compares `final_decision`.
+
+His words: "5 tambahan fungsi kecil pada menu yang sudah ada, tidak perlu buat menu baru ...
+tidak perlu ubah struktur dashboard. Hanya menyempurnakan fungsi yang sudah ada."
+
+1. Sign-Off: tambah cek PSA. Kalau PSA belum dikerjakan atau sudah tidak sesuai input terbaru ->
+   belum boleh sign-off/lock.
+2. Brief: tambahkan hasil PSA + pertanyaan keputusan + populasi target ke PDF/DOCX.
+3. Rekomendasi: hasil warna/skor sistem tetap ada, tetapi tambahkan kolom Keputusan Final KFT +
+   alasan yang diisi manusia.
+4. Versi: kalau kasus sudah locked dan perlu revisi, buat versi/revisi baru, jangan mengubah versi
+   yang lama.
+5. Admin IT: batasi hanya urusan user/system/backup. Tidak boleh mengubah isi analisis atau
+   menerbitkan keputusan.
+
+These are the gaps the manual's Lampiran B listed; he is NOT asking for the 23092026 rebuild
+(seven roles, new lifecycle). Do not add new menus or restructure the dashboard.
+
+**Decisions confirmed by the user on 2026-10-26 ("defaults are fine")** - taken from the 23092026
+Panduan, not invented:
+- Build order: **5 -> 1 -> 3 -> 2 -> 4**, then regenerate the manual (chapters 7-10, Lampiran B rows
+  50-59 change) with `bash docs/panduan/regenerate.sh`.
+- Item 1 also blocks sign-off/lock when the RECOMMENDATION is stale (today only a warning:
+  `StaleRecommendationAlert`). Justification: Panduan section 15 "version gate".
+- Item 3: Keputusan Final KFT is filled by **Anggota KFT and Ketua KFT**; options are the original
+  brief's five: Adopt / Adopt with criteria-based access / Defer pending additional evidence / Do
+  not adopt / Reassess after price negotiation. Reason always required. Keep history (append-only
+  rows; latest is current). Sign-Off requires it and the signature binds it; it should reference the
+  recommendation row it was decided against (re-confirm if the recommendation is recomputed). Show
+  it in the Sign-Off dossier, the lock snapshot (`cases/decision_snapshot.py`) and the brief.
+- Item 4: **Analis HTA or Ketua KFT** may start a revision of a LOCKED case (not archived), reason
+  required. Same case reopens as Draft; v1.0 snapshot stays frozen; next lock becomes v1.1
+  (`state_machine._next_lock_version_number` already bumps minor; `CaseVersionTrigger.
+  REVISION_REQUESTED` exists but is unused - write a version row with the reason). Earlier
+  approvals/briefs/results stay (append-only). Versi diff v1.0 vs v1.1 already reads snapshots.
+- Item 5: Admin IT keeps user admin (`/administrasi/pengguna`), health/build, archive
+  verification. Remove brief generation (`policy_brief/permissions.py` GENERATOR_ROLES has
+  ADMIN_IT; `frontend/src/policy_brief/PolicyBriefTab.tsx` `mayGenerate` includes 'admin_it' -
+  I added that on 2026-10-13 to match the backend; item 5 reverses both). Admin IT sees **case
+  list metadata only** (ID, title, status, dates, archive integrity), NOT the analysis tabs or
+  their APIs - the Panduan's least-privilege rule says Admin IT must not see detailed
+  clinical/economic content. Admin IT is in VIEWER_ROLES of cases, versioning, archive and
+  policy_brief permissions today; econ/etd/recommendation/approval views inherit viewer access
+  through cases. No backup feature exists in-app; do not build one (no new menus).
+
+**Production cautions for round 5:**
+- `audit_case_integrity` runs on every deploy and uses `evaluate_readiness(action="lock")`. Adding
+  PSA to the lock requirements naively would flag every old locked case without PSA (including
+  `HF_ARNI_ACEI_004`) as requires_remediation and hide it from the dashboard. Apply the PSA rule
+  to transitions from now on only, not to the retroactive integrity audit.
+- Cases now in_review/approved whose PSA ran before 2026-10-13 have no recorded inputs
+  (`is_stale` is null); the new gate will require one PSA re-run. Tell the user.
+- The manual is now `docs/panduan/Buku_Panduan_DeciBridge.{docx,pdf}` (user's choice,
+  2026-10-27; `manual/data.py` OUT_DOCX). The old `_Kasus_Latihan` files are deleted in the
+  working tree; commit the rename with the regenerated manual.
 
 ### Documents in `../Brief/`, oldest to newest - LATER ONES SUPERSEDE EARLIER ONES
 
@@ -33,7 +167,7 @@ full run).**
 "Diva coba dimasukkan pakai data real ini. Kemudian screenshot, sekalian nanti jadi manual book /
 panduan." He then sent the training package when told the docx held no data. So the deliverable is
 a **manual book with screenshots** of the training case being worked through all nine menus.
-The manual is `docs/panduan/Buku_Panduan_DeciBridge_Kasus_Latihan.{docx,pdf}` (42 pages, 47
+The manual is `docs/panduan/Buku_Panduan_DeciBridge.{docx,pdf}` (42 pages, 47
 screenshots). See "Manual book" below for how it is produced. The fixes found while writing it
 were deployed with it. Whether the manual has been sent to him is for the user to say: ask.
 

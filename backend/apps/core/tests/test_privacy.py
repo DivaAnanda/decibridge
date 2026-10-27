@@ -84,12 +84,15 @@ class TestAuditSurfacesMaskByDefault:
         assert response.status_code == 200
         assert response.data[0]["ip_address"] == "203.0.113.xxx"
 
-    def test_admin_it_sees_the_full_approval_ip(
-        self, admin_it_client, pilot_case, ketua_user
-    ):
-        self._sign(pilot_case, ketua_user)
+    def test_superuser_sees_the_full_approval_ip(self, user_factory, pilot_case, ketua_user):
+        """Admin IT no longer reads approvals at all (round 5 item 5)."""
+        from rest_framework.test import APIClient
 
-        response = admin_it_client.get(f"/api/v1/cases/{pilot_case.case_id}/approvals/")
+        self._sign(pilot_case, ketua_user)
+        client = APIClient()
+        client.force_authenticate(user=user_factory(email="root@example.com", is_superuser=True))
+
+        response = client.get(f"/api/v1/cases/{pilot_case.case_id}/approvals/")
 
         assert response.status_code == 200
         assert response.data[0]["ip_address"] == "203.0.113.42"

@@ -102,6 +102,9 @@ def analysed_case(hta_client, hta_user, kft_member_client, kft_member_user):
 
     assert hta_client.post(f"/api/v1/cases/{CASE_ID}/econ/compute/").status_code in {200, 201}
     assert hta_client.post(f"/api/v1/cases/{CASE_ID}/econ/bia/compute/").status_code in {200, 201}
+    assert hta_client.post(
+        f"/api/v1/cases/{CASE_ID}/econ/psa/compute/", {"n_simulations": 100}, format="json"
+    ).status_code == 201
 
     # KFT member appraises all nine domains.
     domains = kft_member_client.get("/api/v1/etd/domains/").data
@@ -127,6 +130,12 @@ def analysed_case(hta_client, hta_user, kft_member_client, kft_member_user):
     assert hta_client.post(
         f"/api/v1/cases/{CASE_ID}/recommendation/compute/", {}, format="json"
     ).status_code in {200, 201}
+
+    assert kft_member_client.post(
+        f"/api/v1/cases/{CASE_ID}/final-decisions/",
+        {"decision": "adopt_with_criteria", "reason": "Keputusan sintetis UAT."},
+        format="json",
+    ).status_code == 201
 
     case.refresh_from_db()
     return case

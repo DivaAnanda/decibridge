@@ -26,6 +26,58 @@ def _get_case(case_id: str) -> Case:
     return get_object_or_404(Case, case_id=case_id)
 
 
+def _approval_refusal(case: Case, recommendation: Recommendation, data: dict) -> Response | None:
+    """Why an approval may not be signed now, or None.
+
+    Phase V3: the dossier must be complete. Round 5: the signature binds the
+    latest recommendation and the current KFT decision, so a stale screen
+    cannot sign something other than what the checks just passed.
+    """
+    latest = case.recommendations.order_by("-computed_at").first()
+    if latest is None or recommendation.pk != latest.pk:
+        return Response(
+            {
+                "detail": (
+                    "Rekomendasi sudah dihitung ulang sejak halaman ini dimuat. Muat ulang tab "
+                    "Sign-Off dan tinjau rekomendasi terbaru sebelum menandatangani."
+                )
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+    readiness = evaluate_readiness(case)
+    if not readiness["is_ready"]:
+        return Response(
+            {
+                "detail": "Dossier belum lengkap: " + "; ".join(readiness["missing"]),
+                "missing": readiness["missing"],
+            },
+            status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    expected = data.get("final_decision_id")
+    current = case.final_decisions.first()
+    if expected is not None and (current is None or current.pk != expected):
+        return Response(
+            {
+                "detail": (
+                    "Keputusan Final KFT berubah sejak halaman ini dimuat. Muat ulang tab "
+                    "Sign-Off dan tinjau keputusan terbaru sebelum menandatangani."
+                )
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+    return None
+
+
+def _decision_context(case: Case) -> dict:
+    from apps.cases.completeness import _revision_start
+
+    latest = case.recommendations.order_by("-computed_at").first()
+    return {
+        "latest_recommendation_id": latest.pk if latest else None,
+        "revision_start": _revision_start(case),
+    }
+
+
 class ApprovalListView(APIView):
     """GET all approval events for a case (any viewer)."""
 
@@ -33,10 +85,15 @@ class ApprovalListView(APIView):
 
     def get(self, request: Request, case_id: str) -> Response:
         case = _get_case(case_id)
-        approvals = case.approvals.select_related("approver", "recommendation")
+        approvals = case.approvals.select_related(
+            "approver",
+            "recommendation",
+            "final_decision__decided_by",
+            "final_decision__recommendation",
+        )
         return Response(
             ApprovalReadSerializer(
-                approvals, many=True, context={"request": request}
+                approvals, many=True, context={"request": request, **_decision_context(case)}
             ).data
         )
 
@@ -87,24 +144,16 @@ class ApprovalSignView(APIView):
         decision = data["decision"]
         reason = data.get("reason", "").strip()
 
-        # Phase V3: block sign-off approval until the dossier is complete
-        # (all 9 EtD domains, CEA, BIA, recommendation). Rejection and
-        # revision requests are always allowed — they don't finalise anything.
-        if decision == ApprovalDecision.APPROVED.value:
-            readiness = evaluate_readiness(case)
-            if not readiness["is_ready"]:
-                return Response(
-                    {
-                        "detail": "Dossier belum lengkap: " + "; ".join(readiness["missing"]),
-                        "missing": readiness["missing"],
-                    },
-                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                )
-
         # State machine transition. Rejection/revision both send the case back to draft.
         try:
             with transaction.atomic():
+                # Recording a final decision takes the same lock, so nothing can
+                # change between the checks below and the signature that binds them.
+                case = Case.objects.select_for_update().get(pk=case.pk)
                 if decision == ApprovalDecision.APPROVED.value:
+                    refusal = _approval_refusal(case, recommendation, data)
+                    if refusal is not None:
+                        return refusal
                     case_transition(case, "approve", request.user)
                 else:
                     case_transition(case, "send_back", request.user, reason=reason)
@@ -112,6 +161,7 @@ class ApprovalSignView(APIView):
                 approval = Approval.objects.create(
                     case=case,
                     recommendation=recommendation,
+                    final_decision=case.final_decisions.first(),
                     approver=request.user,
                     decision=decision,
                     confirmation_acknowledged=data["confirmation_acknowledged"],
@@ -134,6 +184,7 @@ class ApprovalSignView(APIView):
                         "decision": decision,
                         "recommendation_id": recommendation.pk,
                         "traffic_light": recommendation.traffic_light,
+                        "final_decision_id": approval.final_decision_id,
                     },
                 }
             },
@@ -146,6 +197,8 @@ class ApprovalSignView(APIView):
         )
 
         return Response(
-            ApprovalReadSerializer(approval, context={"request": request}).data,
+            ApprovalReadSerializer(
+                approval, context={"request": request, **_decision_context(case)}
+            ).data,
             status=status.HTTP_201_CREATED,
         )

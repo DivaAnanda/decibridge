@@ -182,7 +182,18 @@ export function EconPSATab({ caseId, caseIsLocked }: Props): JSX.Element {
       {latest?.is_stale && (
         <Alert color="orange" title="Hasil PSA ini tidak lagi sesuai input">
           Parameter, distribusi, atau pengaturan model berubah setelah PSA ini dijalankan.
-          Jalankan ulang PSA agar hasil di atas mencerminkan input yang sekarang.
+          {caseIsLocked
+            ? ' Kasus sudah terkunci, sehingga PSA ini tidak dapat dijalankan ulang.'
+            : ' Jalankan ulang PSA agar hasil di atas mencerminkan input yang sekarang. Sign-off ' +
+              'dan penguncian ditolak sampai PSA dijalankan ulang.'}
+        </Alert>
+      )}
+
+      {latest && latest.is_stale === null && !caseIsLocked && (
+        <Alert color="orange" title="PSA ini perlu dijalankan ulang">
+          PSA ini dijalankan sebelum 13 Oktober 2026, ketika input PSA belum dicatat, sehingga
+          kesesuaiannya dengan input sekarang tidak dapat diperiksa. Sign-off dan penguncian
+          ditolak sampai PSA dijalankan ulang.
         </Alert>
       )}
 

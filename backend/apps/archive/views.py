@@ -12,7 +12,7 @@ from apps.cases.models import Case
 
 from . import service
 from .models import ArchiveRecord
-from .permissions import ArchivePermission
+from .permissions import ArchiveManifestPermission, ArchivePermission
 from .serializers import ArchiveRecordSerializer
 
 
@@ -38,7 +38,7 @@ class ArchiveDetailView(APIView):
 class ArchiveManifestDownloadView(APIView):
     """GET /api/v1/cases/{case_id}/archive/manifest/ — download manifest.json."""
 
-    permission_classes = (IsAuthenticated, ArchivePermission)
+    permission_classes = (IsAuthenticated, ArchiveManifestPermission)
 
     def get(self, request: Request, case_id: str) -> FileResponse | Response:
         case = _get_case(case_id)

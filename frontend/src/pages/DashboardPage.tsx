@@ -30,10 +30,11 @@ import {
   IconPlus,
   IconScale,
   IconShieldCheck,
+  IconUsersGroup,
 } from '@tabler/icons-react'
 
 import { listCases } from '../api/cases'
-import { STATUS_COLOR, STATUS_LABEL_ID, type CaseListItem } from '../cases/types'
+import { STATUS_COLOR, STATUS_LABEL_ID, type CaseMetadataListItem } from '../cases/types'
 import { useAuth } from '../auth/useAuth'
 import { HealthCheck } from '../components/HealthCheck'
 
@@ -112,15 +113,22 @@ const ROLE_QUICK_LINKS: Record<RoleSlug, QuickLink[]> = {
   ],
   admin_it: [
     {
+      label: 'Administrasi Pengguna',
+      description: 'Kelola akun, peran, dan riwayat login',
+      to: '/administrasi/pengguna',
+      icon: IconUsersGroup,
+      color: 'teal',
+    },
+    {
       label: 'Daftar Kasus',
-      description: 'Lihat status kasus formularium',
+      description: 'Pantau status dan integritas (metadata saja)',
       to: '/cases',
       icon: IconFileText,
       color: 'blue',
     },
     {
       label: 'Kasus Terarsipkan',
-      description: 'Audit arsip 7 tahun',
+      description: 'Periksa segel SHA-256 dan retensi arsip',
       to: '/cases?status=archived',
       icon: IconArchive,
       color: 'gray',
@@ -142,7 +150,7 @@ const STAT_BOXES: StatBox[] = [
   { status: 'archived', label: 'Terarsipkan', icon: IconArchive },
 ]
 
-function countByStatus(cases: CaseListItem[]): Record<string, number> {
+function countByStatus(cases: CaseMetadataListItem[]): Record<string, number> {
   const counts: Record<string, number> = {
     draft: 0,
     in_review: 0,
@@ -159,7 +167,7 @@ function countByStatus(cases: CaseListItem[]): Record<string, number> {
   return counts
 }
 
-function countFlagged(cases: CaseListItem[]): number {
+function countFlagged(cases: CaseMetadataListItem[]): number {
   return cases.filter((c) => c.integrity_flag).length
 }
 
@@ -171,7 +179,7 @@ export function DashboardPage(): JSX.Element {
     queryFn: () => listCases(),
   })
 
-  const cases: CaseListItem[] = useMemo(
+  const cases: CaseMetadataListItem[] = useMemo(
     () => casesQuery.data?.results ?? [],
     [casesQuery.data],
   )

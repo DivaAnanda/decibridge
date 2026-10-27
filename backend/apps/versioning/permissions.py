@@ -1,4 +1,4 @@
-"""Versioning permissions — read-only for all authenticated viewers."""
+"""Versioning permissions: read-only, for the roles that may read case content."""
 
 from __future__ import annotations
 
@@ -14,13 +14,12 @@ VIEWER_ROLES = frozenset(
         RoleSlug.FARMASI_SEKRETARIS,
         RoleSlug.KETUA_KFT,
         RoleSlug.KFT_MEMBER,
-        RoleSlug.ADMIN_IT,
     }
 )
 
 
 class VersioningPermission(BasePermission):
-    """Every authenticated role may read versions, timelines, and diffs."""
+    """Versions carry the locked figures, so Admin IT is not a reader (round 5 item 5)."""
 
     message = "Anda tidak memiliki akses ke riwayat versi kasus ini."
 

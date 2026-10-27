@@ -24,6 +24,8 @@ from apps.approval.models import Approval
 from apps.bia.models import BIAInput, BIAResult, ProjectionHorizon, Severity
 from apps.cases.models import Case, CaseStatus
 from apps.cea.models import CEAInput, CEAResult, Dominance
+from apps.econ.models import EconPSAResult
+from apps.econ.psa_distributions import psa_result_is_stale
 from apps.core.privacy import mask_ip
 from apps.etd.aggregation import aggregate_domain, aggregate_overall
 from apps.etd.models import Certainty, EtDAppraisal, EtDDomain, Judgement, ReferenceCitation
@@ -93,6 +95,11 @@ _DECISION_LABEL_ID = {
 # ----------------------------------------------------------------------------
 
 
+def _pico_population(case: Case) -> str:
+    first = case.decision_questions.order_by("order").first()
+    return first.pico_population if first else ""
+
+
 def _build_case_info(case: Case) -> engine.CaseInfo:
     return engine.CaseInfo(
         case_id=case.case_id,
@@ -100,7 +107,8 @@ def _build_case_info(case: Case) -> engine.CaseInfo:
         intervention=case.technology,
         comparator=case.comparator,
         indication=case.indication,
-        population=case.population,
+        # The case's own population field is optional; the PICO P is not.
+        population=case.population or _pico_population(case),
         setting=case.setting,
         perspective=case.get_perspective_display(),
         created_by_name=case.created_by.full_name or case.created_by.email,
@@ -363,6 +371,76 @@ def _build_recommendation(rec: Recommendation | None) -> engine.RecommendationBl
     )
 
 
+def _build_decision_questions(case: Case) -> list[engine.DecisionQuestionRow]:
+    return [
+        engine.DecisionQuestionRow(
+            number=q.order,
+            question=q.question_text,
+            population=q.pico_population,
+            intervention=q.pico_intervention,
+            comparator=q.pico_comparator,
+            outcome=q.pico_outcome,
+        )
+        for q in case.decision_questions.order_by("order")
+    ]
+
+
+_CEAC_MULTIPLES = (0.0, 0.5, 1.0, 1.5, 2.0)
+
+
+def _ceac_points(ceac: list[dict], wtp_base: Decimal) -> list[engine.CEACPoint]:
+    """The curve at 0, 0.5, 1, 1.5 and 2 times the base WTP: a document prints a
+    table, not the chart."""
+    picked: list[dict] = []
+    for multiple in _CEAC_MULTIPLES if ceac else ():
+        target = float(wtp_base) * multiple
+        nearest = min(ceac, key=lambda point: abs(point["wtp"] - target))
+        if nearest not in picked:
+            picked.append(nearest)
+    return [
+        engine.CEACPoint(wtp=Decimal(str(round(point["wtp"]))), probability=point["prob"])
+        for point in picked
+    ]
+
+
+def _build_psa(case: Case) -> engine.PSABlock | None:
+    psa = EconPSAResult.objects.filter(case=case).order_by("-computed_at", "-id").first()
+    if psa is None:
+        return None
+    stale = psa_result_is_stale(psa)
+    return engine.PSABlock(
+        n_simulations=psa.n_simulations,
+        seed=psa.random_seed,
+        wtp_base=psa.wtp_base,
+        prob_cost_effective=psa.prob_cost_effective_base,
+        mean_incremental_cost=psa.mean_incremental_cost,
+        mean_incremental_qaly=psa.mean_incremental_qaly,
+        base_case_incremental_cost=psa.base_case_incremental_cost,
+        base_case_incremental_qaly=psa.base_case_incremental_qaly,
+        interpretation_text=psa.interpretation_text,
+        computed_at=psa.computed_at,
+        is_current=None if stale is None else not stale,
+        ceac=_ceac_points(psa.ceac, psa.wtp_base),
+    )
+
+
+def _build_final_decision(
+    case: Case, recommendation: Recommendation | None
+) -> engine.FinalDecisionBlock | None:
+    decision = case.final_decisions.select_related("decided_by").first()
+    if decision is None:
+        return None
+    return engine.FinalDecisionBlock(
+        decision_label=str(decision.get_decision_display()),
+        reason=decision.reason,
+        decided_by=decision.decided_by.full_name or decision.decided_by.email,
+        decided_at=decision.decided_at,
+        on_latest_recommendation=(
+            recommendation is not None and decision.recommendation_id == recommendation.pk
+        ),
+    )
+
+
 def _build_references(case: Case) -> list[engine.ReferenceRow]:
     refs = list(
         ReferenceCitation.objects.filter(case=case).order_by("publication_year", "authors")
@@ -421,6 +499,9 @@ def build_context(case: Case, version: int) -> engine.BriefContext:
         approvals=_build_approvals(case),
         generated_at=timezone.localtime(),
         version=version,
+        decision_questions=_build_decision_questions(case),
+        psa=_build_psa(case),
+        final_decision=_build_final_decision(case, recommendation),
     )
 
 

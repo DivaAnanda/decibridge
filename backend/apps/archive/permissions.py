@@ -1,9 +1,9 @@
-"""Archive permissions — read-only for all 5 roles.
+"""Archive permissions: read-only.
 
-The archive ACTION (state machine transition) is gated separately in
-apps.cases.state_machine.TRANSITIONS["archive"] and only allows
-ADMIN_IT + KETUA_KFT. This permission class is just for the API
-endpoints that surface the resulting ArchiveRecord.
+The archive ACTION is gated separately in the state machine (Ketua KFT only).
+The ArchiveRecord (date, retention, SHA-256 seal, artifact counts) is readable by
+all five roles, so Admin IT can check backup and integrity. The manifest itself is
+a full export of the case, so Admin IT may not download it (round 5 item 5).
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from apps.accounts.models import RoleSlug
+from apps.cases.permissions import VIEWER_ROLES as CONTENT_ROLES
 
 VIEWER_ROLES = frozenset(
     {
@@ -27,6 +28,7 @@ VIEWER_ROLES = frozenset(
 
 class ArchivePermission(BasePermission):
     message = "Anda tidak memiliki akses ke arsip kasus ini."
+    allowed_roles = VIEWER_ROLES
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         if not (request.user and request.user.is_authenticated):
@@ -34,4 +36,9 @@ class ArchivePermission(BasePermission):
         if request.user.is_superuser:
             return True
         user_roles = set(getattr(request.user, "role_slugs", []))
-        return bool(user_roles & VIEWER_ROLES)
+        return bool(user_roles & self.allowed_roles)
+
+
+class ArchiveManifestPermission(ArchivePermission):
+    message = "Manifest arsip berisi isi kasus dan tidak tersedia untuk peran Anda."
+    allowed_roles = frozenset(CONTENT_ROLES)

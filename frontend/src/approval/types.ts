@@ -1,4 +1,5 @@
 import type { AuthUser } from '../auth/types'
+import type { FinalDecision } from '../recommendation/types'
 
 export type ApprovalDecision = 'approved' | 'rejected' | 'revision_requested'
 
@@ -6,6 +7,7 @@ export interface Approval {
   id: number
   case: number
   recommendation: number
+  final_decision: FinalDecision | null
   approver: AuthUser
   decision: ApprovalDecision
   decision_label: string
@@ -19,6 +21,8 @@ export interface Approval {
 
 export interface SignPayload {
   recommendation_id: number
+  /** The KFT decision on screen; the server refuses if a newer one exists. */
+  final_decision_id?: number | null
   decision: ApprovalDecision
   confirmation_acknowledged: boolean
   password: string

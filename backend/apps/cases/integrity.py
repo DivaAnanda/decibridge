@@ -48,8 +48,7 @@ def _snapshot_requirement(case) -> Requirement:
 
 def evaluate_integrity(case) -> dict:
     """Readiness plus the artefacts a locked decision must carry to be archived."""
-    # action="lock" makes the recorded sign-off mandatory rather than advisory.
-    readiness = evaluate_readiness(case, action="lock")
+    readiness = evaluate_readiness(case, action="integrity")
     extra = [_snapshot_requirement(case)]
 
     requirements = readiness["requirements"] + [r.as_dict() for r in extra]

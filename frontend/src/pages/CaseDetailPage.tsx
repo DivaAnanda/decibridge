@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useParams, Link as RouterLink } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Alert,
   Anchor,
   Badge,
   Button,
@@ -35,12 +36,15 @@ import {
 } from '@tabler/icons-react'
 
 import { getCase, transitionCase } from '../api/cases'
+import { CaseMetadataView } from '../cases/CaseMetadataView'
 import { IntegrityAlert } from '../cases/IntegrityAlert'
 import {
   PERSPECTIVE_LABEL_ID,
   STATUS_COLOR,
   STATUS_LABEL_ID,
+  TRANSITION_HELP_ID,
   TRANSITION_LABEL_ID,
+  hasCaseContent,
   type AllowedTransition,
   type CaseDetail,
 } from '../cases/types'
@@ -164,6 +168,22 @@ function OverviewPanel({ data }: PanelProps): JSX.Element {
   )
 }
 
+/** Round 5 item 4: say which locked version a draft is revising, and why. */
+function RevisionAlert({ data }: PanelProps): JSX.Element | null {
+  const latest = data.versions[0]
+  if (!latest || latest.trigger !== 'revision_requested' || data.is_locked) return null
+  const revises = (latest.diff as { revises_version?: string } | null)?.revises_version
+  const name = revises ? `v${revises}` : 'versi terkunci sebelumnya'
+  return (
+    <Alert color="blue" variant="light" title={`Revisi dari ${name} sedang berjalan`}>
+      <Text size="sm">
+        Versi {name} tetap tersimpan tanpa perubahan di tab Versi. Kasus ini akan dikunci sebagai
+        versi baru. Alasan revisi: {latest.lock_reason || '-'}
+      </Text>
+    </Alert>
+  )
+}
+
 export function CaseDetailPage(): JSX.Element {
   const { caseId = '' } = useParams<{ caseId: string }>()
   const queryClient = useQueryClient()
@@ -183,6 +203,8 @@ export function CaseDetailPage(): JSX.Element {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['case', caseId] })
       void queryClient.invalidateQueries({ queryKey: ['cases'] })
+      void queryClient.invalidateQueries({ queryKey: ['versions', caseId] })
+      void queryClient.invalidateQueries({ queryKey: ['archive', caseId] })
       notifications.show({ color: 'teal', message: 'Status kasus diperbarui.' })
       setPendingTransition(null)
       setReason('')
@@ -216,6 +238,10 @@ export function CaseDetailPage(): JSX.Element {
         <Text c="red">Kasus tidak ditemukan atau gagal dimuat.</Text>
       </Stack>
     )
+  }
+
+  if (!hasCaseContent(data)) {
+    return <CaseMetadataView data={data} />
   }
 
   const handleTransition = (t: AllowedTransition): void => {
@@ -261,6 +287,7 @@ export function CaseDetailPage(): JSX.Element {
       </Group>
 
       <IntegrityAlert caseDetail={data} />
+      <RevisionAlert data={data} />
 
       <Tabs defaultValue="overview" keepMounted={false}>
         <Tabs.List>
@@ -309,7 +336,11 @@ export function CaseDetailPage(): JSX.Element {
           <EtDTab caseId={data.case_id} caseIsLocked={data.is_locked} />
         </Tabs.Panel>
         <Tabs.Panel value="recommendation" pt="md">
-          <RecommendationTab caseId={data.case_id} caseIsLocked={data.is_locked} />
+          <RecommendationTab
+            caseId={data.case_id}
+            caseIsLocked={data.is_locked}
+            caseIsEditable={data.is_editable}
+          />
         </Tabs.Panel>
         <Tabs.Panel value="approval" pt="md">
           <ApprovalTab caseId={data.case_id} caseStatus={data.status} />
@@ -332,8 +363,13 @@ export function CaseDetailPage(): JSX.Element {
         centered
       >
         <Stack>
+          {pendingTransition && TRANSITION_HELP_ID[pendingTransition.name] && (
+            <Text size="sm">{TRANSITION_HELP_ID[pendingTransition.name]}</Text>
+          )}
           <Text size="sm">Tindakan ini memerlukan alasan. Mohon jelaskan secara singkat.</Text>
           <Textarea
+            label="Alasan"
+            withAsterisk
             value={reason}
             onChange={(e) => setReason(e.currentTarget.value)}
             placeholder="Alasan..."

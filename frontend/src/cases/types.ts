@@ -25,6 +25,7 @@ export interface CaseVersion {
   id: number
   version_number: string
   status: 'draft' | 'locked' | 'archived'
+  trigger: 'created' | 'locked' | 'revision_requested'
   locked_at: string | null
   locked_by: AuthUser | null
   lock_reason: string
@@ -46,43 +47,58 @@ export const INTEGRITY_FLAG_LABEL: Record<Exclude<IntegrityFlag, ''>, string> = 
   legacy_invalid: 'Warisan tidak valid',
 }
 
-export interface CaseListItem {
+/** All that Admin IT receives: no clinical or economic content (round 5 item 5). */
+export interface CaseMetadataListItem {
   id: number
   case_id: string
   case_title: string
-  technology: string
-  comparator: string
-  indication: string
   status: CaseStatus
   integrity_flag: IntegrityFlag
-  perspective: CasePerspective
   created_by_email: string
   created_at: string
   updated_at: string
 }
 
-export interface CaseDetail {
-  id: number
-  case_id: string
-  case_title: string
+export interface CaseListItem extends CaseMetadataListItem {
   technology: string
   comparator: string
   indication: string
-  population: string
-  setting: string
   perspective: CasePerspective
+}
+
+export interface CaseMetadata {
+  id: number
+  case_id: string
+  case_title: string
   status: CaseStatus
   integrity_flag: IntegrityFlag
   integrity_notes: string
   integrity_checked_at: string | null
   is_editable: boolean
   is_locked: boolean
-  decision_questions: DecisionQuestion[]
-  versions: CaseVersion[]
   created_by: AuthUser
   created_at: string
   updated_at: string
   allowed_transitions: AllowedTransition[]
+}
+
+export interface CaseDetail extends CaseMetadata {
+  technology: string
+  comparator: string
+  indication: string
+  population: string
+  setting: string
+  perspective: CasePerspective
+  decision_questions: DecisionQuestion[]
+  versions: CaseVersion[]
+}
+
+export function hasCaseContent(c: CaseMetadata): c is CaseDetail {
+  return 'decision_questions' in c
+}
+
+export function hasListContent(c: CaseMetadataListItem): c is CaseListItem {
+  return 'technology' in c
 }
 
 export interface CaseCreateInput {
@@ -126,6 +142,15 @@ export const TRANSITION_LABEL_ID: Record<string, string> = {
   request_revision: 'Minta Revisi',
   lock: 'Kunci Keputusan',
   archive: 'Arsipkan',
+  revise: 'Buat Revisi (Versi Baru)',
+}
+
+/** Extra explanation shown in the reason dialog, where a transition needs one. */
+export const TRANSITION_HELP_ID: Record<string, string> = {
+  revise:
+    'Versi yang terkunci tetap tersimpan tanpa perubahan. Kasus dibuka kembali sebagai Draft ' +
+    'dan akan dikunci sebagai versi baru. Versi baru memerlukan Keputusan Final KFT dan ' +
+    'tanda tangan Ketua KFT yang baru.',
 }
 
 export interface ReadinessRequirement {

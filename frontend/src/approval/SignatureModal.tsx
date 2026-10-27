@@ -20,6 +20,7 @@ interface Props {
   opened: boolean
   decision: ApprovalDecision
   recommendationId: number | null
+  finalDecisionId: number | null
   onClose: () => void
   onSubmit: (payload: {
     decision: ApprovalDecision
@@ -27,6 +28,7 @@ interface Props {
     password: string
     reason: string
     recommendation_id: number
+    final_decision_id: number | null
   }) => void
   isSubmitting: boolean
 }
@@ -35,6 +37,7 @@ export function SignatureModal({
   opened,
   decision,
   recommendationId,
+  finalDecisionId,
   onClose,
   onSubmit,
   isSubmitting,
@@ -61,6 +64,7 @@ export function SignatureModal({
       password,
       reason,
       recommendation_id: recommendationId,
+      final_decision_id: finalDecisionId,
     })
   }
 

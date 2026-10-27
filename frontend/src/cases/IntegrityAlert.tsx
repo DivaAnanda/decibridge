@@ -1,10 +1,10 @@
 import { Alert, List, Text } from '@mantine/core'
 import { IconAlertTriangle } from '@tabler/icons-react'
 
-import { INTEGRITY_FLAG_LABEL, type CaseDetail } from './types'
+import { INTEGRITY_FLAG_LABEL, type CaseMetadata } from './types'
 
 interface Props {
-  caseDetail: CaseDetail
+  caseDetail: CaseMetadata
 }
 
 export function IntegrityAlert({ caseDetail }: Props): JSX.Element | null {

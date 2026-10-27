@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .final_decision_views import FinalDecisionListCreateView
 from .views import (
     CBACriterionDetailView,
     CBACriterionListCreateView,
@@ -23,6 +24,11 @@ urlpatterns = [
         name="compute",
     ),
     path("cases/<str:case_id>/recommendation/results/", RecommendationListView.as_view(), name="results"),
+    path(
+        "cases/<str:case_id>/final-decisions/",
+        FinalDecisionListCreateView.as_view(),
+        name="final_decisions",
+    ),
     path(
         "cases/<str:case_id>/recommendation/results/latest/",
         RecommendationLatestView.as_view(),
