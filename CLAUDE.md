@@ -17,7 +17,7 @@ full run).**
   `UAT_*` (five gate fixtures), `HF_ARNI_ACEI_001` (old validation-workbook values, 11/11 QC),
   `HF_ARNI_ACEI_004` (locked, flagged `requires_remediation`, NEVER DELETE).
 
-### ROUND 5 (WhatsApp from Pak Anom, 2026-10-26) - ALL FIVE ITEMS BUILT (uncommitted); next: regenerate the manual, review, commit when asked
+### ROUND 5 (WhatsApp from Pak Anom, 2026-10-26) - DONE: committed 4e42330 (app) and 31ca3e2 (manual), NOT PUSHED yet; push when the user says
 
 **Item 5 as built (2026-10-26):** `apps/cases/permissions.VIEWER_ROLES` now means "may read case
 content" and no longer holds ADMIN_IT; every analysis app imports it, so econ/CEA/BIA/EtD/
